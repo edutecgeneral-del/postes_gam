@@ -1,11 +1,49 @@
+﻿# === Dependencias e instalaciones ===
 node_modules/
+.pnp/
+.pnp.js
+
+# === Builds ===
 dist/
+dev-dist/
+build/
+.vite/
+
+# === Variables de entorno (NUNCA al repo) ===
+.env
+.env.local
+.env.*.local
+deploy/deploy.env
+
+# === Backups locales (no deben ir al repo) ===
+*.bak
+*.bak.*
+*.bak-*
+*.patchbak
+*.orig
+
+# === Carpeta antigua de referencia ===
+src.old/
+
+# === Scripts auxiliares de patcheo ===
+integra_*.py
+docs/patch_*.py
+
+# === SO y editores ===
 .DS_Store
-*.zip
-
-.env
-deploy/deploy.env
-
-.env
-deploy/deploy.env
+Thumbs.db
 *:Zone.Identifier
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === Logs ===
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# === Zips de respaldo ===
+*.zip
+*.tar.gz
