@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos de OpenLayers (de node_modules/ol/ol.css) */
+@import 'ol/ol.css';
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background-color: #09090b;
+}
+
+body {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Customizar los controles default de OpenLayers para encajar con el tema oscuro */
+.ol-control button {
+  background-color: rgba(24, 24, 27, 0.9) !important;
+  color: #a1a1aa !important;
+  border: 1px solid rgb(39, 39, 42) !important;
+  font-family: ui-monospace, monospace !important;
+}
+.ol-control button:hover,
+.ol-control button:focus {
+  background-color: rgba(39, 39, 42, 0.95) !important;
+  color: #F59E0B !important;
+  outline: none !important;
+}
+.ol-attribution {
+  background-color: rgba(24, 24, 27, 0.7) !important;
+  color: #71717a !important;
+  font-size: 10px !important;
+  font-family: ui-monospace, monospace !important;
+}
+.ol-attribution a {
+  color: #a1a1aa !important;
+}
+.ol-attribution ul {
+  color: #71717a !important;
+}
+.ol-zoom {
+  top: auto !important;
+  bottom: 0.5em !important;
+  left: auto !important;
+  right: 0.5em !important;
+}
+
+/* Scrollbar oscuro */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0b;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}

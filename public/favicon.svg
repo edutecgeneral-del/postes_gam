@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Fondo redondeado rojo GAM -->
+  <rect width="512" height="512" rx="96" fill="#b91c4e"/>
+  <!-- Pin/poste blanco centrado -->
+  <g fill="#ffffff">
+    <!-- Cabeza del pin (cámara) -->
+    <circle cx="256" cy="200" r="72"/>
+    <!-- Cuerpo del poste -->
+    <path d="M232 260 L232 408 L280 408 L280 260 Z"/>
+    <!-- Base -->
+    <rect x="200" y="408" width="112" height="24" rx="6"/>
+  </g>
+  <!-- Punto central del pin (lente cámara) -->
+  <circle cx="256" cy="200" r="28" fill="#b91c4e"/>
+  <circle cx="256" cy="200" r="14" fill="#ffffff"/>
+</svg>

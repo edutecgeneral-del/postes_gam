@@ -1,0 +1,119 @@
+/**
+ * pwa.js — Registro del service worker y eventos para la UI.
+ *
+ * Expone dos custom events sobre `window`:
+ *   - 'pwa:update-available'  → hay una versión nueva, ofrecer recargar
+ *   - 'pwa:offline-ready'     → la app ya está cacheada y funciona sin red
+ *
+ * Auto-update inteligente:
+ *   - Cuando llega una nueva versión, intenta aplicarla automáticamente
+ *     en cuanto sea seguro (sin uploads activos y con la pestaña en background).
+ *   - Si no se puede aplicar de inmediato, dispara 'pwa:update-available'
+ *     para que el banner de UI quede como fallback.
+ *   - Cada 5 min con pestaña visible + al volver al foreground, hace
+ *     `registration.update()` para detectar deploys nuevos rápido (sin
+ *     esperar el chequeo automático default del browser, que es cada 24h).
+ *
+ * El SW solo se registra en producción. En `npm run dev` no hay SW.
+ */
+
+let updateSWFn = null;
+let pendingUpdate = false;
+let activeUploads = 0;
+let updateIntervalId = null;
+
+const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 min
+
+/** Marcar inicio de un upload — bloquea auto-update mientras dure. */
+export function beginUpload() {
+  activeUploads += 1;
+}
+
+/** Marcar fin de un upload — reintenta auto-update si quedaba pendiente. */
+export function endUpload() {
+  activeUploads = Math.max(0, activeUploads - 1);
+  if (activeUploads === 0) tryAutoApply();
+}
+
+/** ¿Hay una actualización pendiente esperando a aplicarse? */
+export function hasPendingUpdate() {
+  return pendingUpdate;
+}
+
+function tryAutoApply() {
+  if (!pendingUpdate || typeof updateSWFn !== 'function') return;
+  if (activeUploads > 0) return;
+  // Solo recargar cuando la pestaña esté oculta — evita interrumpir al usuario
+  if (typeof document !== 'undefined' && document.visibilityState !== 'hidden') return;
+  pendingUpdate = false;
+  try { updateSWFn(true); } catch (e) { console.warn('[PWA] auto-update falló:', e); }
+}
+
+/** Pide al browser que verifique si hay SW nuevo. No-op si ya está al día. */
+async function pokeSWUpdate() {
+  try {
+    if (!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg) await reg.update();
+  } catch (e) {
+    // Errores transitorios de red: silenciar, reintentaremos en el próximo tick
+  }
+}
+
+export async function registerServiceWorker() {
+  if (!import.meta.env.PROD) return;
+
+  try {
+    const { registerSW } = await import('virtual:pwa-register');
+
+    updateSWFn = registerSW({
+      immediate: true,
+
+      onNeedRefresh() {
+        pendingUpdate = true;
+        window.dispatchEvent(new CustomEvent('pwa:update-available'));
+        // Si la app ya está en background al momento de detectar, aplicar enseguida
+        tryAutoApply();
+      },
+
+      onOfflineReady() {
+        window.dispatchEvent(new CustomEvent('pwa:offline-ready'));
+      },
+
+      onRegisterError(err) {
+        console.warn('[PWA] registro falló:', err);
+      },
+    });
+
+    // Reintentar auto-apply al cambiar visibilidad o al cerrar la tab
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        tryAutoApply();
+        // Y de paso, al volver al foreground, checar si hay deploy nuevo
+        if (document.visibilityState === 'visible') pokeSWUpdate();
+      });
+    }
+    window.addEventListener('pagehide', tryAutoApply);
+
+    // Verificación periódica del SW — cada 5 min con pestaña visible.
+    // El default del browser es checar cada 24h, demasiado lento para
+    // un proyecto de campo donde deployamos varias veces al día.
+    if (typeof document !== 'undefined') {
+      updateIntervalId = setInterval(() => {
+        if (document.visibilityState === 'visible') pokeSWUpdate();
+      }, UPDATE_CHECK_INTERVAL_MS);
+    }
+  } catch (e) {
+    console.warn('[PWA] no se pudo registrar SW:', e);
+  }
+}
+
+/** Llama a esto cuando el usuario acepta recargar para la nueva versión. */
+export async function applyUpdate() {
+  pendingUpdate = false;
+  if (typeof updateSWFn === 'function') {
+    await updateSWFn(true);
+  } else {
+    window.location.reload();
+  }
+}
