@@ -1,9 +1,9 @@
+﻿/* Estilos de OpenLayers (de node_modules/ol/ol.css) — DEBE ir antes de @tailwind */
+@import 'ol/ol.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Estilos de OpenLayers (de node_modules/ol/ol.css) */
-@import 'ol/ol.css';
 
 html, body, #root {
   height: 100%;
