@@ -3,12 +3,12 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
-// La app se sirve en producción bajo la ruta `/CI1215V2/` del VPS.
+// La app se sirve en producción bajo la ruta `/CI1215V3/` del VPS.
 // En dev (npm run dev) se sirve en raíz `/` como siempre.
 // Vite usa `base` para prefijar las URLs de JS/CSS/imágenes generadas.
 export default defineConfig(({ command }) => {
   const isBuild = command === 'build';
-  const base = isBuild ? '/CI1215V2/' : '/';
+  const base = isBuild ? '/CI1215V3/' : '/';
 
   return {
     base,
@@ -25,7 +25,7 @@ export default defineConfig(({ command }) => {
         ],
 
         manifest: {
-          id: '/CI1215V2/',
+          id: '/CI1215V3/',
           name: 'Coordinación de Campo · GAM',
           short_name: 'CI1215',
           description: 'Captura y monitoreo de postes de videovigilancia GAM',
@@ -34,7 +34,7 @@ export default defineConfig(({ command }) => {
           display: 'standalone',
           orientation: 'portrait',
           lang: 'es-MX',
-          // En producción la app vive bajo /CI1215V2/
+          // En producción la app vive bajo /CI1215V3/
           scope: base,
           start_url: base,
           icons: [
@@ -55,7 +55,7 @@ export default defineConfig(({ command }) => {
           // Limpiar caches viejos automáticamente
           cleanupOutdatedCaches: true,
 
-          // Importante: SPA fallback respetando el subpath /CI1215V2/
+          // Importante: SPA fallback respetando el subpath /CI1215V3/
           navigateFallback: `${base}index.html`,
           // Excluir requests a Supabase y a los tiles del navigateFallback
           navigateFallbackDenylist: [
