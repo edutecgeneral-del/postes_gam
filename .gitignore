@@ -6,13 +6,10 @@ dist/
 deploy/deploy.env
 *:Zone.Identifier
 
-# Backups y archivos .bak (no deben commitearse nunca)
-*.bak
-*.bak.*
-src.old/
-docs/patch_*.py
-integra_*.py
-
-# Scripts locales de migración (one-shot, no parte de la app)
-apply_*.py
+# Patch scripts (uso único, no van al repo)
 fix_*.py
+paso*.py
+patch_*.py
+integra_*.py
+geo.py
+EOF

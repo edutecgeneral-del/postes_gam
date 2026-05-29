@@ -78,6 +78,7 @@ import CreatePostForm from './components/CreatePostForm.jsx';
 import FieldCaptureView from './components/FieldCaptureView.jsx';
 import ScoutingView from './components/ScoutingView.jsx';
 import EstadoConexion from './components/EstadoConexion.jsx';
+import GeoV2View from './components/GeoV2View.jsx';
 import { PhotoField } from './components/StageFields.jsx';
 import { getPersistedForm, persistForm, clearPersistedForm, onBackgroundSave } from './lib/formPersist.js';
 import {
@@ -6939,6 +6940,7 @@ export default function FieldCoordApp() {
     { id: 'usuarios',    label: 'Usuarios',     icon: Users,         show: isAdmin },
     { id: 'auditoria',   label: 'Auditoría',    icon: ListChecks,    show: isAdmin || isDirector },
     { id: 'informe',     label: 'Informe',      icon: ClipboardList, show: isAdmin || isDirector },
+    { id: 'geo_v2',      label: 'Geo v2',       icon: Layers,        show: isAdmin || isDirector || isCoordinador },
   ].filter(t => t.show);
 
   // ---- LOGIN GATE ----
@@ -7127,6 +7129,7 @@ export default function FieldCoordApp() {
             onNavigatePostes={(f) => { filterCtx.setFilters(prev => ({ ...prev, stages: f.stage && f.stage !== 'todas' ? [f.stage] : [], uts: f.ut && f.ut !== 'todas' ? [f.ut] : [] })); setActiveTab('postes'); }} />}
           {activeTab === 'dashboard' && isRAAL && <RAALDashboard posts={posts} />}
           {activeTab === 'mipanel' && <MiPanel posts={posts} incidents={incidents} profile={profile} userRole={userRole} stageDefs={STAGE_DEFS} />}
+          {activeTab === 'geo_v2' && <GeoV2View userRole={userRole} />}
           {activeTab === 'mapa' && (
             <div className="h-full flex flex-col">
               <div className="px-6 py-4 border-b border-stone-300 flex items-center gap-3 flex-wrap">
