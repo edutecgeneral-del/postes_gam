@@ -662,7 +662,7 @@ function readStoredMapView() {
 function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost, stageDefs, darkMode,
                    measureMode = false, setMeasureMode, measurePoints = [], setMeasurePoints,
                    editingPostId, onConfirmRelocate, onCancelRelocate,
-                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, onMergePosts, onCompareDetail, incidents = [], userNames = {} }) {
+                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [] }) {
   const containerRef = useRef(null);
   const isMobile = useIsMobile();
   const mapRef = useRef(null);
@@ -1036,16 +1036,19 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       }));
       src.addFeature(polyFeat);
       const c = centroidLngLat(pts);
+      const utInfo = (unidadesTerritoriales || []).find(u => u?.id === ut);
+      const labelText = utInfo?.nombre ? `${ut}\n${utInfo.nombre}` : ut;
       const labelFeat = new OLFeature({ geometry: new OLPoint(olFromLonLat([c.lng, c.lat])) });
       labelFeat.setStyle(new OLStyle({
         text: new OLText({
-          text: ut,
-          font: 'bold 14px monospace',
+          text: labelText,
+          font: 'bold 12px monospace',
           fill: new OLFill({ color: '#1F2937' }),
-          backgroundFill: new OLFill({ color: 'rgba(255, 255, 255, 0.9)' }),
+          backgroundFill: new OLFill({ color: 'rgba(255, 255, 255, 0.92)' }),
           backgroundStroke: new OLStroke({ color: color, width: 2 }),
-          padding: [3, 6, 3, 6],
+          padding: [4, 7, 4, 7],
           overflow: true,
+          textAlign: 'center',
         }),
       }));
       src.addFeature(labelFeat);
@@ -2216,6 +2219,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
           userNames={userNames}
           mode="list-detalle"
           incidents={incidents}
+          unidadesTerritoriales={unidadesTerritoriales}
         />
         <div className="text-xs font-mono text-stone-500 ml-auto flex items-center gap-2">
           {isAdmin && selectedForDelete.size > 0 && (
@@ -7151,6 +7155,7 @@ export default function FieldCoordApp() {
                     incidents={incidents}
                     measureMode={measureMode}
                     setMeasureMode={setMeasureMode}
+                    unidadesTerritoriales={unidadesTerritoriales}
                   />
                 </div>
               </div>
@@ -7163,6 +7168,7 @@ export default function FieldCoordApp() {
                          onConfirmRelocate={handleConfirmRelocate}
                          onCancelRelocate={handleCancelRelocate}
                          isAdmin={isAdmin}
+                         unidadesTerritoriales={unidadesTerritoriales}
             onMergePosts={async (principalId, secundarioId, stageChoices, keepAddress) => { await dbMergePosts(principalId, secundarioId, stageChoices, keepAddress); await refreshData(true); }}
             onCompareDetail={(a, b) => setComparePair([a, b])}
             addingMode={addingPostMode}

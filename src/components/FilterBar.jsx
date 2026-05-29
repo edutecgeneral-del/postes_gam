@@ -278,6 +278,7 @@ export function FilterBar({
   incidents = [],         // para calcular tipos de incidencia
   measureMode = false,
   setMeasureMode,
+  unidadesTerritoriales = [],
 }) {
   const { catalog: tagCatalog } = useTagCatalog();
   const counts = useMemo(
@@ -295,14 +296,26 @@ export function FilterBar({
     { value: 'bloqueado', label: '⚠ Bloqueado', count: counts.stages.bloqueado || 0 },
   ]), [stageDefs, counts]);
 
+  // Map id de UT -> nombre de la colonia (para mostrar 'ID - Nombre' en filtros)
+  const utNombreMap = useMemo(() => {
+    const m = new Map();
+    for (const u of (unidadesTerritoriales || [])) {
+      if (u?.id) m.set(u.id, u.nombre || '');
+    }
+    return m;
+  }, [unidadesTerritoriales]);
+
   const utOptions = useMemo(() => {
     const utList = [...new Set(posts.map(p => p.unidad_territorial).filter(Boolean))].sort();
-    return utList.map(ut => ({
-      value: ut,
-      label: ut,
-      count: counts.uts[ut] || 0,
-    }));
-  }, [posts, counts]);
+    return utList.map(ut => {
+      const nombre = utNombreMap.get(ut);
+      return {
+        value: ut,
+        label: nombre ? `${ut} - ${nombre}` : ut,
+        count: counts.uts[ut] || 0,
+      };
+    });
+  }, [posts, counts, utNombreMap]);
 
   const capturadorOptions = useMemo(() => {
     const ids = new Set();
