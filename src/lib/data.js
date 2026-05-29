@@ -320,6 +320,9 @@ export async function loadAllData() {
       approvedAt: p.approved_at ? new Date(p.approved_at).getTime() : null,
       lastUpdate: p.last_update ? new Date(p.last_update).getTime() : null,
       createdAt: p.created_at ? new Date(p.created_at).getTime() : null,
+      antenaRecuperada: p.antena_recuperada === true,
+      antenaRecuperadaAt: p.antena_recuperada_at,
+      antenaRecuperadaPor: p.antena_recuperada_por,
       stages,
       tags: tagsByPost[p.id] || [],
     };
@@ -1364,4 +1367,26 @@ export async function listFusiones(postId) {
     .order('fusionado_at', { ascending: false });
   if (error) return { ok: false, data: [], error: error.message };
   return { ok: true, data: data || [], error: null };
+}
+
+/**
+ * Actualiza el estado de antena_recuperada de un poste (admin only).
+ * PR B: modulo "Poste de Internet - Recuperar antena".
+ * Si recuperada=true, registra timestamp y user_id.
+ * Si recuperada=false, limpia timestamp y user_id.
+ */
+export async function setPostAntenaRecuperada(postId, recuperada, byUserId) {
+  const sb = requireSupabase();
+  const update = recuperada ? {
+    antena_recuperada: true,
+    antena_recuperada_at: new Date().toISOString(),
+    antena_recuperada_por: byUserId,
+  } : {
+    antena_recuperada: false,
+    antena_recuperada_at: null,
+    antena_recuperada_por: null,
+  };
+  const { error } = await sb.from('posts').update(update).eq('id', postId);
+  if (error) throw error;
+  return true;
 }
