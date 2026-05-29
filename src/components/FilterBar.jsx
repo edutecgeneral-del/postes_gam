@@ -276,6 +276,8 @@ export function FilterBar({
   showTags = true,
   showMaint = true,       // chips de mantenimiento E4 (faltan cámaras / falta silicón)
   incidents = [],         // para calcular tipos de incidencia
+  measureMode = false,
+  setMeasureMode,
 }) {
   const { catalog: tagCatalog } = useTagCatalog();
   const counts = useMemo(
@@ -431,6 +433,20 @@ export function FilterBar({
         onClear={() => clearDim('uts')}
         searchable
       />
+
+      {setMeasureMode && (
+        <button
+          type="button"
+          onClick={() => setMeasureMode(m => !m)}
+          className={`px-3 py-1.5 text-xs font-mono border transition-colors ${
+            measureMode
+              ? 'bg-amber-100 border-amber-500 text-amber-800 hover:border-amber-600'
+              : 'bg-stone-50 border-stone-300 text-stone-700 hover:border-stone-500'
+          }`}
+        >
+          📏 {measureMode ? 'Medir (ON)' : 'Medir'}
+        </button>
+      )}
 
       {showCapturador && capturadorOptions.length > 0 && (
         <MultiChip
