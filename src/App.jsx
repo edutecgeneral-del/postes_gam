@@ -104,6 +104,8 @@ import MergeModal from './components/MergeModal.jsx';
 import { dbMergePosts } from './lib/data.js';
 import ScoutingRoutePanel from './components/ScoutingRoutePanel.jsx';
 import EnvBanner from './components/EnvBanner.jsx';
+import { assignTagToPost, removeTagFromPost, invalidateTagCatalog } from './lib/tags.js';
+import AntenaForm from './components/AntenaForm.jsx';
 
 
 // ============================================================================
@@ -212,6 +214,7 @@ const STAGE_DEFS = [
       { key: 'cascajo', label: 'Cascajo o basura de instalación', type: 'select', options: ['Sin cascajo ni basura', 'Con cascajo o basura'], required: true },
       { key: 'cascajo_foto', label: 'Foto del cascajo/basura', type: 'image', showWhen: { key: 'cascajo', value: 'Con cascajo o basura' } },
       { key: 'boton_panico', label: 'Botón de pánico instalado', type: 'boolean', default: false },
+      { key: 'boton_panico_foto', label: 'Foto del botón de pánico', type: 'image', showWhen: { key: 'boton_panico', value: true } },
     ],
   },
   {
@@ -663,7 +666,7 @@ function readStoredMapView() {
 function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost, stageDefs, darkMode,
                    measureMode = false, setMeasureMode, measurePoints = [], setMeasurePoints,
                    editingPostId, onConfirmRelocate, onCancelRelocate,
-                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [] }) {
+                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena }) {
   const containerRef = useRef(null);
   const isMobile = useIsMobile();
   const mapRef = useRef(null);
@@ -698,6 +701,11 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
   const utPolygonSourceRef = useRef(null);
   const onMapClickForNewPostRef = useRef(onMapClickForNewPost);
   useEffect(() => { onMapClickForNewPostRef.current = onMapClickForNewPost; }, [onMapClickForNewPost]);
+  // PR B Lote 3: capa de iconos antena (admin)
+  const antenaLayerRef = useRef(null);
+  const antenaSourceRef = useRef(null);
+  const onClickAntenaRef = useRef(onClickAntena);
+  useEffect(() => { onClickAntenaRef.current = onClickAntena; }, [onClickAntena]);
   const translateRef = useRef(null);
   const [tileProvider, setTileProvider] = useState(initialTileProvider);
   const [tileNotice, setTileNotice] = useState(null);
@@ -884,6 +892,18 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
           return;
         }
       }
+      // PR B Lote 3: click en icono de antena (admin only) -> abrir modal
+      const antenaFeat = map.forEachFeatureAtPixel(e.pixel, f => f, {
+        hitTolerance: 6,
+        layerFilter: (l) => l === antenaLayerRef.current,
+      });
+      if (antenaFeat?.get('isAntenaIcon')) {
+        const ap = antenaFeat.get('post');
+        if (ap && onClickAntenaRef.current) {
+          onClickAntenaRef.current(ap);
+          return;
+        }
+      }
       const feat = map.forEachFeatureAtPixel(e.pixel, f => f, { hitTolerance: 6 });
       if (feat) {
         const post = feat.get('post');
@@ -1055,6 +1075,43 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       src.addFeature(labelFeat);
     });
   }, [filters?.uts, filtered]);
+
+  // PR B Lote 3: Layer de iconos antena (admin only, solo postes con E5 internet done)
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (!antenaLayerRef.current) {
+      const src = new OLVectorSource();
+      const layer = new OLVectorLayer({ source: src, zIndex: 25 });
+      mapRef.current.addLayer(layer);
+      antenaLayerRef.current = layer;
+      antenaSourceRef.current = src;
+    }
+    const src = antenaSourceRef.current;
+    src.clear();
+    if (!isAdmin) return;
+    for (const p of (posts || [])) {
+      if (!p.stages?.internet?.done) continue;
+      if (!p.lat || !p.lng || Math.abs(p.lat) <= 1 || Math.abs(p.lng) <= 1) continue;
+      // Offset al noreste del pin (~20m)
+      const offsetLat = p.lat + 0.00012;
+      const offsetLng = p.lng + 0.00018;
+      const isRecuperada = p.antenaRecuperada === true || p.antena_recuperada === true;
+      const feat = new OLFeature({ geometry: new OLPoint(olFromLonLat([offsetLng, offsetLat])) });
+      feat.set('post', p);
+      feat.set('isAntenaIcon', true);
+      feat.setStyle(new OLStyle({
+        text: new OLText({
+          text: isRecuperada ? 'A V' : 'A',
+          font: 'bold 12px sans-serif',
+          fill: new OLFill({ color: '#FFFFFF' }),
+          backgroundFill: new OLFill({ color: isRecuperada ? '#10B981' : '#3B82F6' }),
+          backgroundStroke: new OLStroke({ color: '#1F2937', width: 1 }),
+          padding: [3, 5, 3, 5],
+        }),
+      }));
+      src.addFeature(feat);
+    }
+  }, [posts, isAdmin]);
 
   // Translate interaction — solo activa cuando hay editingPostId
   useEffect(() => {
@@ -1270,10 +1327,49 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
 
           <div className="mt-3"><StagePipeline post={post} size="sm" /></div>
 
-          <div className="flex items-center gap-3 mt-3 text-[12px] font-mono text-stone-500">
+          <div className="flex items-center gap-3 mt-3 text-[12px] font-mono text-stone-500 flex-wrap">
             <span>{stagesDone}/7 etapas</span>
             <StatusChip post={post} />
             {post.adminApproved && <span className="text-emerald-400">✓ Aprobado</span>}
+            {/* PR B - Parte 7: Indicador de boton de panico cuando E5 internet esta done */}
+            {post.stages?.internet?.done && (
+              post.stages?.camaras?.attrs?.boton_panico === true ? (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  ✓ Botón pánico
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                  ⚠ Falta botón pánico
+                </span>
+              )
+            )}
+            {/* PR B - Parte 6: Toggle tag Internet a Futuro (admin only) */}
+            {isAdmin && (() => {
+              const hasIFTag = post.tags?.some(t => t.id === 'internet_futuro_priorizado');
+              return (
+                <button onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    if (hasIFTag) {
+                      await removeTagFromPost(post.id, 'internet_futuro_priorizado');
+                    } else {
+                      await assignTagToPost(post.id, 'internet_futuro_priorizado', null);
+                    }
+                    invalidateTagCatalog();
+                    await onRefresh?.();
+                  } catch (err) {
+                    alert('Error: ' + (err?.message || err));
+                  }
+                }}
+                  className={`text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors ${
+                    hasIFTag
+                      ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200'
+                      : 'bg-stone-100 text-stone-600 border-stone-300 hover:bg-stone-200'
+                  }`}>
+                  {hasIFTag ? '✓' : '+'} Internet futuro
+                </button>
+              );
+            })()}
           </div>
 
           {userLoc && (
@@ -2094,7 +2190,7 @@ function readStoredPostsPage() {
   }
 }
 
-function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNames = {}, incidents = [], onDeletePosts, onMergePosts, readOnly, onCreatePost, onJumpToMap }) {
+function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNames = {}, incidents = [], onDeletePosts, onMergePosts, readOnly, onCreatePost, onJumpToMap, unidadesTerritoriales = [] }) {
   const { filters } = filterCtx;
   const [search, setSearch] = useState('');
   const [pageInput, setPageInput] = useState(() => String(readStoredPostsPage() + 1));
@@ -6350,6 +6446,8 @@ export default function FieldCoordApp() {
   const [mapFocusPost, setMapFocusPost] = useState(null);
   const [mapFocusKey, setMapFocusKey] = useState(0);
   const [unidadesTerritoriales, setUnidadesTerritoriales] = useState([]);
+  // PR B Lote 3: state para el modal de recuperar antena (admin)
+  const [antenaModalPost, setAntenaModalPost] = useState(null);
   const [userNames, setUserNames] = useState({}); // {userId: displayName}
 
   // Admin: "Ver como" otro rol + preview celular
@@ -7172,6 +7270,8 @@ export default function FieldCoordApp() {
                          onCancelRelocate={handleCancelRelocate}
                          isAdmin={isAdmin}
                          unidadesTerritoriales={unidadesTerritoriales}
+                         onRefresh={() => refreshData(true)}
+                         onClickAntena={(post) => setAntenaModalPost(post)}
             onMergePosts={async (principalId, secundarioId, stageChoices, keepAddress) => { await dbMergePosts(principalId, secundarioId, stageChoices, keepAddress); await refreshData(true); }}
             onCompareDetail={(a, b) => setComparePair([a, b])}
             addingMode={addingPostMode}
@@ -7191,7 +7291,8 @@ export default function FieldCoordApp() {
             isAdmin={isAdmin} userNames={userNames} onDeletePosts={async (postId) => { await dbDeletePost(postId); setPosts(prev => prev.filter(p => p.id !== postId)); }}
             onMergePosts={async (principalId, secundarioId, stageChoices, keepAddress) => { await dbMergePosts(principalId, secundarioId, stageChoices, keepAddress); await refreshData(true); }}
             readOnly={readOnly} onCreatePost={() => setShowCreatePost(true)}
-            onJumpToMap={(p) => { setMapFocusPost(p); setMapFocusKey(k => k + 1); setActiveTab('mapa'); }} />}
+            onJumpToMap={(p) => { setMapFocusPost(p); setMapFocusKey(k => k + 1); setActiveTab('mapa'); }}
+            unidadesTerritoriales={unidadesTerritoriales} />}
           {activeTab === 'captura' && !readOnly && (
             <FieldCaptureView
               posts={posts}
@@ -7332,6 +7433,16 @@ export default function FieldCoordApp() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* PR B Lote 3: Modal Recuperar antena (admin only) */}
+      {antenaModalPost && (
+        <AntenaForm
+          post={antenaModalPost}
+          currentUserId={profile?.userId}
+          onClose={() => setAntenaModalPost(null)}
+          onSaved={() => refreshData(true)}
+        />
       )}
 
       {/* Modal: Crear poste */}
