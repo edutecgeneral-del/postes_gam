@@ -16,7 +16,9 @@ import OLXYZ from 'ol/source/XYZ';
 import OLVectorSource from 'ol/source/Vector';
 import OLFeature from 'ol/Feature';
 import OLPoint from 'ol/geom/Point';
-import { Style as OLStyle, Circle as OLCircle, Fill as OLFill, Stroke as OLStroke } from 'ol/style';
+import { Style as OLStyle, Circle as OLCircle, Fill as OLFill, Stroke as OLStroke, Text as OLText } from 'ol/style';
+import OLLineString from 'ol/geom/LineString';
+import OLPolygon from 'ol/geom/Polygon';
 import { fromLonLat as olFromLonLat, toLonLat as olToLonLat } from 'ol/proj';
 import { Translate as OLTranslate } from 'ol/interaction';
 import OLCollection from 'ol/Collection';
@@ -89,6 +91,7 @@ import { useFilters } from './hooks/useFilters.js';
 import { FilterBar } from './components/FilterBar.jsx';
 import { FilterBarCollapsible } from './components/FilterBarCollapsible.jsx';
 import { filterPosts } from './lib/filters.js';
+import { UT_PALETTE } from './lib/utColors.js';
 import RelocateConfirmModal from './components/RelocateConfirmModal.jsx';
 import PostReubicacionHistory from './components/PostReubicacionHistory.jsx';
 import PostFusionHistory from './components/PostFusionHistory.jsx';
@@ -99,6 +102,7 @@ import { TagBadgeList } from './components/TagBadge';
 import MergeModal from './components/MergeModal.jsx';
 import { dbMergePosts } from './lib/data.js';
 import ScoutingRoutePanel from './components/ScoutingRoutePanel.jsx';
+import EnvBanner from './components/EnvBanner.jsx';
 
 
 // ============================================================================
@@ -592,6 +596,51 @@ function createMapTileSource(providerId, darkMode, onTileError, onTileLoadEnd) {
   return source;
 }
 
+// Distancia Haversine entre dos puntos lat/lng en metros (precisión GPS real)
+// Convex hull (Andrew's monotone chain). Input/output: array de {lng, lat}.
+function convexHull(points) {
+  if (points.length < 3) return points.slice();
+  const pts = points.slice().sort((a, b) => a.lng - b.lng || a.lat - b.lat);
+  const cross = (O, A, B) => (A.lng - O.lng) * (B.lat - O.lat) - (A.lat - O.lat) * (B.lng - O.lng);
+  const lower = [];
+  for (const p of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+  const upper = [];
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+  upper.pop();
+  lower.pop();
+  return lower.concat(upper);
+}
+
+function centroidLngLat(points) {
+  if (!points.length) return null;
+  let sx = 0, sy = 0;
+  for (const p of points) { sx += p.lng; sy += p.lat; }
+  return { lng: sx / points.length, lat: sy / points.length };
+}
+
+function haversineMeters(latA, lngA, latB, lngB) {
+  const R = 6371000;
+  const toRad = (x) => (x * Math.PI) / 180;
+  const dLat = toRad(latB - latA);
+  const dLng = toRad(lngB - lngA);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(latA)) * Math.cos(toRad(latB)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function formatMeters(m) {
+  if (m == null || Number.isNaN(m)) return '';
+  if (m < 100) return `${m.toFixed(1)} m`;
+  return `${Math.round(m)} m`;
+}
+
 function colorOfPost(p) {
   if (p.blocked) return '#EF4444';
   const cur = currentStageOf(p);
@@ -611,6 +660,7 @@ function readStoredMapView() {
 }
 
 function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost, stageDefs, darkMode,
+                   measureMode = false, setMeasureMode, measurePoints = [], setMeasurePoints,
                    editingPostId, onConfirmRelocate, onCancelRelocate,
                    addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, onMergePosts, onCompareDetail, incidents = [], userNames = {} }) {
   const containerRef = useRef(null);
@@ -633,6 +683,18 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
   // Refs para que los handlers del map (closure inicial) lean el estado actual
   const addingModeRef = useRef(addingMode);
   useEffect(() => { addingModeRef.current = addingMode; }, [addingMode]);
+
+  const measureModeRef = useRef(measureMode);
+  useEffect(() => { measureModeRef.current = measureMode; }, [measureMode]);
+
+  const measurePointsRef = useRef(measurePoints);
+  useEffect(() => { measurePointsRef.current = measurePoints; }, [measurePoints]);
+
+  const measureLayerRef = useRef(null);
+  const measureSourceRef = useRef(null);
+
+  const utPolygonLayerRef = useRef(null);
+  const utPolygonSourceRef = useRef(null);
   const onMapClickForNewPostRef = useRef(onMapClickForNewPost);
   useEffect(() => { onMapClickForNewPostRef.current = onMapClickForNewPost; }, [onMapClickForNewPost]);
   const translateRef = useRef(null);
@@ -797,6 +859,20 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
         if (onMapClickForNewPostRef.current) onMapClickForNewPostRef.current(lat, lng);
         return;
       }
+      // Modo regla: registrar poste A o calcular distancia A→B
+      if (measureModeRef.current) {
+        const mf = map.forEachFeatureAtPixel(e.pixel, f => f, { hitTolerance: 6 });
+        const mp = mf?.get('post');
+        if (mp && mp.lat && mp.lng) {
+          const curr = measurePointsRef.current || [];
+          if (curr.length === 0 || curr.length === 2) {
+            setMeasurePoints([{ id: mp.id, lat: mp.lat, lng: mp.lng }]);
+          } else if (curr[0].id !== mp.id) {
+            setMeasurePoints([curr[0], { id: mp.id, lat: mp.lat, lng: mp.lng }]);
+          }
+        }
+        return;
+      }
       // Scouting activo: clic en un poste lo agrega/quita de la ruta
       if (scoutActiveRef.current) {
         const sf = map.forEachFeatureAtPixel(e.pixel, f => f, { hitTolerance: 6 });
@@ -901,6 +977,81 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
     }));
   }, [filtered, selectedPost, cardPosts, editingPostId]);
 
+  // Zoom/centrar al bounding box de las UTs seleccionadas (cuando cambia filters.uts)
+  useEffect(() => {
+    if (!mapRef.current || !filters?.uts?.length) return;
+    const valid = filtered.filter(p => p.lat && p.lng && Math.abs(p.lat) > 1 && Math.abs(p.lng) > 1);
+    if (!valid.length) return;
+    try {
+      const extent = olBoundingExtent(valid.map(p => olFromLonLat([p.lng, p.lat])));
+      mapRef.current.getView().fit(extent, { padding: [60, 60, 60, 60], duration: 500, maxZoom: 16 });
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters?.uts]);
+
+  // Layer de poligonos por UT seleccionada (convex hull + label en centro)
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (!utPolygonLayerRef.current) {
+      const src = new OLVectorSource();
+      const layer = new OLVectorLayer({ source: src, zIndex: 0 });
+      mapRef.current.addLayer(layer);
+      utPolygonLayerRef.current = layer;
+      utPolygonSourceRef.current = src;
+      // Forzar pines y user-loc ENCIMA del poligono UT
+      const lyrs = mapRef.current.getLayers().getArray();
+      if (lyrs[1]) lyrs[1].setZIndex(10);
+      if (lyrs[2]) lyrs[2].setZIndex(20);
+    }
+    const src = utPolygonSourceRef.current;
+    src.clear();
+    if (!filters?.uts?.length) return;
+    const byUT = new Map();
+    for (const p of filtered) {
+      if (!p.lat || !p.lng || Math.abs(p.lat) <= 1 || Math.abs(p.lng) <= 1) continue;
+      if (!filters.uts.includes(p.unidad_territorial)) continue;
+      if (!byUT.has(p.unidad_territorial)) byUT.set(p.unidad_territorial, []);
+      byUT.get(p.unidad_territorial).push({ lng: p.lng, lat: p.lat });
+    }
+    filters.uts.forEach((ut, idx) => {
+      const pts = byUT.get(ut) || [];
+      if (pts.length === 0) return;
+      const color = UT_PALETTE[idx % UT_PALETTE.length];
+      let hullPts = convexHull(pts);
+      if (hullPts.length < 3) {
+        const c = centroidLngLat(pts);
+        const r = 0.0008;
+        hullPts = [];
+        for (let i = 0; i < 24; i++) {
+          const a = (i / 24) * 2 * Math.PI;
+          hullPts.push({ lng: c.lng + r * Math.cos(a), lat: c.lat + r * Math.sin(a) });
+        }
+      }
+      const ring = hullPts.map(p => olFromLonLat([p.lng, p.lat]));
+      ring.push(ring[0]);
+      const polyFeat = new OLFeature({ geometry: new OLPolygon([ring]) });
+      polyFeat.setStyle(new OLStyle({
+        fill: new OLFill({ color: color + '33' }),
+        stroke: new OLStroke({ color: color, width: 2 }),
+      }));
+      src.addFeature(polyFeat);
+      const c = centroidLngLat(pts);
+      const labelFeat = new OLFeature({ geometry: new OLPoint(olFromLonLat([c.lng, c.lat])) });
+      labelFeat.setStyle(new OLStyle({
+        text: new OLText({
+          text: ut,
+          font: 'bold 14px monospace',
+          fill: new OLFill({ color: '#1F2937' }),
+          backgroundFill: new OLFill({ color: 'rgba(255, 255, 255, 0.9)' }),
+          backgroundStroke: new OLStroke({ color: color, width: 2 }),
+          padding: [3, 6, 3, 6],
+          overflow: true,
+        }),
+      }));
+      src.addFeature(labelFeat);
+    });
+  }, [filters?.uts, filtered]);
+
   // Translate interaction — solo activa cuando hay editingPostId
   useEffect(() => {
     if (!mapRef.current || !vectorSourceRef.current) return;
@@ -957,11 +1108,71 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
     src.addFeature(accFeat);
   }, [userLoc]);
 
-  // Cursor crosshair en addingMode
+  // Cursor crosshair en addingMode o measureMode
   useEffect(() => {
     if (!containerRef.current) return;
-    containerRef.current.style.cursor = addingMode ? 'crosshair' : '';
-  }, [addingMode]);
+    containerRef.current.style.cursor = (addingMode || measureMode) ? 'crosshair' : '';
+  }, [addingMode, measureMode]);
+
+  // Limpiar puntos de medición al salir del modo regla
+  useEffect(() => {
+    if (!measureMode && setMeasurePoints) setMeasurePoints([]);
+  }, [measureMode, setMeasurePoints]);
+
+  // Layer de medición: línea A→B + etiqueta con distancia + marcadores
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (!measureLayerRef.current) {
+      const src = new OLVectorSource();
+      const layer = new OLVectorLayer({ source: src, zIndex: 1000 });
+      mapRef.current.addLayer(layer);
+      measureLayerRef.current = layer;
+      measureSourceRef.current = src;
+    }
+    const src = measureSourceRef.current;
+    src.clear();
+    if (!measurePoints || measurePoints.length === 0) return;
+    const a = measurePoints[0];
+    const coordA = olFromLonLat([a.lng, a.lat]);
+    const aMarker = new OLFeature({ geometry: new OLPoint(coordA) });
+    aMarker.setStyle(new OLStyle({
+      image: new OLCircle({
+        radius: 8,
+        fill: new OLFill({ color: '#F59E0B' }),
+        stroke: new OLStroke({ color: '#FFFFFF', width: 2 }),
+      }),
+    }));
+    src.addFeature(aMarker);
+    if (measurePoints.length === 2) {
+      const b = measurePoints[1];
+      const coordB = olFromLonLat([b.lng, b.lat]);
+      const bMarker = new OLFeature({ geometry: new OLPoint(coordB) });
+      bMarker.setStyle(new OLStyle({
+        image: new OLCircle({
+          radius: 8,
+          fill: new OLFill({ color: '#EF4444' }),
+          stroke: new OLStroke({ color: '#FFFFFF', width: 2 }),
+        }),
+      }));
+      src.addFeature(bMarker);
+      const dist = haversineMeters(a.lat, a.lng, b.lat, b.lng);
+      const lineFeat = new OLFeature({ geometry: new OLLineString([coordA, coordB]) });
+      lineFeat.setStyle(new OLStyle({
+        stroke: new OLStroke({ color: '#F59E0B', width: 3, lineDash: [6, 4] }),
+        text: new OLText({
+          text: formatMeters(dist),
+          font: 'bold 13px monospace',
+          fill: new OLFill({ color: '#1F2937' }),
+          backgroundFill: new OLFill({ color: 'rgba(255, 230, 100, 0.95)' }),
+          backgroundStroke: new OLStroke({ color: '#92400E', width: 1 }),
+          padding: [3, 6, 3, 6],
+          placement: 'line',
+          overflow: true,
+        }),
+      }));
+      src.addFeature(lineFeat);
+    }
+  }, [measurePoints]);
 
   // Centrar en selección externa (cuando se hace click en pin → drawer abre → mantener centrado)
   useEffect(() => {
@@ -6089,6 +6300,8 @@ export default function FieldCoordApp() {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedPost, setSelectedPost] = useState(null);
+  const [measureMode, setMeasureMode] = useState(false);
+  const [measurePoints, setMeasurePoints] = useState([]);
   const [comparePair, setComparePair] = useState(null); // [A,B] comparar detalle 50/50
   const [initialStageId, setInitialStageId] = useState(null);
   const selectedPostRef = useRef(null);
@@ -6936,12 +7149,16 @@ export default function FieldCoordApp() {
                     mode="map"
                     showVerified={false}
                     incidents={incidents}
+                    measureMode={measureMode}
+                    setMeasureMode={setMeasureMode}
                   />
                 </div>
               </div>
               <div className="flex-1 p-4">
                 <MapView posts={posts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} filters={filters} incidents={incidents} userNames={userNames}
                          stageDefs={STAGE_DEFS} darkMode={darkMode}
+                         measureMode={measureMode} setMeasureMode={setMeasureMode}
+                         measurePoints={measurePoints} setMeasurePoints={setMeasurePoints}
                          editingPostId={editingPostId}
                          onConfirmRelocate={handleConfirmRelocate}
                          onCancelRelocate={handleCancelRelocate}
@@ -7138,13 +7355,20 @@ export default function FieldCoordApp() {
 
   if (mobilePreview) {
     return (
-      <div className="min-h-screen bg-stone-700 flex justify-center">
-        <div className="w-[390px] min-h-screen bg-amber-50 border-x-4 border-stone-500 shadow-2xl overflow-hidden">
-          {appContent}
+      <>
+        <EnvBanner />
+        <div className="min-h-screen bg-stone-700 flex justify-center">
+          <div className="w-[390px] min-h-screen bg-amber-50 border-x-4 border-stone-500 shadow-2xl overflow-hidden">
+            {appContent}
+          </div>
         </div>
-      </div>
+      </>
     );
   }
-
-  return appContent;
+  return (
+    <>
+      <EnvBanner />
+      {appContent}
+    </>
+  );
 }

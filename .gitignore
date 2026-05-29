@@ -1,49 +1,18 @@
-﻿# === Dependencias e instalaciones ===
-node_modules/
-.pnp/
-.pnp.js
-
-# === Builds ===
+﻿node_modules/
 dist/
-dev-dist/
-build/
-.vite/
-
-# === Variables de entorno (NUNCA al repo) ===
+.DS_Store
+*.zip
 .env
-.env.local
-.env.*.local
 deploy/deploy.env
+*:Zone.Identifier
 
-# === Backups locales (no deben ir al repo) ===
+# Backups y archivos .bak (no deben commitearse nunca)
 *.bak
 *.bak.*
-*.bak-*
-*.patchbak
-*.orig
-
-# === Carpeta antigua de referencia ===
 src.old/
-
-# === Scripts auxiliares de patcheo ===
-integra_*.py
 docs/patch_*.py
+integra_*.py
 
-# === SO y editores ===
-.DS_Store
-Thumbs.db
-*:Zone.Identifier
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# === Logs ===
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# === Zips de respaldo ===
-*.zip
-*.tar.gz
+# Scripts locales de migración (one-shot, no parte de la app)
+apply_*.py
+fix_*.py
