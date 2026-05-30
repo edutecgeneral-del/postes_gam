@@ -86,6 +86,9 @@ import {
   loadIncidentClassifications,
   classifyIncident as dbClassifyIncident,
   createCategory as dbCreateCategory,
+  updateCategory as dbUpdateCategory,
+  deleteCategory as dbDeleteCategory,
+  deactivateCategory as dbDeactivateCategory,
 } from './lib/incidentClassification.js';
 import { setActiveView, setUserContext } from './lib/errorTracker.js';
 import { useFilters } from './hooks/useFilters.js';
@@ -183,8 +186,8 @@ const STAGE_DEFS = [
   {
     id: 'parado',
     num: 3,
-    name: 'Poste parado',
-    short: 'Parado',
+    name: 'Poste instalado',
+    short: 'Poste',
     color: '#8B5CF6',
     Icon: Flag,
     desc: 'Poste vertical instalado y conectado a electricidad',
@@ -652,13 +655,38 @@ function colorOfPost(p) {
   return cur.stage.color;
 }
 
+// Cache de estilos de los puntos del mapa (evita crear miles de objetos OLStyle).
+const __POST_STYLE_CACHE = new Map();
+function cachedPostStyle(color, state /* 'normal' | 'sel' | 'editing' */) {
+  const key = state === 'editing' ? 'editing' : `${color}|${state}`;
+  let st = __POST_STYLE_CACHE.get(key);
+  if (!st) {
+    const radius = state === 'editing' ? 12 : (state === 'sel' ? 9 : 5);
+    st = new OLStyle({
+      image: new OLCircle({
+        radius,
+        fill: new OLFill({ color: state === 'editing' ? '#A855F7' : color }),
+        stroke: new OLStroke({
+          color: state === 'editing' ? '#FFFFFF' : (state === 'sel' ? '#ffffff' : '#0A0E14'),
+          width: state === 'editing' ? 3 : (state === 'sel' ? 2.5 : 1),
+        }),
+      }),
+    });
+    __POST_STYLE_CACHE.set(key, st);
+  }
+  return st;
+}
+
 const MAP_VIEW_STORAGE_KEY = 'ci1215-map-view';
 function readStoredMapView() {
   try {
     const raw = localStorage.getItem(MAP_VIEW_STORAGE_KEY);
     if (!raw) return null;
     const v = JSON.parse(raw);
-    if (typeof v.lng === 'number' && typeof v.lat === 'number' && typeof v.zoom === 'number') return v;
+    // Validar que la vista guardada caiga dentro de CDMX/GAM; si no, ignorarla
+    // (evita quedarse atorado sobre el mar por una vista vieja corrupta).
+    const enCDMX = v.lng > -99.6 && v.lng < -98.8 && v.lat > 19.0 && v.lat < 19.9;
+    if (typeof v.lng === 'number' && typeof v.lat === 'number' && typeof v.zoom === 'number' && enCDMX) return v;
   } catch {}
   return null;
 }
@@ -670,6 +698,8 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
   const containerRef = useRef(null);
   const isMobile = useIsMobile();
   const mapRef = useRef(null);
+  const featByIdRef = useRef(new Map());
+  const prevSpecialRef = useRef(new Set());
   const vectorSourceRef = useRef(null);
   const userLocSourceRef = useRef(null);
   const baseLayerRef = useRef(null);
@@ -830,8 +860,9 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
   // Inicializar mapa
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-    const lats = posts.map(p => p.lat);
-    const lngs = posts.map(p => p.lng);
+    const located = posts.filter(p => p.lat && p.lng && Math.abs(p.lat) > 1 && Math.abs(p.lng) > 1);
+    const lats = located.map(p => p.lat);
+    const lngs = located.map(p => p.lng);
     const centerLng = lngs.length ? (Math.min(...lngs) + Math.max(...lngs)) / 2 : -99.1332;
     const centerLat = lats.length ? (Math.min(...lats) + Math.max(...lats)) / 2 : 19.4326;
 
@@ -892,18 +923,6 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
           return;
         }
       }
-      // PR B Lote 3: click en icono de antena (admin only) -> abrir modal
-      const antenaFeat = map.forEachFeatureAtPixel(e.pixel, f => f, {
-        hitTolerance: 6,
-        layerFilter: (l) => l === antenaLayerRef.current,
-      });
-      if (antenaFeat?.get('isAntenaIcon')) {
-        const ap = antenaFeat.get('post');
-        if (ap && onClickAntenaRef.current) {
-          onClickAntenaRef.current(ap);
-          return;
-        }
-      }
       const feat = map.forEachFeatureAtPixel(e.pixel, f => f, { hitTolerance: 6 });
       if (feat) {
         const post = feat.get('post');
@@ -912,8 +931,12 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       setCardPosts([]);
     });
 
+    let __lastHover = 0;
     map.on('pointermove', (e) => {
       if (e.dragging) { setHover(null); return; }
+      const __now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      if (__now - __lastHover < 70) return; // throttle: ~14 detecciones/seg máx
+      __lastHover = __now;
       const pixel = map.getEventPixel(e.originalEvent);
       const feat = map.forEachFeatureAtPixel(pixel, f => f, { hitTolerance: 4 });
       if (feat?.get('post')) {
@@ -974,28 +997,46 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
     applyTileProvider(tileProviderRef.current);
   }, [darkMode, applyTileProvider]);
 
-  // Refrescar features
+  // Construir los features UNA sola vez por cambio de datos (filtered).
+  // Evita recrear miles de geometrías y estilos en cada clic o selección.
   useEffect(() => {
     const src = vectorSourceRef.current;
     if (!src) return;
     src.clear();
-    src.addFeatures(filtered.map(p => {
+    const byId = new Map();
+    const feats = filtered.map(p => {
       const feat = new OLFeature({ geometry: new OLPoint(olFromLonLat([p.lng, p.lat])) });
       feat.set('post', p);
-      const isSel = selectedPost?.id === p.id || cardPosts.some(c => c.id === p.id);
-      const isEditing = editingPostId === p.id;
-      feat.setStyle(new OLStyle({
-        image: new OLCircle({
-          radius: isEditing ? 12 : (isSel ? 9 : 5),
-          fill: new OLFill({ color: isEditing ? '#A855F7' : colorOfPost(p) }),
-          stroke: new OLStroke({
-            color: isEditing ? '#FFFFFF' : (isSel ? '#ffffff' : '#0A0E14'),
-            width: isEditing ? 3 : (isSel ? 2.5 : 1),
-          }),
-        }),
-      }));
+      feat.setStyle(cachedPostStyle(colorOfPost(p), 'normal'));
+      byId.set(p.id, feat);
       return feat;
-    }));
+    });
+    src.addFeatures(feats);
+    featByIdRef.current = byId;
+    prevSpecialRef.current = new Set();
+  }, [filtered]);
+
+  // Resaltar selección/edición tocando SOLO los features afectados (no los miles).
+  useEffect(() => {
+    const byId = featByIdRef.current;
+    if (!byId || byId.size === 0) return;
+    const special = new Set();
+    if (selectedPost?.id) special.add(selectedPost.id);
+    for (const c of cardPosts) special.add(c.id);
+    if (editingPostId) special.add(editingPostId);
+    // Regresar a 'normal' los que dejaron de estar seleccionados
+    for (const id of prevSpecialRef.current) {
+      if (special.has(id)) continue;
+      const f = byId.get(id); const p = f?.get('post');
+      if (f && p) f.setStyle(cachedPostStyle(colorOfPost(p), 'normal'));
+    }
+    // Aplicar el estilo especial a los actuales
+    for (const id of special) {
+      const f = byId.get(id); const p = f?.get('post');
+      if (!f || !p) continue;
+      f.setStyle(cachedPostStyle(colorOfPost(p), editingPostId === id ? 'editing' : 'sel'));
+    }
+    prevSpecialRef.current = special;
   }, [filtered, selectedPost, cardPosts, editingPostId]);
 
   // Zoom/centrar al bounding box de las UTs seleccionadas (cuando cambia filters.uts)
@@ -1076,42 +1117,8 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
     });
   }, [filters?.uts, filtered]);
 
-  // PR B Lote 3: Layer de iconos antena (admin only, solo postes con E5 internet done)
-  useEffect(() => {
-    if (!mapRef.current) return;
-    if (!antenaLayerRef.current) {
-      const src = new OLVectorSource();
-      const layer = new OLVectorLayer({ source: src, zIndex: 25 });
-      mapRef.current.addLayer(layer);
-      antenaLayerRef.current = layer;
-      antenaSourceRef.current = src;
-    }
-    const src = antenaSourceRef.current;
-    src.clear();
-    if (!isAdmin) return;
-    for (const p of (posts || [])) {
-      if (!p.stages?.internet?.done) continue;
-      if (!p.lat || !p.lng || Math.abs(p.lat) <= 1 || Math.abs(p.lng) <= 1) continue;
-      // Offset al noreste del pin (~20m)
-      const offsetLat = p.lat + 0.00012;
-      const offsetLng = p.lng + 0.00018;
-      const isRecuperada = p.antenaRecuperada === true || p.antena_recuperada === true;
-      const feat = new OLFeature({ geometry: new OLPoint(olFromLonLat([offsetLng, offsetLat])) });
-      feat.set('post', p);
-      feat.set('isAntenaIcon', true);
-      feat.setStyle(new OLStyle({
-        text: new OLText({
-          text: isRecuperada ? 'A V' : 'A',
-          font: 'bold 12px sans-serif',
-          fill: new OLFill({ color: '#FFFFFF' }),
-          backgroundFill: new OLFill({ color: isRecuperada ? '#10B981' : '#3B82F6' }),
-          backgroundStroke: new OLStroke({ color: '#1F2937', width: 1 }),
-          padding: [3, 5, 3, 5],
-        }),
-      }));
-      src.addFeature(feat);
-    }
-  }, [posts, isAdmin]);
+  // Antena: la capa de iconos en el mapa fue retirada (se evita duplicidad).
+  // La gestión de antena ahora vive dentro del panel de detalle del poste.
 
   // Translate interaction — solo activa cuando hay editingPostId
   useEffect(() => {
@@ -3563,7 +3570,7 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
 // POST DETAIL DRAWER
 // ============================================================================
 
-function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, onCreateIncident, viewMode, userNames = {}, isAdmin = false, onVerifyStage, onUnverifyStage, onDelete, initialStageId, onStartEditPosition, onRequestRelocate, canViewHistory = false, historyRefreshKey }) {
+function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, onCreateIncident, viewMode, userNames = {}, isAdmin = false, onVerifyStage, onUnverifyStage, onDelete, initialStageId, onStartEditPosition, onRequestRelocate, canViewHistory = false, historyRefreshKey, onOpenAntena }) {
   const [editingStage, setEditingStage] = useState(() => initialStageId ? (STAGE_DEFS.find(s => s.id === initialStageId) || null) : null);
   const [notes, setNotes] = useState('');
   const [showBlockForm, setShowBlockForm] = useState(false);
@@ -3746,6 +3753,34 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                 </button>
               </div>
             )}
+
+            {/* Antena de internet (movido desde el mapa) */}
+            {isAdmin && post.stages?.internet?.done && (() => {
+              const isRecuperada = post.antenaRecuperada === true || post.antena_recuperada === true;
+              return (
+                <div className="border border-blue-200 bg-blue-50/60 rounded p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Wifi className="w-4 h-4 text-blue-500" strokeWidth={1.5} />
+                    <span className="text-[12px] font-mono uppercase tracking-widest text-stone-500">Antena de internet</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-xs font-mono px-2 py-0.5 rounded border ${
+                      isRecuperada
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        : 'bg-amber-100 text-amber-800 border-amber-300'
+                    }`}>
+                      {isRecuperada ? '✓ Antena recuperada' : '⚠ Antena sin recuperar'}
+                    </span>
+                    {onOpenAntena && (
+                      <button onClick={() => onOpenAntena(post)}
+                              className="text-xs font-mono px-3 py-1.5 bg-blue-500 text-white hover:bg-blue-600 rounded">
+                        {isRecuperada ? 'Editar' : 'Recuperar antena'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* GPS */}
             <div>
@@ -4561,6 +4596,15 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
   const [newCatColor, setNewCatColor] = useState('#6B7280');
   const [creatingCat, setCreatingCat] = useState(false);
 
+  // Gestionar categorías (admin only): editar / eliminar
+  const [showManageCat, setShowManageCat] = useState(false);
+  const [editingCatId, setEditingCatId] = useState(null);
+  const [editCatName, setEditCatName] = useState('');
+  const [editCatDesc, setEditCatDesc] = useState('');
+  const [editCatColor, setEditCatColor] = useState('#6B7280');
+  const [savingCat, setSavingCat] = useState(false);
+  const [busyCatId, setBusyCatId] = useState(null);
+
   const canSeeClassification = isAdmin || isDirector;
 
   // Load categories and classifications for admin/director
@@ -4669,6 +4713,60 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
     }
   };
 
+  const startEditCategory = (c) => {
+    setEditingCatId(c.id);
+    setEditCatName(c.name || '');
+    setEditCatDesc(c.description || '');
+    setEditCatColor(c.color || '#6B7280');
+  };
+
+  const handleUpdateCategory = async () => {
+    if (!editCatName.trim() || !editingCatId) return;
+    setSavingCat(true);
+    try {
+      await dbUpdateCategory(editingCatId, {
+        name: editCatName.trim(),
+        description: editCatDesc.trim() || null,
+        color: editCatColor,
+      });
+      setCategories(prev => prev.map(c => c.id === editingCatId
+        ? { ...c, name: editCatName.trim(), description: editCatDesc.trim(), color: editCatColor }
+        : c));
+      setEditingCatId(null);
+    } catch (e) {
+      alert('Error al actualizar categoría: ' + e.message);
+    } finally {
+      setSavingCat(false);
+    }
+  };
+
+  const handleDeleteCategory = async (c) => {
+    if (!window.confirm(`¿Eliminar la categoría "${c.name}"? Esta acción no se puede deshacer.`)) return;
+    setBusyCatId(c.id);
+    try {
+      await dbDeleteCategory(c.id);
+      setCategories(prev => prev.filter(x => x.id !== c.id));
+    } catch (e) {
+      if (e.code === 'EN_USO') {
+        const desactivar = window.confirm(
+          `No se puede borrar "${c.name}" porque ya está en uso por incidencias clasificadas.\n\n¿Quieres DESACTIVARLA? (se oculta de la lista conservando el historial)`
+        );
+        if (desactivar) {
+          try {
+            await dbDeactivateCategory(c.id);
+            setCategories(prev => prev.filter(x => x.id !== c.id));
+          } catch (e2) {
+            alert('Error al desactivar categoría: ' + e2.message);
+          }
+        }
+      } else {
+        alert('Error al eliminar categoría: ' + e.message);
+      }
+    } finally {
+      setBusyCatId(null);
+    }
+  };
+
   const CAT_COLORS = ['#EF4444', '#F59E0B', '#3B82F6', '#8B5CF6', '#10B981', '#06B6D4', '#EC4899', '#6B7280', '#DC2626', '#059669'];
 
   return (
@@ -4680,10 +4778,16 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
         </div>
         {/* Admin: manage categories */}
         {isAdmin && (
-          <button onClick={() => setShowNewCat(!showNewCat)}
-                  className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-500 hover:text-rose-500 text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-colors">
-            <TagIcon className="w-3 h-3" /> {showNewCat ? 'Cerrar' : 'Nueva categoría'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => { setShowNewCat(!showNewCat); setShowManageCat(false); }}
+                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-500 hover:text-rose-500 text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-colors">
+              <TagIcon className="w-3 h-3" /> {showNewCat ? 'Cerrar' : 'Nueva categoría'}
+            </button>
+            <button onClick={() => { setShowManageCat(!showManageCat); setShowNewCat(false); setEditingCatId(null); }}
+                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-blue-500 hover:text-blue-500 text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-colors">
+              <Edit2 className="w-3 h-3" /> {showManageCat ? 'Cerrar' : 'Gestionar categorías'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -4722,6 +4826,65 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
               {creatingCat ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} Crear
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Gestionar categorías (admin only): editar / eliminar */}
+      {isAdmin && showManageCat && (
+        <div className="border border-blue-300 bg-blue-50/30 rounded-lg p-4 space-y-3">
+          <div className="text-xs font-mono uppercase tracking-widest text-blue-700 font-medium">Gestionar categorías de incidencia</div>
+          {categories.length === 0 ? (
+            <div className="text-sm text-stone-500">No hay categorías.</div>
+          ) : (
+            <div className="space-y-2">
+              {categories.map(c => (
+                <div key={c.id} className="bg-white border border-stone-200 rounded p-2.5">
+                  {editingCatId === c.id ? (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input type="text" value={editCatName} onChange={e => setEditCatName(e.target.value)}
+                               placeholder="Nombre *"
+                               className="w-full bg-white border border-stone-300 rounded px-2.5 py-1.5 text-sm text-stone-800 focus:outline-none focus:border-blue-500" />
+                        <input type="text" value={editCatDesc} onChange={e => setEditCatDesc(e.target.value)}
+                               placeholder="Descripción (opcional)"
+                               className="w-full bg-white border border-stone-300 rounded px-2.5 py-1.5 text-sm text-stone-800 focus:outline-none focus:border-blue-500" />
+                      </div>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {CAT_COLORS.map(col => (
+                          <button key={col} onClick={() => setEditCatColor(col)}
+                                  className={`w-6 h-6 rounded-full border-2 transition-transform ${editCatColor === col ? 'border-stone-800 scale-110' : 'border-transparent'}`}
+                                  style={{ background: col }} />
+                        ))}
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <button onClick={() => setEditingCatId(null)} className="px-3 py-1.5 border border-stone-300 text-stone-600 text-xs font-mono rounded">Cancelar</button>
+                        <button onClick={handleUpdateCategory} disabled={!editCatName.trim() || savingCat}
+                                className="px-3 py-1.5 bg-blue-600 text-white text-xs font-mono uppercase rounded disabled:opacity-40 flex items-center gap-1.5">
+                          {savingCat ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />} Guardar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="w-4 h-4 rounded-full shrink-0" style={{ background: c.color || '#6B7280' }} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-stone-800 truncate">{c.name}</div>
+                        {c.description && <div className="text-[11px] text-stone-500 truncate">{c.description}</div>}
+                      </div>
+                      <button onClick={() => startEditCategory(c)}
+                              className="px-2.5 py-1 text-xs font-mono text-blue-600 hover:bg-blue-50 rounded flex items-center gap-1">
+                        <Edit2 className="w-3 h-3" /> Editar
+                      </button>
+                      <button onClick={() => handleDeleteCategory(c)} disabled={busyCatId === c.id}
+                              className="px-2.5 py-1 text-xs font-mono text-rose-600 hover:bg-rose-50 rounded flex items-center gap-1 disabled:opacity-40">
+                        {busyCatId === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />} Eliminar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -6657,25 +6820,9 @@ export default function FieldCoordApp() {
     })();
   }, [profile, refreshData]);
 
-  // Auto-refresh cada 30 segundos (solo cuando la pestaña está visible)
-  useEffect(() => {
-    if (!loaded || !profile) return;
-    let intervalId;
-    const startPolling = () => {
-      intervalId = setInterval(() => {
-        if (!document.hidden) refreshData(true);
-      }, 30000);
-    };
-    startPolling();
-    const onVisibility = () => {
-      if (!document.hidden) refreshData(true); // refresh inmediato al volver
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      clearInterval(intervalId);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [loaded, profile, refreshData]);
+  // Auto-refresh DESACTIVADO a propósito: la recarga automática (cada 30s y al
+  // volver a la pestaña/ventana) reiniciaba el mapa y hacía perder el seguimiento
+  // del trabajo. La actualización ahora es manual, con el botón de refrescar.
 
   // -------------------------------------------------------------------
   // LOGOUT
@@ -7376,7 +7523,8 @@ export default function FieldCoordApp() {
                           onRequestRelocate={isAdmin && !readOnly ? setRelocateRequest : null}
                           canViewHistory={isAdmin || isDirector}
                           historyRefreshKey={historyRefreshKey}
-                          onDelete={isAdmin ? handleDeletePost : null} />
+                          onDelete={isAdmin ? handleDeletePost : null}
+                          onOpenAntena={isAdmin ? (p) => setAntenaModalPost(p) : null} />
       )}
       {comparePair && (
         <div className="fixed inset-0 z-[70] flex flex-col bg-black/60 backdrop-blur-sm">
@@ -7398,7 +7546,8 @@ export default function FieldCoordApp() {
                                   onStartEditPosition={null} onRequestRelocate={null}
                                   canViewHistory={isAdmin || isDirector}
                                   historyRefreshKey={historyRefreshKey}
-                                  onDelete={null} />
+                                  onDelete={null}
+                                  onOpenAntena={isAdmin ? (p) => setAntenaModalPost(p) : null} />
               </div>
             ))}
           </div>

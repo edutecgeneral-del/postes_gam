@@ -13,3 +13,8 @@ patch_*.py
 integra_*.py
 geo.py
 EOF
+# Respaldo de .env (credenciales) y artefactos de build
+.env.bak
+*.bak
+dist.tar.gz
+apply_*.py

@@ -90,3 +90,49 @@ export async function createCategory(name, description, color) {
   if (error) throw new Error(error.message);
   return data;
 }
+
+/**
+ * Actualizar una categoría existente (solo admin via RLS).
+ */
+export async function updateCategory(id, fields) {
+  const patch = {};
+  if (fields.name !== undefined) patch.name = fields.name;
+  if (fields.description !== undefined) patch.description = fields.description;
+  if (fields.color !== undefined) patch.color = fields.color;
+  const { error } = await sb()
+    .from('incident_categories')
+    .update(patch)
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Eliminar una categoría (solo admin via RLS).
+ * Si está en uso por clasificaciones, la FK lo impide: se lanza error code 'EN_USO'.
+ */
+export async function deleteCategory(id) {
+  const { error } = await sb()
+    .from('incident_categories')
+    .delete()
+    .eq('id', id);
+  if (error) {
+    const msg = (error.message || '').toLowerCase();
+    if (error.code === '23503' || msg.includes('foreign key') || msg.includes('violates')) {
+      const e = new Error('La categoría está en uso por incidencias clasificadas.');
+      e.code = 'EN_USO';
+      throw e;
+    }
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Desactivar una categoría (no la borra; la oculta conservando el historial).
+ */
+export async function deactivateCategory(id) {
+  const { error } = await sb()
+    .from('incident_categories')
+    .update({ active: false })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+}

@@ -41,12 +41,11 @@ export function hasPendingUpdate() {
 }
 
 function tryAutoApply() {
-  if (!pendingUpdate || typeof updateSWFn !== 'function') return;
-  if (activeUploads > 0) return;
-  // Solo recargar cuando la pestaña esté oculta — evita interrumpir al usuario
-  if (typeof document !== 'undefined' && document.visibilityState !== 'hidden') return;
-  pendingUpdate = false;
-  try { updateSWFn(true); } catch (e) { console.warn('[PWA] auto-update falló:', e); }
+  // Auto-aplicar DESACTIVADO: la app ya NO se recarga sola al ocultar la pestana,
+  // cambiar de pestana/ventana, cerrar la ventana o salir de un modulo.
+  // La version nueva queda en espera y solo se aplica cuando el usuario recarga
+  // a mano (F5 / pull-to-refresh) o acepta el aviso de actualizacion.
+  return;
 }
 
 /** Pide al browser que verifique si hay SW nuevo. No-op si ya está al día. */

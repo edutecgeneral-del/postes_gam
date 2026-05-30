@@ -15,7 +15,7 @@ export default defineConfig(({ command }) => {
     plugins: [
       react(),
       VitePWA({
-        registerType: 'autoUpdate',
+        registerType: 'prompt',
         injectRegister: false, // lo registramos manualmente desde main.jsx para tener control de la UI
 
         // Archivos que se incluyen en el precache + sus iconos
