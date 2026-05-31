@@ -989,7 +989,26 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       try { map.setTarget(undefined); } catch {}
       mapRef.current = null; vectorSourceRef.current = null; userLocSourceRef.current = null;
     };
-  }, [posts.length, darkMode, startTileWatch]);
+  }, [darkMode, startTileWatch]); // PASO_8_V2_ZOOM_FIX: removido posts.length para no reinicializar el mapa al merge/captura/edicion (preserva zoom)
+
+  // PASO_8_V2_INITIAL_FIT: ajustar la vista inicial al bounding box de los
+  // postes UNA sola vez por montaje del componente. Si hay savedView valido
+  // en localStorage, el init del mapa ya lo respeta y aqui NO hacemos nada.
+  const initialFitDoneRef = useRef(false);
+  useEffect(() => {
+    if (initialFitDoneRef.current) return;
+    if (!mapRef.current) return;
+    if (!posts || posts.length === 0) return;
+    initialFitDoneRef.current = true;
+    const savedView = readStoredMapView();
+    if (savedView) return; // ya restaurado por el init
+    const validPosts = posts.filter(p => p.lat && p.lng && Math.abs(p.lat) > 1 && Math.abs(p.lng) > 1);
+    if (validPosts.length === 0) return;
+    try {
+      const extent = olBoundingExtent(validPosts.map(p => olFromLonLat([p.lng, p.lat])));
+      mapRef.current.getView().fit(extent, { padding: [40, 40, 40, 40], maxZoom: 15 });
+    } catch {}
+  }, [posts]);
 
   // Cambiar tiles del mapa según el tema
   useEffect(() => {
@@ -6661,7 +6680,18 @@ export default function FieldCoordApp() {
         const s = await getCurrentSession();
         setSession(s);
         unsubscribe = onAuthChange((newSession) => {
-          setSession(newSession);
+          // PASO_9_AUTH_REFRESH_FIX:
+          // Si solo cambio el JWT (mismo usuario), mantener la session anterior.
+          // El SDK de Supabase ya maneja el nuevo token internamente; aqui solo
+          // evitamos que React detecte un cambio espurio que dispare useEffects
+          // dependientes (loadCurrentProfile -> setProfile -> refreshData -> 11
+          // requests a post_stages cada vez que el usuario cambia de pestana).
+          setSession(prev => {
+            if (prev && newSession && prev.user?.id === newSession.user?.id) {
+              return prev; // misma referencia, React no re-renderiza
+            }
+            return newSession; // sesion realmente cambio (login/logout/usuario distinto)
+          });
           if (!newSession) {
             // Logout: limpiar todo
             setProfile(null);
