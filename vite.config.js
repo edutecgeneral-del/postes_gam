@@ -3,12 +3,16 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
-// La app se sirve en producción bajo la ruta `/CI1215V3/` del VPS.
-// En dev (npm run dev) se sirve en raíz `/` como siempre.
-// Vite usa `base` para prefijar las URLs de JS/CSS/imágenes generadas.
+// La app se sirve en producciÃ³n bajo la ruta `/CI1215V3/` del VPS.
+// En dev (npm run dev) se sirve en raÃ­z `/` como siempre.
+// Vite usa `base` para prefijar las URLs de JS/CSS/imÃ¡genes generadas.
 export default defineConfig(({ command }) => {
   const isBuild = command === 'build';
-  const base = isBuild ? '/CI1215V3/' : '/';
+  // Build env: 'v1', 'v2' o 'v3' (default v3 si no se especifica)
+  const buildEnv = process.env.VITE_BUILD_ENV || 'v3';
+  const basePathMap = { v1: '/CI1215/', v2: '/CI1215V2/', v3: '/CI1215V3/' };
+  const base = isBuild ? (basePathMap[buildEnv] || '/CI1215V3/') : '/';
+  if (isBuild) console.log('[vite] Building for ' + buildEnv + ' -> base: ' + base);
 
   return {
     base,
@@ -25,8 +29,8 @@ export default defineConfig(({ command }) => {
         ],
 
         manifest: {
-          id: '/CI1215V3/',
-          name: 'Coordinación de Campo · GAM',
+          id: base,
+          name: 'CoordinaciÃ³n de Campo Â· GAM',
           short_name: 'CI1215',
           description: 'Captura y monitoreo de postes de videovigilancia GAM',
           theme_color: '#b91c4e',
@@ -34,7 +38,7 @@ export default defineConfig(({ command }) => {
           display: 'standalone',
           orientation: 'portrait',
           lang: 'es-MX',
-          // En producción la app vive bajo /CI1215V3/
+          // En producciÃ³n la app vive bajo /CI1215V3/
           scope: base,
           start_url: base,
           icons: [
@@ -47,12 +51,12 @@ export default defineConfig(({ command }) => {
         },
 
         workbox: {
-          // Precache de toda la app — incluimos HTML como fallback offline.
-          // Las navegaciones online prefieren NetworkFirst (regla más abajo).
+          // Precache de toda la app â€” incluimos HTML como fallback offline.
+          // Las navegaciones online prefieren NetworkFirst (regla mÃ¡s abajo).
           globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
-          // Subir el límite por archivo a 5 MB (el chunk de OL ronda los 270 KB pero por si crece)
+          // Subir el lÃ­mite por archivo a 5 MB (el chunk de OL ronda los 270 KB pero por si crece)
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-          // Limpiar caches viejos automáticamente
+          // Limpiar caches viejos automÃ¡ticamente
           cleanupOutdatedCaches: true,
 
           // Importante: SPA fallback respetando el subpath /CI1215V3/
@@ -67,10 +71,10 @@ export default defineConfig(({ command }) => {
           ],
 
           runtimeCaching: [
-            // ── App shell (HTML) — NetworkFirst para propagar deploys rápido ──
+            // â”€â”€ App shell (HTML) â€” NetworkFirst para propagar deploys rÃ¡pido â”€â”€
             // Online: pide HTML al servidor (timeout 8s para 4G mexicano),
-            // si llega → HTML fresco con referencia al bundle nuevo.
-            // Offline o red muy lenta: cae al runtime cache, y si está vacío
+            // si llega â†’ HTML fresco con referencia al bundle nuevo.
+            // Offline o red muy lenta: cae al runtime cache, y si estÃ¡ vacÃ­o
             // workbox usa navigateFallback (precache).
             {
               urlPattern: ({ request }) => request.mode === 'navigate',
@@ -80,12 +84,12 @@ export default defineConfig(({ command }) => {
                 networkTimeoutSeconds: 8,
                 expiration: {
                   maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 7, // 7 días
+                  maxAgeSeconds: 60 * 60 * 24 * 7, // 7 dÃ­as
                 },
                 cacheableResponse: { statuses: [0, 200] },
               },
             },
-            // ── Tiles de CARTO Voyager (modo claro) ─────────────────────
+            // â”€â”€ Tiles de CARTO Voyager (modo claro) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             {
               urlPattern: ({ url }) =>
                 url.hostname.endsWith('basemaps.cartocdn.com'),
@@ -94,12 +98,12 @@ export default defineConfig(({ command }) => {
                 cacheName: 'carto-tiles-v3',
                 expiration: {
                   maxEntries: 1500,
-                  maxAgeSeconds: 60 * 60 * 24 * 30, // 30 días
+                  maxAgeSeconds: 60 * 60 * 24 * 30, // 30 dÃ­as
                 },
                 cacheableResponse: { statuses: [0, 200] },
               },
             },
-            // ── Tiles de OpenStreetMap (fallback que ya tienen) ────────
+            // â”€â”€ Tiles de OpenStreetMap (fallback que ya tienen) â”€â”€â”€â”€â”€â”€â”€â”€
             {
               urlPattern: ({ url }) =>
                 url.hostname.endsWith('tile.openstreetmap.org'),
@@ -113,7 +117,7 @@ export default defineConfig(({ command }) => {
                 cacheableResponse: { statuses: [0, 200] },
               },
             },
-            // ── Lecturas Supabase (REST GET) ─────────────────────────────
+            // â”€â”€ Lecturas Supabase (REST GET) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // NetworkFirst: si hay red, datos frescos; si no, sirve del cache
             {
               urlPattern: ({ url, request }) =>
@@ -126,12 +130,12 @@ export default defineConfig(({ command }) => {
                 networkTimeoutSeconds: 5,
                 expiration: {
                   maxEntries: 200,
-                  maxAgeSeconds: 60 * 60 * 24, // 1 día
+                  maxAgeSeconds: 60 * 60 * 24, // 1 dÃ­a
                 },
                 cacheableResponse: { statuses: [0, 200] },
               },
             },
-            // ── Storage (fotos en bucket Supabase) ───────────────────────
+            // â”€â”€ Storage (fotos en bucket Supabase) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             {
               urlPattern: ({ url, request }) =>
                 url.hostname.endsWith('.supabase.co') &&
@@ -142,12 +146,12 @@ export default defineConfig(({ command }) => {
                 cacheName: 'supabase-storage-v1',
                 expiration: {
                   maxEntries: 500,
-                  maxAgeSeconds: 60 * 60 * 24 * 7, // 7 días
+                  maxAgeSeconds: 60 * 60 * 24 * 7, // 7 dÃ­as
                 },
                 cacheableResponse: { statuses: [0, 200] },
               },
             },
-            // ── Google Fonts ─────────────────────────────────────────────
+            // â”€â”€ Google Fonts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             {
               urlPattern: ({ url }) =>
                 url.hostname === 'fonts.googleapis.com' ||

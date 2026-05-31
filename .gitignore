@@ -18,3 +18,12 @@ EOF
 *.bak
 dist.tar.gz
 apply_*.py
+
+# Variables de entorno por ambiente (credenciales reales, NO subir a GitHub)
+.env
+.env.local
+.env.v1
+.env.v2
+.env.v3
+# Las plantillas .example SI se suben (no tienen credenciales reales)
+!.env.*.example
