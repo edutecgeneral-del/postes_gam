@@ -65,6 +65,7 @@ import {
   canAttendIncidents,
   canResolveIncidents,
   canEditPosts,
+  canMarkRevisado,
   canDelete as authCanDelete,
   canViewAudit,
   canManageUsers,
@@ -105,6 +106,8 @@ import { relocatePost } from './lib/relocate.js';
 import { TagBadgeList } from './components/TagBadge';
 import MergeModal from './components/MergeModal.jsx';
 import { dbMergePosts } from './lib/data.js';
+// PASO_11_REVISADO_UI: helpers para marcar/desmarcar postes (solo admin)
+import { markPostRevisado as dbMarkPostRevisado, unmarkPostRevisado as dbUnmarkPostRevisado } from './lib/data.js';
 import ScoutingRoutePanel from './components/ScoutingRoutePanel.jsx';
 import EnvBanner from './components/EnvBanner.jsx';
 import { assignTagToPost, removeTagFromPost, invalidateTagCatalog } from './lib/tags.js';
@@ -3589,7 +3592,7 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
 // POST DETAIL DRAWER
 // ============================================================================
 
-function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, onCreateIncident, viewMode, userNames = {}, isAdmin = false, onVerifyStage, onUnverifyStage, onDelete, initialStageId, onStartEditPosition, onRequestRelocate, canViewHistory = false, historyRefreshKey, onOpenAntena }) {
+function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, onCreateIncident, viewMode, userNames = {}, isAdmin = false, onVerifyStage, onUnverifyStage, onDelete, initialStageId, onStartEditPosition, onRequestRelocate, canViewHistory = false, historyRefreshKey, onOpenAntena, onToggleRevisado }) {
   const [editingStage, setEditingStage] = useState(() => initialStageId ? (STAGE_DEFS.find(s => s.id === initialStageId) || null) : null);
   const [notes, setNotes] = useState('');
   const [showBlockForm, setShowBlockForm] = useState(false);
@@ -3681,6 +3684,45 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                 <div className="text-[10px] font-mono uppercase tracking-[0.25em] text-rose-400/80">Poste</div>
                 <h2 className="text-2xl font-mono font-light text-rose-500">{postDisplayId(post)}</h2>
                 <div className="text-[10px] font-mono text-stone-400">ID interno: {post.id}</div>
+                {/* PASO_11_REVISADO_UI: estado de revision + boton (solo admin) */}
+                {(() => {
+                  const isRevisado = !!post.revisado;
+                  const revAt = post.revisado_at || post.revisadoAt;
+                  const revBy = post.revisado_por_user_id || post.revisadoPorUserId;
+                  const revByName = revBy ? (userNames[revBy] || 'Usuario') : null;
+                  const fmt = (iso) => {
+                    if (!iso) return '';
+                    try {
+                      return new Date(iso).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
+                    } catch { return iso; }
+                  };
+                  if (isRevisado) {
+                    return (
+                      <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                        <span className="text-[12px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded">
+                          ✓ Revisado{revByName ? ` por ${revByName}` : ''}{revAt ? ` el ${fmt(revAt)}` : ''}
+                        </span>
+                        {isAdmin && onToggleRevisado && (
+                          <button onClick={() => onToggleRevisado(post)}
+                                  className="text-[11px] font-mono text-stone-500 hover:text-rose-600 underline">
+                            Desmarcar
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (isAdmin && onToggleRevisado) {
+                    return (
+                      <div className="mt-1.5">
+                        <button onClick={() => onToggleRevisado(post)}
+                                className="text-[11px] font-mono uppercase tracking-widest px-3 py-1 border border-emerald-600 text-emerald-700 hover:bg-emerald-50 rounded">
+                          ✓ Marcar revisado
+                        </button>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
                 {/* Alias — editable */}
                 {editingAlias ? (
                   <div className="mt-1 flex items-center gap-2">
@@ -7542,6 +7584,25 @@ export default function FieldCoordApp() {
 
       {selectedPost && (
         <PostDetailDrawer post={selectedPost} onClose={closePostDetail}
+            onToggleRevisado={async (p) => {
+              if (!profile) return;
+              try {
+                if (p.revisado) {
+                  await dbUnmarkPostRevisado(p.id);
+                  setPosts(prev => prev.map(x => x.id === p.id ? { ...x, revisado: false, revisado_at: null, revisadoAt: null, revisado_por_user_id: null, revisadoPorUserId: null } : x));
+                  setSelectedPost(prev => prev && prev.id === p.id ? { ...prev, revisado: false, revisado_at: null, revisadoAt: null, revisado_por_user_id: null, revisadoPorUserId: null } : prev);
+                } else {
+                  const updated = await dbMarkPostRevisado(p.id, profile.userId);
+                  const ra = updated?.revisado_at || new Date().toISOString();
+                  const rby = updated?.revisado_por_user_id || profile.userId;
+                  setPosts(prev => prev.map(x => x.id === p.id ? { ...x, revisado: true, revisado_at: ra, revisadoAt: ra, revisado_por_user_id: rby, revisadoPorUserId: rby } : x));
+                  setSelectedPost(prev => prev && prev.id === p.id ? { ...prev, revisado: true, revisado_at: ra, revisadoAt: ra, revisado_por_user_id: rby, revisadoPorUserId: rby } : prev);
+                }
+              } catch (e) {
+                console.error('toggle revisado failed', e);
+                alert('No se pudo cambiar el estado de revisado: ' + (e?.message || e));
+              }
+            }}
                           initialStageId={initialStageId}
                           onUpdate={(readOnly || raalReadOnlyPostes) ? null : updatePost}
                           onUpdateMeta={(readOnly || raalReadOnlyPostes) ? null : updatePostMeta}
@@ -7566,6 +7627,25 @@ export default function FieldCoordApp() {
             {comparePair.map((cp) => (
               <div key={cp.id} className="flex-1 relative bg-stone-100 overflow-hidden" style={{ transform: 'translateZ(0)' }}>
                 <PostDetailDrawer post={cp} onClose={() => setComparePair(null)}
+                onToggleRevisado={async (p) => {
+              if (!profile) return;
+              try {
+                if (p.revisado) {
+                  await dbUnmarkPostRevisado(p.id);
+                  setPosts(prev => prev.map(x => x.id === p.id ? { ...x, revisado: false, revisado_at: null, revisadoAt: null, revisado_por_user_id: null, revisadoPorUserId: null } : x));
+                  setSelectedPost(prev => prev && prev.id === p.id ? { ...prev, revisado: false, revisado_at: null, revisadoAt: null, revisado_por_user_id: null, revisadoPorUserId: null } : prev);
+                } else {
+                  const updated = await dbMarkPostRevisado(p.id, profile.userId);
+                  const ra = updated?.revisado_at || new Date().toISOString();
+                  const rby = updated?.revisado_por_user_id || profile.userId;
+                  setPosts(prev => prev.map(x => x.id === p.id ? { ...x, revisado: true, revisado_at: ra, revisadoAt: ra, revisado_por_user_id: rby, revisadoPorUserId: rby } : x));
+                  setSelectedPost(prev => prev && prev.id === p.id ? { ...prev, revisado: true, revisado_at: ra, revisadoAt: ra, revisado_por_user_id: rby, revisadoPorUserId: rby } : prev);
+                }
+              } catch (e) {
+                console.error('toggle revisado failed', e);
+                alert('No se pudo cambiar el estado de revisado: ' + (e?.message || e));
+              }
+            }}
                                   onUpdate={(readOnly || raalReadOnlyPostes) ? null : updatePost}
                                   onUpdateMeta={(readOnly || raalReadOnlyPostes) ? null : updatePostMeta}
                                   incidents={incidents}

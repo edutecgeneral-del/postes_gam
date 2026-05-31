@@ -103,6 +103,12 @@ export function matchesFilters(post, filters, stageDefs, mode = 'map', incidents
     if (!post.reubicado) return false;
   } else if (filters.maint === 'boton_panico') {
     if (!post.stages?.camaras?.attrs?.boton_panico) return false;
+  } else if (filters.maint === 'revisados') {
+    // PASO_13_REVISADOS: solo postes con revisado=true
+    if (!post.revisado) return false;
+  } else if (filters.maint === 'no_revisados') {
+    // PASO_13_REVISADOS: solo postes con revisado=false o null
+    if (post.revisado) return false;
   }
 
   // Tipo de incidencia — mostrar solo postes con al menos una incidencia abierta de ese tipo
@@ -225,7 +231,7 @@ export function computeCounts(posts, filters, stageDefs, mode = 'map', incidents
 
   // maint (faltan cámaras / falta silicón / poste 13m)
   const filtersWithoutMaint = { ...filters, maint: null };
-  for (const m of ['falta_camaras', 'falta_silicon', 'poste_13m', 'reubicados', 'boton_panico']) {
+  for (const m of ['falta_camaras', 'falta_silicon', 'poste_13m', 'reubicados', 'boton_panico', 'revisados', 'no_revisados']) {
     counts.maint[m] = posts.filter(p =>
       matchesFilters(p, { ...filtersWithoutMaint, maint: m }, stageDefs, mode, incidents)
     ).length;
@@ -247,7 +253,7 @@ export function computeCounts(posts, filters, stageDefs, mode = 'map', incidents
 // URL params encoding/decoding
 // ============================================================================
 
-const MAINT_VALUES = ['falta_camaras', 'falta_silicon', 'poste_13m', 'reubicados', 'boton_panico'];
+const MAINT_VALUES = ['falta_camaras', 'falta_silicon', 'poste_13m', 'reubicados', 'boton_panico', 'revisados', 'no_revisados'];
 const URL_KEYS = ['stages', 'uts', 'capturadores', 'tags', 'verified', 'maint', 'incType', 'createdFrom', 'createdTo', 'modFrom', 'modTo'];
 
 export function paramsToFilters(searchParams) {

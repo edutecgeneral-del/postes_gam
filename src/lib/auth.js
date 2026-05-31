@@ -208,6 +208,14 @@ export function canManageUsers(profile) {
   return profile?.role === ROLES.ADMIN;
 }
 
+/**
+ * ¿Puede el usuario marcar / desmarcar postes como "revisado"? — Solo admin.
+ * El backend tambien lo enforza con el trigger posts_revisado_admin_only.
+ */
+export function canMarkRevisado(profile) {
+  return profile?.role === ROLES.ADMIN;
+}
+
 // -----------------------------------------------------------------------------
 // Admin: crear / borrar / listar usuarios (vía Edge Functions)
 // -----------------------------------------------------------------------------
@@ -299,6 +307,7 @@ export default {
   canDelete,
   canViewAudit,
   canManageUsers,
+  canMarkRevisado,
   createUser,
   deleteUser,
   listAllUsers,

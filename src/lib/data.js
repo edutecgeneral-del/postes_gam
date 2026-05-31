@@ -1390,3 +1390,41 @@ export async function setPostAntenaRecuperada(postId, recuperada, byUserId) {
   if (error) throw error;
   return true;
 }
+
+// ============================================================================
+// REVISADO (paso 10): marcar / desmarcar postes como revisados (solo admin)
+// El trigger posts_revisado_admin_only enforza esto a nivel BD; el frontend
+// tambien gate-ea el boton via canMarkRevisado(profile).
+// ============================================================================
+
+export async function markPostRevisado(postId, userId) {
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from('posts')
+    .update({
+      revisado: true,
+      revisado_at: new Date().toISOString(),
+      revisado_por_user_id: userId,
+    })
+    .eq('id', postId)
+    .select('id, revisado, revisado_at, revisado_por_user_id')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function unmarkPostRevisado(postId) {
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from('posts')
+    .update({
+      revisado: false,
+      revisado_at: null,
+      revisado_por_user_id: null,
+    })
+    .eq('id', postId)
+    .select('id, revisado, revisado_at, revisado_por_user_id')
+    .single();
+  if (error) throw error;
+  return data;
+}

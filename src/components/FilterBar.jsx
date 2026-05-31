@@ -408,6 +408,21 @@ export function FilterBar({
             onToggle={() => toggleMaint('reubicados')}
             activeClass="bg-purple-50 border-purple-400 text-purple-700 hover:border-purple-500"
           />
+          {/* PASO_13_REVISADOS: chips para filtrar postes revisados / no revisados */}
+          <ToggleChip
+            label="✓ Revisados"
+            count={counts.maint?.revisados || 0}
+            active={filters.maint === 'revisados'}
+            onToggle={() => toggleMaint('revisados')}
+            activeClass="bg-emerald-50 border-emerald-400 text-emerald-700 hover:border-emerald-500"
+          />
+          <ToggleChip
+            label="◯ No revisados"
+            count={counts.maint?.no_revisados || 0}
+            active={filters.maint === 'no_revisados'}
+            onToggle={() => toggleMaint('no_revisados')}
+            activeClass="bg-stone-100 border-stone-400 text-stone-700 hover:border-stone-500"
+          />
           <ToggleChip
             label="🆘 Botón de pánico"
             count={counts.maint?.boton_panico || 0}
