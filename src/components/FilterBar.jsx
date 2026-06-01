@@ -46,7 +46,7 @@ function MultiChip({ label, options, selectedValues, onToggle, onClear, searchab
         onClick={() => setOpen(o => !o)}
         className={`px-3 py-1.5 text-xs font-mono border transition-colors ${
           hasSel
-            ? 'bg-rose-50 border-rose-400 text-rose-700 hover:border-rose-500'
+            ? 'bg-brand-50 border-brand-400 text-brand-700 hover:border-brand-500'
             : 'bg-stone-50 border-stone-300 text-stone-700 hover:border-stone-500'
         }`}
       >
@@ -80,7 +80,7 @@ function MultiChip({ label, options, selectedValues, onToggle, onClear, searchab
                     type="checkbox"
                     checked={checked}
                     onChange={() => onToggle(opt.value)}
-                    className="accent-rose-500 cursor-pointer"
+                    className="accent-brand-500 cursor-pointer"
                   />
                   <span className="flex-1 text-stone-800 truncate" title={opt.label}>{opt.label}</span>
                   <span className="text-stone-400 text-[11px] tabular-nums">{opt.count}</span>
@@ -92,7 +92,7 @@ function MultiChip({ label, options, selectedValues, onToggle, onClear, searchab
             <button
               type="button"
               onClick={() => { onClear(); setOpen(false); }}
-              className="px-3 py-2 text-xs font-mono text-rose-500 hover:bg-rose-50 border-t border-stone-200 text-left"
+              className="px-3 py-2 text-xs font-mono text-brand-500 hover:bg-brand-50 border-t border-stone-200 text-left"
             >
               Limpiar selección
             </button>
@@ -134,7 +134,7 @@ function SingleChip({ label, options, selectedValue, onSelect }) {
         onClick={() => setOpen(o => !o)}
         className={`px-3 py-1.5 text-xs font-mono border transition-colors ${
           sel
-            ? 'bg-rose-50 border-rose-400 text-rose-700 hover:border-rose-500'
+            ? 'bg-brand-50 border-brand-400 text-brand-700 hover:border-brand-500'
             : 'bg-stone-50 border-stone-300 text-stone-700 hover:border-stone-500'
         }`}
       >
@@ -147,7 +147,7 @@ function SingleChip({ label, options, selectedValue, onSelect }) {
           <button
             type="button"
             onClick={() => { onSelect(null); setOpen(false); }}
-            className={`w-full text-left px-2.5 py-1.5 text-xs font-mono hover:bg-stone-50 ${!sel ? 'text-rose-600' : 'text-stone-700'}`}
+            className={`w-full text-left px-2.5 py-1.5 text-xs font-mono hover:bg-stone-50 ${!sel ? 'text-brand-600' : 'text-stone-700'}`}
           >
             Todos
           </button>
@@ -157,7 +157,7 @@ function SingleChip({ label, options, selectedValue, onSelect }) {
               type="button"
               onClick={() => { onSelect(opt.value); setOpen(false); }}
               className={`w-full text-left px-2.5 py-1.5 text-xs font-mono hover:bg-stone-50 flex items-center justify-between gap-2 ${
-                selectedValue === opt.value ? 'bg-rose-50 text-rose-700' : 'text-stone-700'
+                selectedValue === opt.value ? 'bg-brand-50 text-brand-700' : 'text-stone-700'
               }`}
             >
               <span>{opt.label}</span>
@@ -178,7 +178,7 @@ function ToggleChip({ label, count, active, onToggle, activeClass }) {
       onClick={onToggle}
       className={`px-3 py-1.5 text-xs font-mono border transition-colors ${
         active
-          ? (activeClass || 'bg-rose-50 border-rose-400 text-rose-700 hover:border-rose-500')
+          ? (activeClass || 'bg-brand-50 border-brand-400 text-brand-700 hover:border-brand-500')
           : 'bg-stone-50 border-stone-300 text-stone-700 hover:border-stone-500'
       }`}
     >
@@ -217,7 +217,7 @@ function DateRangeChip({ label, fromValue, toValue, onFrom, onTo, onClear }) {
         onClick={() => setOpen(o => !o)}
         className={`px-3 py-1.5 text-xs font-mono border transition-colors ${
           hasSel
-            ? 'bg-rose-50 border-rose-400 text-rose-700 hover:border-rose-500'
+            ? 'bg-brand-50 border-brand-400 text-brand-700 hover:border-brand-500'
             : 'bg-stone-50 border-stone-300 text-stone-700 hover:border-stone-500'
         }`}
       >
@@ -232,7 +232,7 @@ function DateRangeChip({ label, fromValue, toValue, onFrom, onTo, onClear }) {
               type="date"
               value={fromValue || ''}
               onChange={(e) => onFrom(e.target.value)}
-              className="border border-stone-300 rounded px-2 py-1 text-xs font-mono focus:outline-none focus:border-rose-500"
+              className="border border-stone-300 rounded px-2 py-1 text-xs font-mono focus:outline-none focus:border-brand-500"
             />
           </label>
           <label className="text-[11px] font-mono text-stone-500 flex flex-col gap-1">
@@ -241,14 +241,14 @@ function DateRangeChip({ label, fromValue, toValue, onFrom, onTo, onClear }) {
               type="date"
               value={toValue || ''}
               onChange={(e) => onTo(e.target.value)}
-              className="border border-stone-300 rounded px-2 py-1 text-xs font-mono focus:outline-none focus:border-rose-500"
+              className="border border-stone-300 rounded px-2 py-1 text-xs font-mono focus:outline-none focus:border-brand-500"
             />
           </label>
           {hasSel && (
             <button
               type="button"
               onClick={() => { onClear(); setOpen(false); }}
-              className="text-xs font-mono text-rose-500 hover:bg-rose-50 border-t border-stone-200 pt-2 text-left"
+              className="text-xs font-mono text-brand-500 hover:bg-brand-50 border-t border-stone-200 pt-2 text-left"
             >
               Limpiar fechas
             </button>
@@ -440,7 +440,7 @@ export function FilterBar({
           onChange={e => setFilters(prev => ({ ...prev, incType: e.target.value || null }))}
           className={`px-3 py-1.5 text-xs font-mono border transition-colors ${
             filters.incType
-              ? 'bg-rose-50 border-rose-400 text-rose-700'
+              ? 'bg-brand-50 border-brand-400 text-brand-700'
               : 'bg-stone-50 border-stone-300 text-stone-700'
           }`}
         >
@@ -529,7 +529,7 @@ export function FilterBar({
         <button
           type="button"
           onClick={clearAll}
-          className="text-xs font-mono text-stone-500 hover:text-rose-500 underline ml-1"
+          className="text-xs font-mono text-stone-500 hover:text-brand-500 underline ml-1"
         >
           Limpiar todo
         </button>

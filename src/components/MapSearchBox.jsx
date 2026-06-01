@@ -93,9 +93,9 @@ export default function MapSearchBox({ posts, onSelect }) {
                     className="w-full text-left px-3 py-2 hover:bg-purple-50 border-b border-stone-200 last:border-b-0 transition-colors"
                   >
                     <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className="font-mono text-sm text-rose-500">{p.id}</span>
+                      <span className="font-mono text-sm text-brand-500">{p.id}</span>
                       {p.alias && (
-                        <span className="text-rose-600 text-[10px] font-medium">
+                        <span className="text-brand-600 text-[10px] font-medium">
                           "{p.alias}"
                         </span>
                       )}

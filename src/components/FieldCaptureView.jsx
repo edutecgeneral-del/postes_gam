@@ -72,7 +72,7 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
       <div className="h-full overflow-y-auto">
         <div className="px-4 py-6 sm:px-6">
           <div className="mb-6">
-            <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80">Captura en campo</div>
+            <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-brand-400/80">Captura en campo</div>
             <h1 className="text-xl font-light text-stone-950 mt-1">Selecciona la etapa a capturar</h1>
             <p className="text-xs text-stone-500 mt-1">{posts.length} postes en el sistema</p>
           </div>
@@ -97,7 +97,7 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
                     <p className="text-xs text-stone-500 mt-1 line-clamp-2">{s.desc}</p>
                     <div className="mt-2">
                       <div className="flex items-center justify-between text-[12px] font-mono mb-1">
-                        <span className="text-rose-400">{pending} pendientes</span>
+                        <span className="text-brand-400">{pending} pendientes</span>
                         <span className="text-emerald-400">{done} completados · {pct}%</span>
                       </div>
                       <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
@@ -151,7 +151,7 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
         </div>
         {onRequestCreatePost && (
           <button onClick={() => onRequestCreatePost(selectedStageId)}
-                  className="flex items-center gap-1.5 bg-rose-700 hover:bg-rose-600 text-stone-950 text-xs font-medium rounded-lg px-3 py-2 transition-colors">
+                  className="flex items-center gap-1.5 bg-brand-700 hover:bg-brand-600 text-stone-950 text-xs font-medium rounded-lg px-3 py-2 transition-colors">
             <Plus className="w-4 h-4" /> Nuevo poste
           </button>
         )}
@@ -175,7 +175,7 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
           <input type="text" value={searchText} onChange={e => setSearchText(e.target.value)}
                  placeholder="Buscar por ID, dirección o UT…"
-                 className="w-full bg-stone-100 border border-stone-300 rounded-lg pl-10 pr-3 py-2.5 text-sm text-stone-950 placeholder-stone-500 focus:outline-none focus:border-rose-600" />
+                 className="w-full bg-stone-100 border border-stone-300 rounded-lg pl-10 pr-3 py-2.5 text-sm text-stone-950 placeholder-stone-500 focus:outline-none focus:border-brand-600" />
         </div>
       </div>
 
@@ -190,7 +190,7 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
           <>
             {filteredPending.length > 0 && (
               <div>
-                <div className="px-4 py-2 text-[12px] font-mono uppercase tracking-widest text-rose-400 bg-stone-200 border-b border-stone-300">
+                <div className="px-4 py-2 text-[12px] font-mono uppercase tracking-widest text-brand-400 bg-stone-200 border-b border-stone-300">
                   Pendientes · {filteredPending.length}
                 </div>
                 <div className="divide-y divide-stone-300/50">
@@ -247,7 +247,7 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
                           <div className="text-xs text-stone-600 truncate mt-0.5">{p.direccion || 'Sin dirección'}</div>
                           <div className="text-[12px] text-stone-500 mt-0.5">
                             {stagesDone}/7 · {d?.ts ? new Date(d.ts).toLocaleDateString('es-MX', { day:'2-digit', month:'short' }) : ''}
-                            {!hasPhoto && <span className="text-rose-400 ml-2">⚠ sin foto</span>}
+                            {!hasPhoto && <span className="text-brand-400 ml-2">⚠ sin foto</span>}
                           </div>
                         </div>
                         <div className="flex-shrink-0 text-xs font-mono px-2 py-1 rounded bg-stone-100 text-stone-600">

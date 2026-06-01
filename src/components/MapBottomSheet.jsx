@@ -108,7 +108,7 @@ export function MapBottomSheet({ summary, children, onClose, count = 0 }) {
           <button onClick={cycle} className="flex items-center gap-1.5 text-stone-700 font-mono text-xs">
             <ChevronUp className="w-4 h-4 transition-transform" style={{ transform: isCollapsed ? 'none' : 'rotate(180deg)' }} />
             {count > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[11px] font-bold">
+              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-brand-500 text-white text-[11px] font-bold">
                 {count}
               </span>
             )}

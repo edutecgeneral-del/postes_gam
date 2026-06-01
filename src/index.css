@@ -1,4 +1,4 @@
-﻿/* Estilos de OpenLayers (de node_modules/ol/ol.css) — DEBE ir antes de @tailwind */
+/* Estilos de OpenLayers (de node_modules/ol/ol.css) — DEBE ir antes de @tailwind */
 @import 'ol/ol.css';
 
 @tailwind base;
@@ -63,4 +63,32 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #3f3f46;
+}
+/* Tema "brand" dinamico - se cambia con data-env="v3" en el HTML root */
+:root {
+  /* Default (V1, V2): rose */
+  --brand-50:  255 241 242;
+  --brand-100: 254 226 226;
+  --brand-200: 254 205 211;
+  --brand-300: 253 164 175;
+  --brand-400: 251 113 133;
+  --brand-500: 244 63 94;
+  --brand-600: 225 29 72;
+  --brand-700: 190 18 60;
+  --brand-800: 159 18 57;
+  --brand-900: 136 19 55;
+}
+
+[data-env="v3"] {
+  /* V3: teal (verde-azulado) */
+  --brand-50:  240 253 250;
+  --brand-100: 204 251 241;
+  --brand-200: 153 246 228;
+  --brand-300: 94 234 212;
+  --brand-400: 45 212 191;
+  --brand-500: 20 184 166;
+  --brand-600: 13 148 136;
+  --brand-700: 15 118 110;
+  --brand-800: 17 94 89;
+  --brand-900: 19 78 74;
 }

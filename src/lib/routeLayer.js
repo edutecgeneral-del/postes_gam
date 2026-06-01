@@ -10,7 +10,7 @@ import Point from 'ol/geom/Point';
 import { fromLonLat } from 'ol/proj';
 import { Style, Stroke, Fill, Circle as CircleStyle, Text } from 'ol/style';
 
-const ROUTE_COLOR = '#F43F5E';    // rose-500 (acento de la app)
+const ROUTE_COLOR = '#F43F5E';    // brand-500 (acento de la app)
 const ROUTE_ENDPOINT = '#F59E0B'; // amber-500 (inicio/fin)
 
 function lineStyle() {

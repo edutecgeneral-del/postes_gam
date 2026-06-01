@@ -10,7 +10,7 @@ import { getSupabase } from '../lib/supabase.js';
 
 const ACTION_COLORS = {
   INSERT: 'text-green-400 bg-green-500/10 border-green-500/30',
-  UPDATE: 'text-rose-400 bg-rose-500/10 border-rose-500/30',
+  UPDATE: 'text-brand-400 bg-brand-500/10 border-brand-500/30',
   DELETE: 'text-red-400 bg-red-500/10 border-red-500/30',
 };
 

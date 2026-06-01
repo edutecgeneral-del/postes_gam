@@ -184,8 +184,8 @@ export default function CreatePostForm({ unidadesTerritoriales, stageDefs, defau
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-stone-300 sticky top-0 bg-stone-50 z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-rose-700/20 flex items-center justify-center">
-              <Plus className="w-5 h-5 text-rose-400" />
+            <div className="w-10 h-10 rounded-lg bg-brand-700/20 flex items-center justify-center">
+              <Plus className="w-5 h-5 text-brand-400" />
             </div>
             <div>
               <h3 className="text-base font-bold text-stone-950">Nuevo poste</h3>
@@ -215,7 +215,7 @@ export default function CreatePostForm({ unidadesTerritoriales, stageDefs, defau
                 return (
                   <button key={s.id} onClick={() => handleStageChange(isSelected ? null : s.id)}
                     className={`flex items-center gap-2.5 p-3 rounded-lg border transition-all text-left ${
-                      isSelected ? 'border-rose-600/50 bg-rose-500/10' : 'border-stone-300 bg-stone-100 hover:border-stone-500'
+                      isSelected ? 'border-brand-600/50 bg-brand-500/10' : 'border-stone-300 bg-stone-100 hover:border-stone-500'
                     }`}>
                     <IconComponent className="w-5 h-5 flex-shrink-0" style={{ color: s.color }} />
                     <div>
@@ -260,7 +260,7 @@ export default function CreatePostForm({ unidadesTerritoriales, stageDefs, defau
               </label>
               <input type="text" value={direccion} onChange={e => setDireccion(e.target.value)}
                      placeholder="Se llenará automáticamente con las coordenadas"
-                     className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2.5 text-sm text-stone-950 focus:outline-none focus:border-rose-600" />
+                     className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2.5 text-sm text-stone-950 focus:outline-none focus:border-brand-600" />
             </div>
           )}
 
@@ -273,7 +273,7 @@ export default function CreatePostForm({ unidadesTerritoriales, stageDefs, defau
               </label>
               <input type="text" value={alias} onChange={e => setAlias(e.target.value)}
                      placeholder="Ej: Frente a la escuela, Esquina farmacia"
-                     className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2.5 text-sm text-stone-950 focus:outline-none focus:border-rose-600" />
+                     className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2.5 text-sm text-stone-950 focus:outline-none focus:border-brand-600" />
             </div>
           )}
 
@@ -287,11 +287,11 @@ export default function CreatePostForm({ unidadesTerritoriales, stageDefs, defau
               <div className="flex items-center gap-2">
                 <input type="number" value={numPoste} onChange={e => setNumPoste(e.target.value)}
                        placeholder="Ej: 5"
-                       className="flex-1 bg-stone-100 border border-stone-300 rounded-lg px-3 py-2.5 text-sm text-stone-950 focus:outline-none focus:border-rose-600 font-mono" />
+                       className="flex-1 bg-stone-100 border border-stone-300 rounded-lg px-3 py-2.5 text-sm text-stone-950 focus:outline-none focus:border-brand-600 font-mono" />
                 {numPoste && (
                   <label className="flex items-center gap-1.5 text-[11px] text-stone-600 cursor-pointer whitespace-nowrap">
                     <input type="checkbox" checked={shiftNumbers} onChange={e => setShiftNumbers(e.target.checked)}
-                           className="w-3.5 h-3.5 accent-rose-500" />
+                           className="w-3.5 h-3.5 accent-brand-500" />
                     Recorrer posteriores
                   </label>
                 )}
@@ -310,7 +310,7 @@ export default function CreatePostForm({ unidadesTerritoriales, stageDefs, defau
                 Unidad territorial
               </label>
               <select value={ut} onChange={e => setUt(e.target.value)}
-                     className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2.5 text-sm text-stone-950 focus:outline-none focus:border-rose-600">
+                     className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2.5 text-sm text-stone-950 focus:outline-none focus:border-brand-600">
                 <option value="SIN-CAT">Sin categorizar</option>
                 {unidadesTerritoriales?.map(u => (
                   <option key={u.id} value={u.id}>{u.id}{u.zona ? ` · ${u.zona}` : ''}</option>
@@ -322,7 +322,7 @@ export default function CreatePostForm({ unidadesTerritoriales, stageDefs, defau
           {/* Info si no hay etapa seleccionada */}
           {!selectedStage && (
             <div className="text-xs text-stone-500 bg-stone-100/50 border border-stone-300 rounded-lg p-3">
-              <AlertCircle className="w-4 h-4 inline mr-1.5 text-rose-500" />
+              <AlertCircle className="w-4 h-4 inline mr-1.5 text-brand-500" />
               Selecciona una etapa arriba para capturar la ubicación GPS y los datos del poste.
             </div>
           )}
@@ -341,7 +341,7 @@ export default function CreatePostForm({ unidadesTerritoriales, stageDefs, defau
               Cancelar
             </button>
             <button onClick={handleSave} disabled={!canSave || saving}
-                    className="flex-1 bg-rose-700 hover:bg-rose-600 disabled:bg-stone-200 disabled:text-stone-500 text-stone-950 text-sm font-medium rounded-lg py-3 flex items-center justify-center gap-2">
+                    className="flex-1 bg-brand-700 hover:bg-brand-600 disabled:bg-stone-200 disabled:text-stone-500 text-stone-950 text-sm font-medium rounded-lg py-3 flex items-center justify-center gap-2">
               {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Creando…</> : <><Check className="w-4 h-4" /> Crear poste</>}
             </button>
           </div>

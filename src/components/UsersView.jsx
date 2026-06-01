@@ -19,7 +19,7 @@ import {
 } from '../lib/auth.js';
 
 const ROLE_LABELS = {
-  admin: { label: 'Administrador', icon: Shield, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+  admin: { label: 'Administrador', icon: Shield, color: 'text-brand-400', bg: 'bg-brand-500/10' },
   capturador: { label: 'Capturador', icon: HardHat, color: 'text-blue-400', bg: 'bg-blue-500/10' },
   scout: { label: 'Scout', icon: Compass, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
   director: { label: 'Director', icon: Eye, color: 'text-purple-400', bg: 'bg-purple-500/10' },
@@ -97,8 +97,8 @@ export default function UsersView({ currentProfile }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-rose-700/20 flex items-center justify-center">
-            <Users className="w-5 h-5 text-rose-400" />
+          <div className="w-10 h-10 rounded-lg bg-brand-700/20 flex items-center justify-center">
+            <Users className="w-5 h-5 text-brand-400" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-stone-950">Usuarios</h2>
@@ -107,7 +107,7 @@ export default function UsersView({ currentProfile }) {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-rose-700 hover:bg-rose-600 text-stone-950 text-sm font-medium rounded-lg px-3 py-2 transition-colors"
+          className="flex items-center gap-2 bg-brand-700 hover:bg-brand-600 text-stone-950 text-sm font-medium rounded-lg px-3 py-2 transition-colors"
         >
           <Plus className="w-4 h-4" />
           Crear usuario
@@ -146,7 +146,7 @@ export default function UsersView({ currentProfile }) {
                   <tr key={u.userId} className="border-t border-stone-300 hover:bg-stone-100/30">
                     <td className="px-4 py-3 text-stone-800">
                       {u.displayName || '—'}
-                      {isMe && <span className="ml-2 text-xs text-rose-500">(vos)</span>}
+                      {isMe && <span className="ml-2 text-xs text-brand-500">(vos)</span>}
                     </td>
                     <td className="px-4 py-3 text-stone-600 text-xs">{u.email}</td>
                     <td className="px-4 py-3">
@@ -314,25 +314,25 @@ function CreateUserModal({ onClose, onCreated }) {
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">Nombre completo</label>
             <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
-              placeholder="Juan Pérez" className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 focus:outline-none focus:border-rose-600" />
+              placeholder="Juan Pérez" className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 focus:outline-none focus:border-brand-600" />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">Email</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="juan@ejemplo.com" className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 focus:outline-none focus:border-rose-600" />
+              placeholder="juan@ejemplo.com" className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 focus:outline-none focus:border-brand-600" />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">Contraseña temporal (mín. 6 caracteres)</label>
             <input type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="La podrá cambiar después" className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 focus:outline-none focus:border-rose-600" />
+              placeholder="La podrá cambiar después" className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 focus:outline-none focus:border-brand-600" />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">Rol</label>
             <select value={role} onChange={e => setRole(e.target.value)}
-              className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 focus:outline-none focus:border-rose-600">
+              className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 focus:outline-none focus:border-brand-600">
               <option value={ROLES.ADMIN}>Administrador — todos los permisos</option>
               <option value={ROLES.CAPTURADOR}>Capturador — edita etapas permitidas</option>
               <option value={ROLES.SCOUT}>Scout — verificación en campo</option>
@@ -350,7 +350,7 @@ function CreateUserModal({ onClose, onCreated }) {
                 {ALL_STAGE_IDS.map(sid => (
                   <label key={sid} className="flex items-center gap-2 bg-stone-100 rounded-lg px-3 py-2 cursor-pointer hover:bg-stone-200">
                     <input type="checkbox" checked={allowedStages.has(sid)} onChange={() => toggleStage(sid)}
-                      className="w-4 h-4 accent-rose-500" />
+                      className="w-4 h-4 accent-brand-500" />
                     <span className="text-xs text-stone-800">{STAGE_LABELS[sid]}</span>
                   </label>
                 ))}
@@ -369,7 +369,7 @@ function CreateUserModal({ onClose, onCreated }) {
               Cancelar
             </button>
             <button onClick={submit} disabled={loading}
-              className="flex-1 bg-rose-700 hover:bg-rose-600 disabled:bg-stone-200 text-stone-950 text-sm font-medium rounded-lg py-2 flex items-center justify-center gap-2">
+              className="flex-1 bg-brand-700 hover:bg-brand-600 disabled:bg-stone-200 text-stone-950 text-sm font-medium rounded-lg py-2 flex items-center justify-center gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               Crear
             </button>
@@ -432,13 +432,13 @@ function EditUserModal({ user, onClose, onUpdated }) {
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">Nombre completo</label>
             <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
-              className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 focus:outline-none focus:border-rose-600" />
+              className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 focus:outline-none focus:border-brand-600" />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">Rol</label>
             <select value={role} onChange={e => setRole(e.target.value)}
-              className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 focus:outline-none focus:border-rose-600">
+              className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 focus:outline-none focus:border-brand-600">
               <option value={ROLES.ADMIN}>Administrador</option>
               <option value={ROLES.CAPTURADOR}>Capturador</option>
               <option value={ROLES.SCOUT}>Scout</option>
@@ -453,7 +453,7 @@ function EditUserModal({ user, onClose, onUpdated }) {
                 {ALL_STAGE_IDS.map(sid => (
                   <label key={sid} className="flex items-center gap-2 bg-stone-100 rounded-lg px-3 py-2 cursor-pointer hover:bg-stone-200">
                     <input type="checkbox" checked={allowedStages.has(sid)} onChange={() => toggleStage(sid)}
-                      className="w-4 h-4 accent-rose-500" />
+                      className="w-4 h-4 accent-brand-500" />
                     <span className="text-xs text-stone-800">{STAGE_LABELS[sid]}</span>
                   </label>
                 ))}
@@ -472,7 +472,7 @@ function EditUserModal({ user, onClose, onUpdated }) {
               Cancelar
             </button>
             <button onClick={submit} disabled={loading}
-              className="flex-1 bg-rose-700 hover:bg-rose-600 disabled:bg-stone-200 text-stone-950 text-sm font-medium rounded-lg py-2 flex items-center justify-center gap-2">
+              className="flex-1 bg-brand-700 hover:bg-brand-600 disabled:bg-stone-200 text-stone-950 text-sm font-medium rounded-lg py-2 flex items-center justify-center gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               Guardar
             </button>

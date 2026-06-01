@@ -6,6 +6,8 @@ import { registerServiceWorker } from './lib/pwa.js';
 import { initErrorTracker, reportError } from './lib/errorTracker.js';
 import './index.css';
 
+document.documentElement.dataset.env = typeof __BUILD_ENV__ !== 'undefined' ? __BUILD_ENV__ : 'v3';
+
 // Inicializar telemetría de errores ANTES de todo lo demás, para capturar
 // errores que ocurran durante installStorage o SW register.
 try { initErrorTracker(); } catch (e) { console.warn('errorTracker init failed:', e); }

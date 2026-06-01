@@ -32,14 +32,14 @@ export function FilterBarCollapsible(props) {
         onClick={() => setOpen(true)}
         className={`px-3 py-1.5 text-xs font-mono border transition-colors flex items-center gap-1.5 ${
           activeCount > 0
-            ? 'bg-rose-50 border-rose-400 text-rose-700'
+            ? 'bg-brand-50 border-brand-400 text-brand-700'
             : 'bg-stone-50 border-stone-300 text-stone-700'
         }`}
       >
         <SlidersHorizontal className="w-3.5 h-3.5" />
         Filtros
         {activeCount > 0 && (
-          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold">
+          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-brand-500 text-white text-[10px] font-bold">
             {activeCount}
           </span>
         )}
@@ -51,7 +51,7 @@ export function FilterBarCollapsible(props) {
           <div className="absolute left-0 right-0 bottom-0 max-h-[80vh] flex flex-col bg-stone-50 border-t border-stone-300 rounded-t-2xl shadow-2xl">
             <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-stone-200">
               <span className="font-mono text-sm text-stone-800 flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4 text-rose-500" /> Filtros
+                <SlidersHorizontal className="w-4 h-4 text-brand-500" /> Filtros
                 {activeCount > 0 && <span className="text-stone-400">· {activeCount} activos</span>}
               </span>
               <button
@@ -68,7 +68,7 @@ export function FilterBarCollapsible(props) {
             <div className="shrink-0 p-3 border-t border-stone-200">
               <button
                 onClick={() => setOpen(false)}
-                className="w-full py-2.5 rounded-lg bg-rose-500 text-white font-mono text-sm font-bold"
+                className="w-full py-2.5 rounded-lg bg-brand-500 text-white font-mono text-sm font-bold"
               >
                 Ver resultados
               </button>

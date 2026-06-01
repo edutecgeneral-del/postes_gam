@@ -30,7 +30,7 @@ export default function PostFusionHistory({ postId, canView, refreshKey }) {
     return <div className="px-3 py-2 text-xs text-stone-500">Cargando historial de fusiones...</div>;
   }
   if (error) {
-    return <div className="px-3 py-2 text-xs text-rose-600">Error: {error}</div>;
+    return <div className="px-3 py-2 text-xs text-brand-600">Error: {error}</div>;
   }
   if (items.length === 0) return null;
 

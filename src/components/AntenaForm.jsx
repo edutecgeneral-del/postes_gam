@@ -41,7 +41,7 @@ export default function AntenaForm({ post, currentUserId, onClose, onSaved }) {
 
         <div className="p-4 space-y-3">
           <div className="text-xs font-mono text-stone-600 space-y-1 bg-stone-50 border border-stone-200 rounded px-3 py-2">
-            <div><span className="text-stone-400">ID:</span> <span className="font-bold text-rose-500">{post.id}</span></div>
+            <div><span className="text-stone-400">ID:</span> <span className="font-bold text-brand-500">{post.id}</span></div>
             <div><span className="text-stone-400">UT:</span> {post.unidad_territorial}</div>
             {post.direccion && <div className="truncate"><span className="text-stone-400">Dir:</span> {post.direccion}</div>}
           </div>
@@ -61,7 +61,7 @@ export default function AntenaForm({ post, currentUserId, onClose, onSaved }) {
           </button>
 
           {err && (
-            <div className="text-xs text-rose-600 font-mono bg-rose-50 border border-rose-200 px-2.5 py-1.5 rounded">
+            <div className="text-xs text-brand-600 font-mono bg-brand-50 border border-brand-200 px-2.5 py-1.5 rounded">
               {err}
             </div>
           )}

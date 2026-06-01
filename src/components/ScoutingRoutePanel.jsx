@@ -160,27 +160,27 @@ export default function ScoutingRoutePanel({ map, poles = [], selected = [], set
     <div className="absolute inset-y-0 right-0 z-50 flex w-full flex-col bg-white/95 font-mono text-[13px] text-stone-700 shadow-2xl backdrop-blur-sm sm:w-96 border-l border-stone-300">
       <div className="flex items-center justify-between border-b border-stone-300 px-4 py-3">
         <div className="flex items-center gap-2">
-          <Compass className="h-4 w-4 text-rose-500" strokeWidth={1.5} />
+          <Compass className="h-4 w-4 text-brand-500" strokeWidth={1.5} />
           <span className="uppercase tracking-widest text-stone-600">Ruta de scouting</span>
         </div>
         <button onClick={onClose} className="text-stone-400 hover:text-stone-700"><X className="h-4 w-4" /></button>
       </div>
 
-      <div className="flex items-center gap-1.5 bg-rose-50/60 px-4 py-1.5 text-[11px] text-rose-700">
+      <div className="flex items-center gap-1.5 bg-brand-50/60 px-4 py-1.5 text-[11px] text-brand-700">
         <MapPin className="h-3 w-3" /> Toca un poste en el mapa para agregarlo a la ruta.
       </div>
 
       <div className="space-y-2 border-b border-stone-200 px-4 py-3">
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar clave o ID…"
-          className="w-full rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-rose-400" />
+          className="w-full rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-brand-400" />
         <div className="grid grid-cols-2 gap-2">
           <select value={ut} onChange={(e) => setUt(e.target.value)}
-            className="w-full rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-rose-400">
+            className="w-full rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-brand-400">
             <option value="">Todas las UT</option>
             {utOpts.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
           <select value={etapa} onChange={(e) => setEtapa(e.target.value)}
-            className="w-full rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-rose-400">
+            className="w-full rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-brand-400">
             <option value="">Todas las etapas</option>
             {ETAPA_OPTS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -199,9 +199,9 @@ export default function ScoutingRoutePanel({ map, poles = [], selected = [], set
           const dist = nearMe && userLoc ? (haversine(userLoc, p) / 1000).toFixed(1) + ' km' : null;
           return (
             <button key={p.id} onClick={() => toggle(p)}
-              className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left ${on ? 'bg-rose-50 text-rose-700' : 'hover:bg-stone-50'}`}>
+              className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left ${on ? 'bg-brand-50 text-brand-700' : 'hover:bg-stone-50'}`}>
               <span className="min-w-0 truncate">
-                <span className="font-bold text-rose-500">{p.clave ?? p.id}</span>
+                <span className="font-bold text-brand-500">{p.clave ?? p.id}</span>
                 <span className="ml-2 text-[11px] text-stone-400">{p.ut || p.etapa}</span>
               </span>
               <span className="ml-2 flex-shrink-0 text-[11px] text-stone-500">{dist || (on ? '− quitar' : '+ añadir')}</span>
@@ -215,11 +215,11 @@ export default function ScoutingRoutePanel({ map, poles = [], selected = [], set
           <p className="px-2 pb-1 text-[11px] uppercase tracking-widest text-stone-400">Orden de visita ({selected.length})</p>
           {selected.map((p, i) => (
             <div key={p.id} className="flex items-center gap-2 rounded px-2 py-1 hover:bg-stone-50">
-              <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-rose-500 text-[11px] font-bold text-white">{i + 1}</span>
+              <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-brand-500 text-[11px] font-bold text-white">{i + 1}</span>
               <span className="flex-1 truncate">{p.clave ?? p.id}</span>
               <button onClick={() => move(i, -1)} className="px-1 text-stone-400 hover:text-stone-700">↑</button>
               <button onClick={() => move(i, +1)} className="px-1 text-stone-400 hover:text-stone-700">↓</button>
-              <button onClick={() => toggle(p)} className="px-1 text-stone-400 hover:text-rose-600">✕</button>
+              <button onClick={() => toggle(p)} className="px-1 text-stone-400 hover:text-brand-600">✕</button>
             </div>
           ))}
         </div>
@@ -247,20 +247,20 @@ export default function ScoutingRoutePanel({ map, poles = [], selected = [], set
         {/* Datos para Scouting */}
         <div className="grid grid-cols-2 gap-2">
           <select value={routeType} onChange={(e) => setRouteType(e.target.value)}
-            className="w-full rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-rose-400">
+            className="w-full rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-brand-400">
             {ROUTE_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
           </select>
           <select value={scoutId} onChange={(e) => setScoutId(e.target.value)}
-            className="w-full rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-rose-400">
+            className="w-full rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-brand-400">
             <option value="">Sin asignar</option>
             {scoutOpts.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
         </div>
         <div className="flex gap-2">
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre de la ruta"
-            className="flex-1 rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-rose-400" />
+            className="flex-1 rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-brand-400" />
           <button onClick={handleSave} disabled={saving}
-            className="rounded bg-rose-600 px-3 py-1.5 text-white hover:bg-rose-500 disabled:opacity-40">{saving ? '…' : 'Guardar'}</button>
+            className="rounded bg-brand-600 px-3 py-1.5 text-white hover:bg-brand-500 disabled:opacity-40">{saving ? '…' : 'Guardar'}</button>
         </div>
         {msg && <p className="text-[11px] text-stone-600">{msg}</p>}
 
@@ -281,7 +281,7 @@ export default function ScoutingRoutePanel({ map, poles = [], selected = [], set
                       {userNames[r.scout_id] ? ' · ' + userNames[r.scout_id] : ''}
                     </span>
                   </button>
-                  <button onClick={() => removeRoute(r.id)} className="px-1 text-stone-400 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => removeRoute(r.id)} className="px-1 text-stone-400 hover:text-brand-600"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               ))}
             </div>

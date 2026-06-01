@@ -49,7 +49,7 @@ export default function PostReubicacionHistory({ postId, canView, refreshKey }) 
   }
   if (error) {
     return (
-      <div className="px-3 py-2 text-xs text-rose-600">
+      <div className="px-3 py-2 text-xs text-brand-600">
         ⚠️ {error}
       </div>
     );

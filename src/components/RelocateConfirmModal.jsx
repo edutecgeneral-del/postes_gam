@@ -129,7 +129,7 @@ export default function RelocateConfirmModal({
               htmlFor="relocate-motivo"
               className="block text-[10px] font-mono uppercase tracking-widest text-stone-500 mb-1.5"
             >
-              Motivo <span className="text-rose-600">*</span>
+              Motivo <span className="text-brand-600">*</span>
             </label>
             <select
               id="relocate-motivo"
@@ -155,7 +155,7 @@ export default function RelocateConfirmModal({
               htmlFor="relocate-nota"
               className="block text-[10px] font-mono uppercase tracking-widest text-stone-500 mb-1.5"
             >
-              Nota <span className="text-rose-600">*</span>
+              Nota <span className="text-brand-600">*</span>
               <span className="ml-2 normal-case tracking-normal text-[10px] text-stone-400">
                 (mínimo 5 caracteres)
               </span>
@@ -182,7 +182,7 @@ export default function RelocateConfirmModal({
           {errorMessage && (
             <div
               role="alert"
-              className="border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-700 rounded"
+              className="border border-brand-300 bg-brand-50 px-3 py-2 text-xs text-brand-700 rounded"
             >
               ⚠️ {errorMessage}
             </div>

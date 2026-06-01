@@ -42,7 +42,7 @@ function StageSide({ post, stage, userNames, selected }) {
   const photos = stagePhotos(stage);
   const valores = stageValores(stage);
   return (
-    <div className={'rounded border p-2 text-[12px] ' + (selected ? 'border-rose-500 ring-1 ring-rose-300 bg-rose-50' : 'border-stone-200 bg-stone-50')}>
+    <div className={'rounded border p-2 text-[12px] ' + (selected ? 'border-brand-500 ring-1 ring-brand-300 bg-brand-50' : 'border-stone-200 bg-stone-50')}>
       <div className="font-mono text-[11px] text-stone-400 mb-1">{post.id}</div>
       {photos.length > 0 ? (
         <div className="flex gap-1 mb-1 flex-wrap items-end">
@@ -125,11 +125,11 @@ export default function MergeModal({ postA, postB, stageDefs, onConfirm, onCance
   const Toggle = ({ value, onChange, labelA, labelB }) => (
     <div className="flex border border-stone-300 rounded overflow-hidden text-[11px] font-mono">
       <button onClick={() => onChange('A')}
-        className={'px-2 py-1 ' + (value === 'A' ? 'bg-rose-600 text-white' : 'bg-stone-50 text-stone-600')}>
+        className={'px-2 py-1 ' + (value === 'A' ? 'bg-brand-600 text-white' : 'bg-stone-50 text-stone-600')}>
         {labelA}
       </button>
       <button onClick={() => onChange('B')}
-        className={'px-2 py-1 ' + (value === 'B' ? 'bg-rose-600 text-white' : 'bg-stone-50 text-stone-600')}>
+        className={'px-2 py-1 ' + (value === 'B' ? 'bg-brand-600 text-white' : 'bg-stone-50 text-stone-600')}>
         {labelB}
       </button>
     </div>
@@ -244,7 +244,7 @@ export default function MergeModal({ postA, postB, stageDefs, onConfirm, onCance
           <button onClick={onCancel} disabled={busy}
             className="px-4 py-2 text-sm text-stone-600 hover:bg-stone-200 rounded">Cancelar</button>
           <button onClick={handleConfirm} disabled={busy}
-            className="px-4 py-2 text-sm bg-rose-700 hover:bg-rose-800 text-white rounded font-medium">
+            className="px-4 py-2 text-sm bg-brand-700 hover:bg-brand-800 text-white rounded font-medium">
             {busy ? 'Fusionando...' : 'Fusionar'}
           </button>
         </div>

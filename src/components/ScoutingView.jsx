@@ -23,11 +23,11 @@ import { savePhotos, loadPhotos, clearPhotos } from '../lib/photoPersist.js';
 
 const RESULT_LABELS = {
   ok: { label: 'OK', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
-  observacion: { label: 'Observación', color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/30' },
+  observacion: { label: 'Observación', color: 'text-brand-400', bg: 'bg-brand-500/10', border: 'border-brand-500/30' },
   rechazado: { label: 'Rechazado', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
   problema: { label: 'Problema', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
   corregido: { label: 'Corregido', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
-  sigue_pendiente: { label: 'Sigue pendiente', color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/30' },
+  sigue_pendiente: { label: 'Sigue pendiente', color: 'text-brand-400', bg: 'bg-brand-500/10', border: 'border-brand-500/30' },
 };
 
 const ROUTE_TYPE_LABELS = {
@@ -212,7 +212,7 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
         ) : (
           <div className="space-y-3">
             {routes.map(r => {
-              const statusColors = { pendiente: 'text-stone-600 bg-gray-100', en_curso: 'text-rose-400 bg-rose-500/10', completada: 'text-emerald-400 bg-emerald-500/10' };
+              const statusColors = { pendiente: 'text-stone-600 bg-gray-100', en_curso: 'text-brand-400 bg-brand-500/10', completada: 'text-emerald-400 bg-emerald-500/10' };
               const sc = statusColors[r.status] || statusColors.pendiente;
               return (
                 <div key={r.id} className="flex items-start gap-2">
@@ -297,13 +297,13 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
         {isAdmin && (
           <select value={route.scout_id || ''} onChange={e => onReassign?.(e.target.value)}
             title="Responsable"
-            className="text-xs bg-stone-100 border border-stone-300 rounded-lg px-2 py-1.5 text-stone-800 font-mono focus:outline-none focus:border-rose-500 max-w-[45%]">
+            className="text-xs bg-stone-100 border border-stone-300 rounded-lg px-2 py-1.5 text-stone-800 font-mono focus:outline-none focus:border-brand-500 max-w-[45%]">
             <option value="">Sin asignar</option>
             {Object.entries(userNames || {}).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
         )}
         {isScout && route.status === 'pendiente' && (
-          <button onClick={onStartRoute} className="text-xs bg-rose-700 hover:bg-rose-600 text-stone-950 font-medium rounded-lg px-3 py-1.5">
+          <button onClick={onStartRoute} className="text-xs bg-brand-700 hover:bg-brand-600 text-stone-950 font-medium rounded-lg px-3 py-1.5">
             Iniciar recorrido
           </button>
         )}
@@ -377,7 +377,7 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-mono font-bold text-stone-950">{p.id}</span>
-                      {p.alias && <span className="text-xs text-rose-600 font-medium">"{p.alias}"</span>}
+                      {p.alias && <span className="text-xs text-brand-600 font-medium">"{p.alias}"</span>}
                       {p.reubicado && <span className="text-[13px] font-bold px-1 py-0.5 rounded bg-purple-100 text-purple-700">📍 Reub.</span>}
                       {p.adminApproved && <span className="text-[12px] text-emerald-400">✓ Aprobado</span>}
                     </div>
@@ -738,7 +738,7 @@ function ScoutVisitForm({ post, routeId, routeType, stageDefs, userNames, incide
             ) : (
               <span className="text-sm font-mono font-bold text-stone-950">{post.id}</span>
             )}
-            {post.alias && <span className="text-xs text-rose-600 font-medium">"{post.alias}"</span>}
+            {post.alias && <span className="text-xs text-brand-600 font-medium">"{post.alias}"</span>}
             <span className={`text-[13px] font-mono uppercase px-1.5 py-0.5 rounded ${rtLabel.bg} ${rtLabel.color}`}>{rtLabel.emoji} {rtLabel.label}</span>
           </div>
           <div className="text-xs truncate">
@@ -811,7 +811,7 @@ function ScoutVisitForm({ post, routeId, routeType, stageDefs, userNames, incide
                         {/* Foto existente de la etapa */}
                         {photoUrl && (
                           <a href={photoUrl} target="_blank" rel="noopener noreferrer" className="block">
-                            <img src={photoUrl} alt={`Foto E${s.num}`} className="w-full max-h-32 object-cover rounded border border-stone-300 hover:border-rose-600" />
+                            <img src={photoUrl} alt={`Foto E${s.num}`} className="w-full max-h-32 object-cover rounded border border-stone-300 hover:border-brand-600" />
                           </a>
                         )}
 
@@ -832,7 +832,7 @@ function ScoutVisitForm({ post, routeId, routeType, stageDefs, userNames, incide
                                 <div key={a.key}>
                                   <label className="text-xs text-stone-600 font-mono flex items-center gap-1 mb-1">
                                     {a.label}
-                                    {a.sensitive && <span className="text-rose-500 text-[10px]">🔒</span>}
+                                    {a.sensitive && <span className="text-brand-500 text-[10px]">🔒</span>}
                                   </label>
                                   <StageAttributeField
                                     attr={a}
@@ -974,7 +974,7 @@ function ScoutVisitForm({ post, routeId, routeType, stageDefs, userNames, incide
                         </div>
                         <textarea value={check.notes} onChange={e => setIncCheck(inc.id, 'notes', e.target.value)}
                           placeholder="Observaciones…" rows={2}
-                          className="w-full bg-stone-50 border border-stone-300 rounded px-3 py-2 text-xs text-stone-800 placeholder-stone-500 focus:outline-none focus:border-rose-600/50 resize-none" />
+                          className="w-full bg-stone-50 border border-stone-300 rounded px-3 py-2 text-xs text-stone-800 placeholder-stone-500 focus:outline-none focus:border-brand-600/50 resize-none" />
                       </div>
                     </div>
                   );
@@ -1079,7 +1079,7 @@ function ScoutVisitForm({ post, routeId, routeType, stageDefs, userNames, incide
                               <input type="file" accept="image/*" onChange={e => { if (e.target.files?.[0]) addStagePhoto(id, e.target.files[0]); e.target.value = ''; }} className="hidden" />
                             </label>
                           </div>
-                          {noPhoto && <p className="text-[10px] text-rose-500 mt-1">Foto obligatoria</p>}
+                          {noPhoto && <p className="text-[10px] text-brand-500 mt-1">Foto obligatoria</p>}
                         </div>)}
                         <textarea value={stageChecks[id]?.notes || ''} onChange={e => setCheck(id, 'notes', e.target.value)} rows={1}
                           placeholder="Nota (opcional)"
@@ -1354,7 +1354,7 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
                     <input type="checkbox" checked={selectedPostIds.has(p.id)} onChange={() => togglePost(p.id)}  className="w-4 h-4 accent-emerald-500 flex-shrink-0" />
                     <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onSelectPost) onSelectPost(p); }}
                       className="font-mono text-stone-800 flex-shrink-0 hover:text-blue-600 hover:underline cursor-pointer">{p.id}</button>
-                    {p.alias && <span className="text-rose-600 text-[12px] font-medium flex-shrink-0">"{p.alias}"</span>}
+                    {p.alias && <span className="text-brand-600 text-[12px] font-medium flex-shrink-0">"{p.alias}"</span>}
                     {p.reubicado && <span className="text-[13px] font-bold px-1 py-0.5 rounded bg-purple-100 text-purple-700 flex-shrink-0">📍</span>}
                     {routeType === 'avanzada_internet' && (
                       <>

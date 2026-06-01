@@ -142,9 +142,9 @@ export function GPSField({ value = {}, onChange, color = '#F59E0B' }) {
         <div className="flex gap-2">
           <input type="text" value={linkInput} onChange={e => setLinkInput(e.target.value)} onPaste={handleLinkPaste}
                  placeholder="https://maps.google.com/?q=..."
-                 className="flex-1 bg-stone-50 border border-stone-300 px-3 py-2 text-xs text-stone-800 placeholder-stone-500 font-mono focus:outline-none focus:border-rose-600/50" />
+                 className="flex-1 bg-stone-50 border border-stone-300 px-3 py-2 text-xs text-stone-800 placeholder-stone-500 font-mono focus:outline-none focus:border-brand-600/50" />
           <button type="button" onClick={handleExtract}
-                  className="px-3 py-2 border border-stone-300 text-stone-700 hover:border-rose-600/50 hover:text-rose-500 text-[13px] font-mono uppercase tracking-wider">
+                  className="px-3 py-2 border border-stone-300 text-stone-700 hover:border-brand-600/50 hover:text-brand-500 text-[13px] font-mono uppercase tracking-wider">
             Extraer
           </button>
         </div>
@@ -162,13 +162,13 @@ export function GPSField({ value = {}, onChange, color = '#F59E0B' }) {
           <label className="text-[12px] font-mono uppercase tracking-widest text-stone-500 mb-1 block">Latitud</label>
           <input type="number" step="any" value={value.lat ?? ''} placeholder="19.334567"
                  onChange={e => update({ lat: e.target.value === '' ? '' : parseFloat(e.target.value), source: 'manual' })}
-                 className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono tabular-nums focus:outline-none focus:border-rose-600/50" />
+                 className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono tabular-nums focus:outline-none focus:border-brand-600/50" />
         </div>
         <div>
           <label className="text-[12px] font-mono uppercase tracking-widest text-stone-500 mb-1 block">Longitud</label>
           <input type="number" step="any" value={value.lng ?? ''} placeholder="-99.123456"
                  onChange={e => update({ lng: e.target.value === '' ? '' : parseFloat(e.target.value), source: 'manual' })}
-                 className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono tabular-nums focus:outline-none focus:border-rose-600/50" />
+                 className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono tabular-nums focus:outline-none focus:border-brand-600/50" />
         </div>
       </div>
 
@@ -186,7 +186,7 @@ export function GPSField({ value = {}, onChange, color = '#F59E0B' }) {
             {typeof value.lat === 'number' ? value.lat.toFixed(6) : value.lat}°, {typeof value.lng === 'number' ? value.lng.toFixed(6) : value.lng}°
           </div>
           <a href={`https://maps.google.com/?q=${value.lat},${value.lng}`} target="_blank" rel="noopener noreferrer"
-             className="mt-1 inline-flex items-center gap-1 text-[13px] font-mono text-rose-500 hover:underline">
+             className="mt-1 inline-flex items-center gap-1 text-[13px] font-mono text-brand-500 hover:underline">
             Abrir en Google Maps <ArrowUpRight className="w-3 h-3" strokeWidth={1.5}/>
           </a>
         </div>
@@ -237,7 +237,7 @@ export function BulletOrientationsField({ count, value, onChange, color = '#F59E
             </div>
             <input type="text" value={current[i] || ''} onChange={e => updateAt(i, e.target.value)}
                    placeholder={`Hacia… (ej. Av. Reforma, esquina sur)`}
-                   className="flex-1 bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono focus:outline-none focus:border-rose-600/50" />
+                   className="flex-1 bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono focus:outline-none focus:border-brand-600/50" />
           </div>
         );
       })}
@@ -320,12 +320,12 @@ export function PhotoField({ photoReq, photoAdded, onToggle, color = '#F59E0B', 
 
       {/* Botones para agregar más fotos (siempre visibles) */}
       <div className="flex gap-2">
-        <label className="flex-1 py-3 border border-dashed border-stone-300 text-stone-600 hover:border-rose-600/50 hover:text-rose-500 flex items-center justify-center gap-2 text-xs font-mono uppercase tracking-widest transition-colors cursor-pointer rounded">
+        <label className="flex-1 py-3 border border-dashed border-stone-300 text-stone-600 hover:border-brand-600/50 hover:text-brand-500 flex items-center justify-center gap-2 text-xs font-mono uppercase tracking-widest transition-colors cursor-pointer rounded">
           <Camera className="w-4 h-4" strokeWidth={1.5} />
           <span className="hidden sm:inline">Tomar</span> foto
           <input type="file" accept="image/*" capture="environment" onChange={handleFiles} className="hidden" />
         </label>
-        <label className="flex-1 py-3 border border-dashed border-stone-300 text-stone-600 hover:border-rose-600/50 hover:text-rose-500 flex items-center justify-center gap-2 text-xs font-mono uppercase tracking-widest transition-colors cursor-pointer rounded">
+        <label className="flex-1 py-3 border border-dashed border-stone-300 text-stone-600 hover:border-brand-600/50 hover:text-brand-500 flex items-center justify-center gap-2 text-xs font-mono uppercase tracking-widest transition-colors cursor-pointer rounded">
           <Upload className="w-4 h-4" strokeWidth={1.5} />
           <span className="hidden sm:inline">Seleccionar</span> galería
           <input type="file" accept="image/*" multiple onChange={handleFiles} className="hidden" />
@@ -356,7 +356,7 @@ export function StageAttributeField({ attr, value, attrs, onChange, color, showP
   if (attr.type === 'select') {
     return (
       <select value={value || ''} onChange={e => onChange(attr.key, e.target.value)}
-              className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-rose-600/50">
+              className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-brand-600/50">
         <option value="">— Seleccionar —</option>
         {(attr.options || []).map(o => <option key={o} value={o}>{o}</option>)}
       </select>
@@ -398,7 +398,7 @@ export function StageAttributeField({ attr, value, attrs, onChange, color, showP
         </label>
         {hasPhoto && (
           <a href={value} target="_blank" rel="noopener noreferrer">
-            <img src={value} alt="Foto cascajo" className="w-full h-32 object-cover rounded border border-stone-300 hover:border-rose-600" />
+            <img src={value} alt="Foto cascajo" className="w-full h-32 object-cover rounded border border-stone-300 hover:border-brand-600" />
           </a>
         )}
       </div>
@@ -442,7 +442,7 @@ export function StageAttributeField({ attr, value, attrs, onChange, color, showP
     return (
       <input type="number" value={value ?? ''} placeholder={attr.placeholder} min={attr.min ?? 0}
              onChange={e => onChange(attr.key, e.target.value === '' ? '' : Math.max(attr.min ?? 0, Number(e.target.value)))}
-             className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-rose-600/50" />
+             className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-brand-600/50" />
     );
   }
 
@@ -452,7 +452,7 @@ export function StageAttributeField({ attr, value, attrs, onChange, color, showP
         <div className="relative flex-1">
           <input type={showPwd ? 'text' : 'password'} value={value || ''} placeholder={attr.placeholder}
                  onChange={e => onChange(attr.key, e.target.value)}
-                 className="w-full bg-stone-50 border border-stone-300 pl-3 pr-10 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-rose-600/50" />
+                 className="w-full bg-stone-50 border border-stone-300 pl-3 pr-10 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-brand-600/50" />
           <button type="button" onClick={onTogglePwd}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-950 p-1">
             {showPwd ? <EyeOff className="w-4 h-4" strokeWidth={1.5}/> : <Eye className="w-4 h-4" strokeWidth={1.5}/>}
@@ -472,7 +472,7 @@ export function StageAttributeField({ attr, value, attrs, onChange, color, showP
   return (
     <input type="text" value={value || ''} placeholder={attr.placeholder}
            onChange={e => onChange(attr.key, e.target.value)}
-           className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-rose-600/50" />
+           className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-brand-600/50" />
   );
 }
 
@@ -496,7 +496,7 @@ export function StageFormFields({ stage, attrs, setAttr, notes, setNotes, photoA
           <div className="grid grid-cols-3 gap-2">
             {existingPhotos.map((url, i) => (
               <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block">
-                <img src={url} alt={`Foto ${i+1}`} className="w-full h-24 object-cover rounded border border-stone-300 hover:border-rose-600 transition-colors" />
+                <img src={url} alt={`Foto ${i+1}`} className="w-full h-24 object-cover rounded border border-stone-300 hover:border-brand-600 transition-colors" />
               </a>
             ))}
           </div>
@@ -517,8 +517,8 @@ export function StageFormFields({ stage, attrs, setAttr, notes, setNotes, photoA
               <div key={a.key}>
                 <label className="text-xs text-stone-600 font-mono flex items-center gap-1.5 mb-1.5">
                   {a.label}
-                  {a.required && <span className="text-rose-500">*</span>}
-                  {a.sensitive && <Lock className="w-3 h-3 text-rose-500" strokeWidth={1.5}/>}
+                  {a.required && <span className="text-brand-500">*</span>}
+                  {a.sensitive && <Lock className="w-3 h-3 text-brand-500" strokeWidth={1.5}/>}
                   {fieldDates[a.key] && (
                     <span className="ml-auto text-[13px] text-stone-400 font-normal">
                       ✎ {new Date(fieldDates[a.key]).toLocaleDateString('es-MX', { day:'2-digit', month:'short' })} {new Date(fieldDates[a.key]).toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' })}
@@ -546,7 +546,7 @@ export function StageFormFields({ stage, attrs, setAttr, notes, setNotes, photoA
         <div className="text-[12px] font-mono uppercase tracking-widest text-stone-500 mb-2">Observaciones</div>
         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
                   placeholder="Opcional: anota algo sobre esta etapa…"
-                  className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono focus:outline-none focus:border-rose-600/50 resize-none" />
+                  className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono focus:outline-none focus:border-brand-600/50 resize-none" />
       </div>
 
       {/* REPORTAR INCIDENCIA — SIEMPRE visible */}

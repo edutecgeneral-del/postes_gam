@@ -41,7 +41,7 @@ export default function LoginScreen({ onLogin }) {
       <div className="w-full max-w-md">
         <div className="bg-stone-50 border border-stone-300 rounded-2xl p-8 shadow-lg">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-rose-700 flex items-center justify-center shadow-sm">
+            <div className="w-12 h-12 rounded-xl bg-brand-700 flex items-center justify-center shadow-sm">
               <svg viewBox="0 0 24 24" className="w-7 h-7 text-white" fill="currentColor">
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
               </svg>
@@ -61,7 +61,7 @@ export default function LoginScreen({ onLogin }) {
                 autoFocus
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 placeholder-stone-500 focus:outline-none focus:border-rose-600"
+                className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 placeholder-stone-500 focus:outline-none focus:border-brand-600"
                 placeholder="tu@email.com"
                 disabled={loading}
               />
@@ -74,7 +74,7 @@ export default function LoginScreen({ onLogin }) {
                 autoComplete="current-password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 placeholder-stone-500 focus:outline-none focus:border-rose-600"
+                className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-950 placeholder-stone-500 focus:outline-none focus:border-brand-600"
                 placeholder="••••••••"
                 disabled={loading}
               />
@@ -90,7 +90,7 @@ export default function LoginScreen({ onLogin }) {
             <button
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full bg-rose-700 hover:bg-rose-600 disabled:bg-stone-200 disabled:text-stone-500 text-white font-medium text-sm rounded-lg py-2.5 flex items-center justify-center gap-2 transition-colors"
+              className="w-full bg-brand-700 hover:bg-brand-600 disabled:bg-stone-200 disabled:text-stone-500 text-white font-medium text-sm rounded-lg py-2.5 flex items-center justify-center gap-2 transition-colors"
             >
               {loading ? (
                 <>
