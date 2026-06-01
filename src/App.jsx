@@ -659,13 +659,16 @@ function colorOfPost(p) {
 }
 
 // Cache de estilos de los puntos del mapa (evita crear miles de objetos OLStyle).
+// Color del anillo "Revisado" en el mapa. Es un ANILLO exterior (halo), no el
+// relleno, así NO choca con los colores de etapa del punto. Cambia el tono aquí.
+const REVISADO_RING_COLOR = '#FFFFFF';
 const __POST_STYLE_CACHE = new Map();
-function cachedPostStyle(color, state /* 'normal' | 'sel' | 'editing' */) {
-  const key = state === 'editing' ? 'editing' : `${color}|${state}`;
+function cachedPostStyle(color, state /* 'normal' | 'sel' | 'editing' */, revisado = false) {
+  const key = (state === 'editing' ? 'editing' : `${color}|${state}`) + (revisado ? '|R' : '');
   let st = __POST_STYLE_CACHE.get(key);
   if (!st) {
     const radius = state === 'editing' ? 12 : (state === 'sel' ? 9 : 5);
-    st = new OLStyle({
+    const dot = new OLStyle({
       image: new OLCircle({
         radius,
         fill: new OLFill({ color: state === 'editing' ? '#A855F7' : color }),
@@ -675,9 +678,71 @@ function cachedPostStyle(color, state /* 'normal' | 'sel' | 'editing' */) {
         }),
       }),
     });
+    if (revisado) {
+      // Halo exterior punteado: marca "revisado" sin tapar el color de etapa
+      // y distinto del borde sólido de selección.
+      const ring = new OLStyle({
+        image: new OLCircle({
+          radius: radius + 4,
+          stroke: new OLStroke({ color: REVISADO_RING_COLOR, width: 2.5, lineDash: [3, 3] }),
+        }),
+      });
+      st = [ring, dot];
+    } else {
+      st = dot;
+    }
     __POST_STYLE_CACHE.set(key, st);
   }
   return st;
+}
+
+// ---- Detección de UT por ubicación (punto-en-polígono con ut_boundaries.geojson) ----
+let __utPolysPromise = null;
+function loadUtPolys() {
+  if (!__utPolysPromise) {
+    const url = `${import.meta.env.BASE_URL}ut_boundaries.geojson`;
+    __utPolysPromise = fetch(url)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('No se pudo cargar el mapa de UT')))
+      .then(gj => (gj.features || []).map(ft => ({
+        nombre: (ft.properties?.nombre_uat || '').trim(),
+        geom: ft.geometry,
+      })))
+      .catch(e => { __utPolysPromise = null; throw e; });
+  }
+  return __utPolysPromise;
+}
+function __pointInRing(lng, lat, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    if (((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+function __pointInPolygon(lng, lat, polygon) {
+  if (!polygon.length || !__pointInRing(lng, lat, polygon[0])) return false;
+  for (let k = 1; k < polygon.length; k++) {
+    if (__pointInRing(lng, lat, polygon[k])) return false; // dentro de un hueco
+  }
+  return true;
+}
+function detectUtNombre(lng, lat, polys) {
+  for (const p of polys) {
+    const g = p.geom;
+    if (!g) continue;
+    if (g.type === 'Polygon') {
+      if (__pointInPolygon(lng, lat, g.coordinates)) return p.nombre;
+    } else if (g.type === 'MultiPolygon') {
+      for (const poly of g.coordinates) {
+        if (__pointInPolygon(lng, lat, poly)) return p.nombre;
+      }
+    }
+  }
+  return null;
+}
+function __normUt(s) {
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
 }
 
 const MAP_VIEW_STORAGE_KEY = 'ci1215-map-view';
@@ -697,7 +762,7 @@ function readStoredMapView() {
 function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost, stageDefs, darkMode,
                    measureMode = false, setMeasureMode, measurePoints = [], setMeasurePoints,
                    editingPostId, onConfirmRelocate, onCancelRelocate,
-                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena }) {
+                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado }) {
   const containerRef = useRef(null);
   const isMobile = useIsMobile();
   const mapRef = useRef(null);
@@ -743,6 +808,28 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
   const [tileProvider, setTileProvider] = useState(initialTileProvider);
   const [tileNotice, setTileNotice] = useState(null);
   const [cardPosts, setCardPosts] = useState([]); // postes mostrados en tarjetas (multi, para comparar)
+  const [editingUtPostId, setEditingUtPostId] = useState(null); // tarjeta con el editor de UT abierto
+  const [utQuery, setUtQuery] = useState(''); // texto del buscador de UT
+  const [utSuggestion, setUtSuggestion] = useState(null); // sugerencia de UT por ubicación
+
+  // Detectar UT sugerida por ubicación cuando se abre el editor de UT
+  useEffect(() => {
+    if (!editingUtPostId) { setUtSuggestion(null); return; }
+    const p = cardPosts.find(x => x.id === editingUtPostId);
+    if (!p || !p.lat || !p.lng || Math.abs(p.lat) <= 1 || Math.abs(p.lng) <= 1) { setUtSuggestion({ none: true }); return; }
+    let cancel = false;
+    setUtSuggestion({ loading: true });
+    loadUtPolys()
+      .then(polys => {
+        if (cancel) return;
+        const nombre = detectUtNombre(p.lng, p.lat, polys);
+        if (!nombre) { setUtSuggestion({ none: true }); return; }
+        const ut = (unidadesTerritoriales || []).find(u => __normUt(u.nombre) === __normUt(nombre));
+        setUtSuggestion({ nombreDetectado: nombre, ut: ut || null, enCatalogo: !!ut });
+      })
+      .catch(() => { if (!cancel) setUtSuggestion({ error: true }); });
+    return () => { cancel = true; };
+  }, [editingUtPostId, cardPosts, unidadesTerritoriales]);
   const [mergeSel, setMergeSel] = useState([]); // postes marcados para fusion (max 2)
   const [mergeOpenMap, setMergeOpenMap] = useState(false);
   const [userLoc, setUserLoc] = useState(null);   // {lat, lng, accuracy}
@@ -1029,7 +1116,7 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
     const feats = filtered.map(p => {
       const feat = new OLFeature({ geometry: new OLPoint(olFromLonLat([p.lng, p.lat])) });
       feat.set('post', p);
-      feat.setStyle(cachedPostStyle(colorOfPost(p), 'normal'));
+      feat.setStyle(cachedPostStyle(colorOfPost(p), 'normal', !!p.revisado));
       byId.set(p.id, feat);
       return feat;
     });
@@ -1050,13 +1137,13 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
     for (const id of prevSpecialRef.current) {
       if (special.has(id)) continue;
       const f = byId.get(id); const p = f?.get('post');
-      if (f && p) f.setStyle(cachedPostStyle(colorOfPost(p), 'normal'));
+      if (f && p) f.setStyle(cachedPostStyle(colorOfPost(p), 'normal', !!p.revisado));
     }
     // Aplicar el estilo especial a los actuales
     for (const id of special) {
       const f = byId.get(id); const p = f?.get('post');
       if (!f || !p) continue;
-      f.setStyle(cachedPostStyle(colorOfPost(p), editingPostId === id ? 'editing' : 'sel'));
+      f.setStyle(cachedPostStyle(colorOfPost(p), editingPostId === id ? 'editing' : 'sel', !!p.revisado));
     }
     prevSpecialRef.current = special;
   }, [filtered, selectedPost, cardPosts, editingPostId]);
@@ -1338,7 +1425,16 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
             <div>
               <div className="text-rose-500 font-mono font-bold text-sm">{postDisplayId(post)}</div>
               {post.alias && <div className="text-rose-600 text-xs font-medium">"{post.alias}"</div>}
-              <div className="text-stone-600 text-xs mt-0.5">{post.unidad_territorial}</div>
+              <div className="text-stone-600 text-xs mt-0.5">
+                {(() => {
+                  const utObj = (unidadesTerritoriales || []).find(u => u.id === post.unidad_territorial);
+                  return utObj ? `${utObj.id} · ${utObj.nombre}` : (post.unidad_territorial || 'Sin UT');
+                })()}
+                {isAdmin && (
+                  <button onClick={() => { setEditingUtPostId(editingUtPostId === post.id ? null : post.id); setUtQuery(''); }}
+                          title="Editar UT" className="ml-1.5 text-blue-500 hover:text-blue-700 align-middle">✎</button>
+                )}
+              </div>
               {post.reubicado && <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-purple-100 text-purple-700">📍 Reubicado</span>}
             </div>
             <button onClick={() => setCardPosts(prev => prev.filter(x => x.id !== post.id))} className="text-stone-500 hover:text-stone-950 p-1 -mr-1 -mt-1">
@@ -1353,6 +1449,56 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
               </a>
             ) : <span className="text-stone-700">{post.direccion || 'Sin dirección'}</span>}
           </div>
+
+          {isAdmin && editingUtPostId === post.id && (() => {
+            const q = utQuery.trim().toLowerCase();
+            const matches = (unidadesTerritoriales || [])
+              .filter(u => !q || (u.nombre || '').toLowerCase().includes(q) || (u.id || '').toLowerCase().includes(q))
+              .slice(0, 8);
+            const saveUt = async (u) => {
+              try {
+                await updatePostMetadata(post.id, { unidad_territorial: u.id, zona_territorial: u.zona || 'Sin categorizar' });
+                setCardPosts(prev => prev.map(x => x.id === post.id ? { ...x, unidad_territorial: u.id, zona_territorial: u.zona || 'Sin categorizar' } : x));
+                setEditingUtPostId(null);
+                onRefresh?.();
+              } catch (e) { alert('No se pudo cambiar la UT: ' + (e?.message || e)); }
+            };
+            return (
+              <div className="mt-2 border border-blue-200 bg-blue-50/70 rounded p-2">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-blue-700 mb-1">Asignar Unidad Territorial</div>
+                {utSuggestion?.loading && <div className="text-[11px] text-stone-500 mb-1">📍 Detectando por ubicación…</div>}
+                {utSuggestion?.enCatalogo && utSuggestion.ut && (
+                  <button onClick={() => saveUt(utSuggestion.ut)}
+                          className="w-full text-left text-[11px] px-2 py-1.5 mb-1.5 rounded bg-emerald-50 border border-emerald-300 text-emerald-800 flex items-center gap-1.5 hover:bg-emerald-100">
+                    <span className="shrink-0">📍 Sugerida:</span>
+                    <span className="font-mono text-emerald-600 shrink-0">{utSuggestion.ut.id}</span>
+                    <span className="truncate font-medium">{utSuggestion.ut.nombre}</span>
+                  </button>
+                )}
+                {utSuggestion?.nombreDetectado && !utSuggestion.enCatalogo && (
+                  <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-300 rounded px-2 py-1 mb-1.5">
+                    📍 Cae en "{utSuggestion.nombreDetectado}", pero esa UT no está en el catálogo. Elige otra abajo.
+                  </div>
+                )}
+                {utSuggestion?.none && <div className="text-[11px] text-stone-500 mb-1.5">No se detectó UT por ubicación. Busca manualmente.</div>}
+                <input autoFocus type="text" value={utQuery} onChange={e => setUtQuery(e.target.value)}
+                       placeholder="Buscar UT por nombre o clave…"
+                       className="w-full bg-white border border-stone-300 rounded px-2 py-1 text-xs text-stone-800 focus:outline-none focus:border-blue-500" />
+                <div className="mt-1 max-h-40 overflow-auto">
+                  {matches.length === 0 ? (
+                    <div className="text-[11px] text-stone-500 px-1 py-1">Sin coincidencias.</div>
+                  ) : matches.map(u => (
+                    <button key={u.id} onClick={() => saveUt(u)}
+                            className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-100 text-stone-700 flex items-center gap-1.5">
+                      <span className="font-mono text-stone-400 shrink-0">{u.id}</span>
+                      <span className="truncate">{u.nombre}</span>
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setEditingUtPostId(null)} className="mt-1 text-[11px] text-stone-500 hover:text-stone-700">Cancelar</button>
+              </div>
+            );
+          })()}
 
           <div className="mt-3"><StagePipeline post={post} size="sm" /></div>
 
@@ -1458,6 +1604,17 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
             }}
                     className={`flex-1 px-3 py-2.5 text-xs font-mono ${marked ? 'text-amber-700 bg-amber-50' : 'text-amber-600'} hover:bg-stone-50 flex items-center justify-center gap-1.5 border-l border-stone-300 transition-colors`}>
               {marked ? '✓ Marcado' : '⚲ Fusion'}
+            </button>
+          )}
+          {isAdmin && onToggleRevisado && (
+            <button onClick={async () => {
+              try {
+                await onToggleRevisado(post);
+                setCardPosts(prev => prev.map(x => x.id === post.id ? { ...x, revisado: !x.revisado } : x));
+              } catch (e) { alert('No se pudo cambiar revisado: ' + (e?.message || e)); }
+            }}
+                    className={`flex-1 px-3 py-2.5 text-xs font-mono ${post.revisado ? 'text-emerald-700 bg-emerald-50' : 'text-stone-600'} hover:bg-stone-50 flex items-center justify-center gap-1.5 border-l border-stone-300 transition-colors`}>
+              {post.revisado ? '✓ Revisado' : '○ Revisar'}
             </button>
           )}
           <button onClick={() => { setSelectedPost(post); setCardPosts([]); }}
@@ -7491,6 +7648,17 @@ export default function FieldCoordApp() {
                          unidadesTerritoriales={unidadesTerritoriales}
                          onRefresh={() => refreshData(true)}
                          onClickAntena={(post) => setAntenaModalPost(post)}
+                          onToggleRevisado={async (p) => {
+                            if (p.revisado) {
+                              await dbUnmarkPostRevisado(p.id);
+                              setPosts(prev => prev.map(x => x.id === p.id ? { ...x, revisado: false, revisadoAt: null, revisadoPorUserId: null } : x));
+                            } else {
+                              const updated = await dbMarkPostRevisado(p.id, profile.userId);
+                              const ra = updated?.revisado_at || new Date().toISOString();
+                              const rby = updated?.revisado_por_user_id || profile.userId;
+                              setPosts(prev => prev.map(x => x.id === p.id ? { ...x, revisado: true, revisadoAt: ra, revisadoPorUserId: rby } : x));
+                            }
+                          }}
             onMergePosts={async (principalId, secundarioId, stageChoices, keepAddress) => { await dbMergePosts(principalId, secundarioId, stageChoices, keepAddress); await refreshData(true); }}
             onCompareDetail={(a, b) => setComparePair([a, b])}
             addingMode={addingPostMode}

@@ -323,6 +323,9 @@ export async function loadAllData() {
       antenaRecuperada: p.antena_recuperada === true,
       antenaRecuperadaAt: p.antena_recuperada_at,
       antenaRecuperadaPor: p.antena_recuperada_por,
+      revisado: p.revisado === true,
+      revisadoAt: p.revisado_at,
+      revisadoPorUserId: p.revisado_por_user_id,
       stages,
       tags: tagsByPost[p.id] || [],
     };
