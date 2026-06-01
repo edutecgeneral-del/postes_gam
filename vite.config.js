@@ -186,6 +186,7 @@ export default defineConfig(({ command }) => {
           .replace(/[-: ]/g, '')
           .slice(2, 12)
       ),
+      __BUILD_ENV__: JSON.stringify(process.env.VITE_BUILD_ENV || 'v3'),
     },
     resolve: {
       alias: {
