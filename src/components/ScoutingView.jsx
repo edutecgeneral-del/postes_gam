@@ -107,6 +107,7 @@ function incBadge(type) {
 export default function ScoutingView({ posts, stageDefs, profile, userNames, isAdmin, isCoordinador, onPostApproved, onCreateIncident, incidents, onSelectPost, onOpenPostDetail }) {
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [allUsersMap, setAllUsersMap] = useState({}); // {userId: displayName} incluyendo admins
   const [showCreate, setShowCreate] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [selectedPostForVisit, setSelectedPostForVisit] = useState(null);
@@ -126,6 +127,17 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
   }, [isAdmin, profile]);
 
   useEffect(() => { loadRoutes(); }, [loadRoutes]);
+
+  // Cargar todos los usuarios (con rol) para resolver "Creado por" y scouts.
+  useEffect(() => {
+    listAllUsers()
+      .then(us => {
+        const m = {};
+        for (const u of us) m[u.userId] = u.displayName || u.email || 'Usuario';
+        setAllUsersMap(m);
+      })
+      .catch(() => {});
+  }, []);
 
   // ---- VISIT FORM ----
   if (selectedPostForVisit && selectedRoute) {
@@ -234,7 +246,8 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
                   </div>
                   <div className="text-xs text-stone-500 mt-1">
                     {r.total_posts} postes · {r.visited_posts || 0} visitados
-                    {userNames[r.scout_id] && <span> · Scout: {userNames[r.scout_id]}</span>}
+                    {(allUsersMap[r.scout_id] || userNames[r.scout_id]) && <span> · Scout: {allUsersMap[r.scout_id] || userNames[r.scout_id]}</span>}
+                    {(allUsersMap[r.assigned_by] || userNames[r.assigned_by]) && <span> · Creó: {allUsersMap[r.assigned_by] || userNames[r.assigned_by]}</span>}
                   </div>
                   {r.notes && <div className="text-xs text-stone-500 mt-1 truncate">{r.notes}</div>}
                 </button>
@@ -251,6 +264,7 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
           incidents={incidents || []}
           isCoordinador={isCoordinador}
           onSelectPost={onSelectPost}
+          profile={profile}
           onClose={() => setShowCreate(false)}
           onCreated={() => { setShowCreate(false); loadRoutes(); }}
         />
@@ -1114,7 +1128,7 @@ function ScoutVisitForm({ post, routeId, routeType, stageDefs, userNames, incide
 // =============================================================================
 // CreateRouteModal — admin crea una ruta de scouting
 // =============================================================================
-function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClose, onCreated }) {
+function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClose, onCreated, profile, users: usersFromParent }) {
   const [routeType, setRouteType] = useState(isCoordinador ? 'reubicaciones' : 'avanzada_internet');
   const [name, setName] = useState('');
   const [scoutId, setScoutId] = useState('');
@@ -1129,7 +1143,7 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
 
   useEffect(() => { listAllUsers().then(u => setUsers(u)).catch(() => {}); }, []);
 
-  const scouts = users.filter(u => u.role === 'scout' || u.role === 'admin');
+  const scouts = users.filter(u => u.role === 'capturador');
   const utList = [...new Set(posts.map(p => p.unidad_territorial))].sort();
   const openIncidents = (incidents || []).filter(i => i.status === 'abierta' || i.status === 'open' || !i.resolvedAt);
   const postIdsWithIncidents = [...new Set(openIncidents.map(i => i.postId))];
@@ -1261,8 +1275,15 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
             <select value={scoutId} onChange={e => setScoutId(e.target.value)}
               className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2.5 text-sm text-stone-950 focus:outline-none focus:border-emerald-500">
               <option value="">Seleccionar scout…</option>
-              {scouts.map(u => <option key={u.userId} value={u.userId}>{u.displayName || u.email} ({u.role})</option>)}
+              {scouts.map(u => <option key={u.userId} value={u.userId}>{u.displayName || u.email}</option>)}
             </select>
+          </div>
+          {/* Creado por (admin logueado) */}
+          <div>
+            <label className="block text-xs font-medium text-stone-600 mb-1.5">Creado por</label>
+            <div className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2.5 text-sm text-stone-700">
+              👤 {profile?.displayName || profile?.email || 'Usuario actual'}
+            </div>
           </div>
           {/* Instrucciones */}
           <div>

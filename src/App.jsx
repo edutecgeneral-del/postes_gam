@@ -294,11 +294,11 @@ function PostLabel({ post, showId = true, showAlias = true }) {
   const badCoords = !post.lat || !post.lng || (Math.abs(post.lat) < 1 && Math.abs(post.lng) < 1);
   return (
     <span className="inline-flex items-center gap-1.5 min-w-0">
-      {showId && <span className="font-mono font-bold text-brand-500 flex-shrink-0">{postDisplayId(post)}</span>}
+      {showId && <span className="font-mono font-bold text-rose-500 flex-shrink-0">{postDisplayId(post)}</span>}
       {badCoords && <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-red-100 text-red-600 flex-shrink-0" title="Coordenadas inválidas">⚠ GPS</span>}
       {post.reubicado && <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-purple-100 text-purple-700 flex-shrink-0">📍 Reub.</span>}
       {showAlias && post.alias && (
-        <span className="text-brand-600 font-medium flex-shrink-0">"{post.alias}"</span>
+        <span className="text-rose-600 font-medium flex-shrink-0">"{post.alias}"</span>
       )}
       {link ? (
         <a href={link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
@@ -1423,8 +1423,8 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
         <div className="p-4">
           <div className="flex items-start justify-between">
             <div>
-              <div className="text-brand-500 font-mono font-bold text-sm">{postDisplayId(post)}</div>
-              {post.alias && <div className="text-brand-600 text-xs font-medium">"{post.alias}"</div>}
+              <div className="text-rose-500 font-mono font-bold text-sm">{postDisplayId(post)}</div>
+              {post.alias && <div className="text-rose-600 text-xs font-medium">"{post.alias}"</div>}
               <div className="text-stone-600 text-xs mt-0.5">
                 {(() => {
                   const utObj = (unidadesTerritoriales || []).find(u => u.id === post.unidad_territorial);
@@ -1571,7 +1571,7 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
               </div>
               {(incAbiertas > 0 || s?.verified) && (
                 <div className="flex items-center gap-3">
-                  {incAbiertas > 0 && <span className="text-brand-600">⚠ {incAbiertas} incidencia{incAbiertas > 1 ? 's' : ''}</span>}
+                  {incAbiertas > 0 && <span className="text-rose-600">⚠ {incAbiertas} incidencia{incAbiertas > 1 ? 's' : ''}</span>}
                   {s?.verified && <span className="text-emerald-600">✓ {etiq} verificada</span>}
                 </div>
               )}
@@ -1590,7 +1590,7 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
           </a>
           {cur?.stage && onCapturePost && (
             <button onClick={() => { onCapturePost(post, cur.stage); setCardPosts(prev => prev.filter(x => x.id !== post.id)); }}
-                    className="flex-1 px-3 py-2.5 text-xs font-mono text-brand-400 hover:bg-stone-50 flex items-center justify-center gap-1.5 border-l border-stone-300 transition-colors">
+                    className="flex-1 px-3 py-2.5 text-xs font-mono text-rose-400 hover:bg-stone-50 flex items-center justify-center gap-1.5 border-l border-stone-300 transition-colors">
               <Compass className="w-3 h-3" /> Cap E{cur.stage.num}
             </button>
           )}
@@ -1635,8 +1635,8 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       <div ref={containerRef} className="w-full h-full" style={{ background: darkMode ? '#0A0E14' : '#F5F5F0' }} />
 
       {tilesFailed && (
-        <div className="absolute top-4 right-4 bg-white/95 border border-brand-300 px-3 py-2 font-mono text-[12px] text-stone-700 z-10 backdrop-blur-sm rounded shadow-sm max-w-[280px]">
-          <div className="text-brand-500">{tileNotice || 'Mapa base en fallback.'}</div>
+        <div className="absolute top-4 right-4 bg-white/95 border border-rose-300 px-3 py-2 font-mono text-[12px] text-stone-700 z-10 backdrop-blur-sm rounded shadow-sm max-w-[280px]">
+          <div className="text-rose-500">{tileNotice || 'Mapa base en fallback.'}</div>
           <div className="mt-1 flex gap-2">
             <button onClick={() => applyTileProvider(tileProviderRef.current)}
                     className="text-blue-500 hover:underline">Reintentar</button>
@@ -1665,7 +1665,7 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       {hover && !cardPosts.length && (
         <div className="absolute bg-stone-50/95 border border-stone-300 p-3 font-mono text-xs pointer-events-none backdrop-blur-sm z-20"
              style={{ left: Math.min(hover.x + 14, (containerRef.current?.clientWidth || 800) - 250), top: Math.max(hover.y - 80, 10), width: 230 }}>
-          <div className="text-brand-500 font-bold tracking-wider">{hover.post.id}</div>
+          <div className="text-rose-500 font-bold tracking-wider">{hover.post.id}</div>
           <div className="text-stone-600 mt-1 text-[13px]">{hover.post.unidad_territorial} · {hover.post.zona_territorial}</div>
           <div className="text-stone-500 mt-0.5 text-[13px] truncate">{hover.post.direccion}</div>
           <div className="mt-2"><StatusChip post={hover.post} /></div>
@@ -1684,12 +1684,12 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
               if (cardPosts.length === 1 && p0) {
                 return (
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-brand-500 font-mono font-bold text-sm shrink-0">{postDisplayId(p0)}</span>
+                    <span className="text-rose-500 font-mono font-bold text-sm shrink-0">{postDisplayId(p0)}</span>
                     <span className="text-stone-500 font-mono text-[11px] truncate">{p0.unidad_territorial}</span>
                     {cur?.stage && onCapturePost && (
                       <button
                         onClick={(e) => { e.stopPropagation(); onCapturePost(p0, cur.stage); setCardPosts([]); }}
-                        className="ml-auto shrink-0 px-2.5 py-1 rounded-md bg-brand-500 text-white text-[11px] font-mono font-bold flex items-center gap-1">
+                        className="ml-auto shrink-0 px-2.5 py-1 rounded-md bg-rose-500 text-white text-[11px] font-mono font-bold flex items-center gap-1">
                         <Compass className="w-3 h-3" /> Cap E{cur.stage.num}
                       </button>
                     )}
@@ -1740,21 +1740,21 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
 
       {/* Controles */}
       <div className="absolute bottom-4 right-4 flex flex-col gap-0 border border-stone-300 bg-white/90 z-10 rounded-lg overflow-hidden">
-        <button onClick={zoomIn} className="w-11 h-11 flex items-center justify-center text-stone-600 hover:text-brand-500 hover:bg-stone-50 font-mono text-lg">+</button>
-        <button onClick={zoomOut} className="w-11 h-11 flex items-center justify-center text-stone-600 hover:text-brand-500 hover:bg-stone-50 font-mono text-lg border-t border-stone-300">−</button>
-        <button onClick={goLastView} className="w-11 h-11 flex items-center justify-center text-stone-600 hover:text-brand-500 hover:bg-stone-50 border-t border-stone-300" title="Volver a ultima vista">
+        <button onClick={zoomIn} className="w-11 h-11 flex items-center justify-center text-stone-600 hover:text-rose-500 hover:bg-stone-50 font-mono text-lg">+</button>
+        <button onClick={zoomOut} className="w-11 h-11 flex items-center justify-center text-stone-600 hover:text-rose-500 hover:bg-stone-50 font-mono text-lg border-t border-stone-300">−</button>
+        <button onClick={goLastView} className="w-11 h-11 flex items-center justify-center text-stone-600 hover:text-rose-500 hover:bg-stone-50 border-t border-stone-300" title="Volver a ultima vista">
           <Navigation className="w-4 h-4" strokeWidth={1.5} />
         </button>
-        <button onClick={fitAll} className="w-11 h-11 flex items-center justify-center text-stone-600 hover:text-brand-500 hover:bg-stone-50 border-t border-stone-300" title="Ver todos los postes">
+        <button onClick={fitAll} className="w-11 h-11 flex items-center justify-center text-stone-600 hover:text-rose-500 hover:bg-stone-50 border-t border-stone-300" title="Ver todos los postes">
           <Home className="w-4 h-4" strokeWidth={1.5} />
         </button>
         <button onClick={() => setShowScout(v => !v)}
-                className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 ${showScout ? 'text-brand-500 bg-brand-50' : 'text-stone-600 hover:text-brand-500 hover:bg-stone-50'}`}
+                className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 ${showScout ? 'text-rose-500 bg-rose-50' : 'text-stone-600 hover:text-rose-500 hover:bg-stone-50'}`}
                 title="Rutas de scouting">
           <Compass className="w-4 h-4" strokeWidth={1.5} />
         </button>
         <button onClick={switchTileProvider}
-                className="w-11 h-11 flex items-center justify-center text-stone-600 hover:text-brand-500 hover:bg-stone-50 border-t border-stone-300"
+                className="w-11 h-11 flex items-center justify-center text-stone-600 hover:text-rose-500 hover:bg-stone-50 border-t border-stone-300"
                 title={`Mapa base: ${tileProviderLabel}. Cambiar proveedor`}>
           <Layers className="w-4 h-4" strokeWidth={1.5} />
         </button>
@@ -1805,7 +1805,7 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       {/* Contador */}
       <div className="absolute bottom-4 left-4 bg-white/90 border border-stone-300 px-4 py-3 font-mono text-xs backdrop-blur-sm z-10">
         <div className="text-stone-500 uppercase tracking-widest text-[12px] mb-1">Mostrando</div>
-        <div className="text-brand-500 text-lg font-light">{filtered.length.toLocaleString()}</div>
+        <div className="text-rose-500 text-lg font-light">{filtered.length.toLocaleString()}</div>
         <div className="text-stone-500 text-[12px]">de {posts.length.toLocaleString()} postes</div>
       </div>
 
@@ -1891,13 +1891,13 @@ function Dashboard({ posts, incidents, inventoryTotals, setActiveTab, onNavigate
     <div className="p-6 space-y-6 overflow-y-auto">
       <div className="flex items-end justify-between border-b border-stone-300 pb-4 flex-wrap gap-4">
         <div>
-          <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-brand-400/80 mb-1">Panel de Control</div>
+          <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80 mb-1">Panel de Control</div>
           <h1 className="text-3xl font-light text-stone-950">Avance del proyecto</h1>
           <p className="text-sm text-stone-500 mt-1 font-mono">CI1215 · {posts.length} registrados de {TOTAL_TARGET.toLocaleString()} postes · 7 etapas</p>
         </div>
         <div className="text-right">
           <div className="text-[12px] font-mono uppercase tracking-[0.2em] text-stone-500">Completados</div>
-          <div className="text-5xl font-mono font-light text-brand-500 tabular-nums leading-none">
+          <div className="text-5xl font-mono font-light text-rose-500 tabular-nums leading-none">
             {pct.toFixed(1)}<span className="text-2xl text-stone-500">%</span>
           </div>
           <div className="text-[12px] text-stone-500 font-mono mt-1">
@@ -1958,11 +1958,11 @@ function Dashboard({ posts, incidents, inventoryTotals, setActiveTab, onNavigate
       <div className="bg-stone-100/40 border border-stone-300">
         <div className="flex items-center justify-between px-5 py-3 border-b border-stone-300">
           <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-brand-500" strokeWidth={1.5} />
+            <Layers className="w-4 h-4 text-rose-500" strokeWidth={1.5} />
             <h3 className="text-sm font-mono uppercase tracking-widest text-stone-700">Avance por Unidad Territorial</h3>
           </div>
           <button onClick={() => setActiveTab('postes')}
-                  className="text-xs font-mono text-stone-500 hover:text-brand-500 flex items-center gap-1">
+                  className="text-xs font-mono text-stone-500 hover:text-rose-500 flex items-center gap-1">
             Explorar <ChevronRight className="w-3 h-3" />
           </button>
         </div>
@@ -1973,7 +1973,7 @@ function Dashboard({ posts, incidents, inventoryTotals, setActiveTab, onNavigate
               <div key={ut.ut} onClick={() => onNavigatePostes?.({ ut: ut.ut })}
                    className="px-5 py-2.5 grid grid-cols-12 items-center gap-4 hover:bg-stone-50/40 border-b border-stone-300/50 transition-colors cursor-pointer">
                 <div className="col-span-3">
-                  <div className="font-mono text-sm text-brand-500">{ut.ut}</div>
+                  <div className="font-mono text-sm text-rose-500">{ut.ut}</div>
                   <div className="text-[12px] text-stone-500 font-mono">{ut.zona}</div>
                 </div>
                 <div className="col-span-6">
@@ -2006,15 +2006,15 @@ function Dashboard({ posts, incidents, inventoryTotals, setActiveTab, onNavigate
               <h3 className="text-sm font-mono uppercase tracking-widest text-stone-700">Incidencias abiertas</h3>
             </div>
             <button onClick={() => setActiveTab('incidencias')}
-                    className="text-xs font-mono text-stone-500 hover:text-brand-500">Ver todas</button>
+                    className="text-xs font-mono text-stone-500 hover:text-rose-500">Ver todas</button>
           </div>
           <div className="divide-y divide-stone-300/60 max-h-72 overflow-y-auto">
             {incidents.filter(i => i.status === 'abierta').slice(0, 5).map(i => (
               <div key={i.id} className="px-5 py-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs text-brand-500">{i.postId}</span>
+                  <span className="font-mono text-xs text-rose-500">{i.postId}</span>
                   <span className={`text-[12px] font-mono uppercase tracking-wider ${
-                    i.severity === 'alta' ? 'text-red-500' : i.severity === 'media' ? 'text-brand-500' : 'text-stone-500'
+                    i.severity === 'alta' ? 'text-red-500' : i.severity === 'media' ? 'text-rose-500' : 'text-stone-500'
                   }`}>{i.severity}</span>
                 </div>
                 <div className="text-sm text-stone-700 mt-0.5">{i.type}</div>
@@ -2037,7 +2037,7 @@ function Dashboard({ posts, incidents, inventoryTotals, setActiveTab, onNavigate
               <h3 className="text-sm font-mono uppercase tracking-widest text-stone-700">Inventario desplegado</h3>
             </div>
             <button onClick={() => setActiveTab('inventario')}
-                    className="text-xs font-mono text-stone-500 hover:text-brand-500">Ver detalle</button>
+                    className="text-xs font-mono text-stone-500 hover:text-rose-500">Ver detalle</button>
           </div>
           <div className="p-5 space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -2047,7 +2047,7 @@ function Dashboard({ posts, incidents, inventoryTotals, setActiveTab, onNavigate
                 <div className="text-[12px] font-mono uppercase tracking-widest text-stone-500">Modems</div>
               </div>
               <div className="text-center">
-                <Camera className="w-5 h-5 mx-auto text-brand-400 mb-1" strokeWidth={1.5}/>
+                <Camera className="w-5 h-5 mx-auto text-rose-400 mb-1" strokeWidth={1.5}/>
                 <div className="text-3xl font-mono font-light text-stone-950 tabular-nums">{inventoryTotals.camTotal}</div>
                 <div className="text-[12px] font-mono uppercase tracking-widest text-stone-500">Cámaras</div>
               </div>
@@ -2142,7 +2142,7 @@ function RAALDashboard({ posts }) {
           <div className="text-[10px] font-mono uppercase text-stone-500 mt-1">Dado sin poste</div>
         </div>
         <div className="p-4 border border-stone-300 bg-stone-100/40 text-center">
-          <div className="text-2xl font-mono font-light text-brand-500">{stats.needsConfirm}</div>
+          <div className="text-2xl font-mono font-light text-rose-500">{stats.needsConfirm}</div>
           <div className="text-[10px] font-mono uppercase text-stone-500 mt-1">Por confirmar</div>
         </div>
       </div>
@@ -2164,8 +2164,8 @@ function RAALDashboard({ posts }) {
             .map(p => (
               <div key={p.id} className="px-5 py-2.5 flex items-center justify-between">
                 <div>
-                  <span className="font-mono text-sm text-brand-500 font-bold">{p.id}</span>
-                  {p.alias && <span className="text-brand-600 text-xs ml-2">"{p.alias}"</span>}
+                  <span className="font-mono text-sm text-rose-500 font-bold">{p.id}</span>
+                  {p.alias && <span className="text-rose-600 text-xs ml-2">"{p.alias}"</span>}
                 </div>
                 <div className="flex items-center gap-2 text-[11px] font-mono">
                   {p.stages.dado?.done && <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">E2 ✓</span>}
@@ -2293,8 +2293,8 @@ function MiPanel({ posts, incidents, profile, userRole, stageDefs }) {
           {myCaptures.slice(0, 20).map((c, i) => (
             <div key={`${c.postId}-${c.stageId}-${i}`} className="px-4 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="font-mono text-sm text-brand-500 font-bold flex-shrink-0">{c.postId}</span>
-                {c.alias && <span className="text-brand-600 text-[10px] truncate">"{c.alias}"</span>}
+                <span className="font-mono text-sm text-rose-500 font-bold flex-shrink-0">{c.postId}</span>
+                {c.alias && <span className="text-rose-600 text-[10px] truncate">"{c.alias}"</span>}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: `${c.color}20`, color: c.color }}>
@@ -2323,7 +2323,7 @@ function MiPanel({ posts, incidents, profile, userRole, stageDefs }) {
             {myIncidents.slice(0, 10).map(inc => (
               <div key={inc.id} className="px-4 py-2.5 flex items-center justify-between">
                 <div>
-                  <span className="font-mono text-xs text-brand-500">{inc.postId}</span>
+                  <span className="font-mono text-xs text-rose-500">{inc.postId}</span>
                   <span className="text-xs text-stone-600 ml-2">{inc.type}</span>
                 </div>
                 <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 rounded ${inc.status === 'abierta' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
@@ -2345,7 +2345,7 @@ function MiPanel({ posts, incidents, profile, userRole, stageDefs }) {
           <div className="divide-y divide-stone-300/50 max-h-48 overflow-y-auto">
             {myVerifications.slice(0, 10).map((v, i) => (
               <div key={`${v.postId}-${v.stageId}-${i}`} className="px-4 py-2.5 flex items-center justify-between">
-                <span className="font-mono text-sm text-brand-500">{v.postId}</span>
+                <span className="font-mono text-sm text-rose-500">{v.postId}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">E{v.stageNum} ✓</span>
                   {v.ts && <span className="text-[10px] font-mono text-stone-400">
@@ -2472,7 +2472,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
     <div className="p-6 space-y-4 overflow-y-auto">
       <div className="flex items-end justify-between border-b border-stone-300 pb-4 flex-wrap gap-2">
         <div>
-          <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-brand-400/80 mb-1">Catálogo</div>
+          <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80 mb-1">Catálogo</div>
           <h1 className="text-3xl font-light text-stone-950">Registro de postes</h1>
         </div>
         <div className="flex gap-2">
@@ -2481,7 +2481,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
             <Share2 className="w-3.5 h-3.5" strokeWidth={1.5} /> WhatsApp
           </button>
           <button onClick={exportCSV}
-                  className="flex items-center gap-2 px-3 py-2 border border-stone-300 text-stone-600 hover:border-brand-600/50 hover:text-brand-500 text-xs font-mono uppercase tracking-widest transition-colors">
+                  className="flex items-center gap-2 px-3 py-2 border border-stone-300 text-stone-600 hover:border-rose-600/50 hover:text-rose-500 text-xs font-mono uppercase tracking-widest transition-colors">
             <Download className="w-3.5 h-3.5" strokeWidth={1.5} /> Exportar
           </button>
         </div>
@@ -2493,7 +2493,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500" strokeWidth={1.5}/>
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }}
                  placeholder="Buscar por ID, dirección, UT, zona…"
-                 className="w-full bg-stone-100/60 border border-stone-300 pl-9 pr-3 py-2 text-sm text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-brand-600/50" />
+                 className="w-full bg-stone-100/60 border border-stone-300 pl-9 pr-3 py-2 text-sm text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-rose-600/50" />
         </div>
         <FilterBar
           posts={posts}
@@ -2547,17 +2547,17 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
           {filtered.length.toLocaleString()} resultados
           <div className="flex border border-stone-300 ml-2">
             <button onClick={() => setViewType('pipeline')}
-                    className={`px-2 py-1 text-[12px] font-mono uppercase ${viewType === 'pipeline' ? 'bg-brand-700 text-stone-950' : 'text-stone-500 hover:text-stone-950'}`}>
+                    className={`px-2 py-1 text-[12px] font-mono uppercase ${viewType === 'pipeline' ? 'bg-rose-700 text-stone-950' : 'text-stone-500 hover:text-stone-950'}`}>
               Pipeline
             </button>
             <button onClick={() => setViewType('detalle')}
-                    className={`px-2 py-1 text-[12px] font-mono uppercase ${viewType === 'detalle' ? 'bg-brand-700 text-stone-950' : 'text-stone-500 hover:text-stone-950'}`}>
+                    className={`px-2 py-1 text-[12px] font-mono uppercase ${viewType === 'detalle' ? 'bg-rose-700 text-stone-950' : 'text-stone-500 hover:text-stone-950'}`}>
               Detalle
             </button>
           </div>
           {!readOnly && onCreatePost && (
             <button onClick={onCreatePost}
-                    className="flex items-center gap-1.5 ml-2 px-3 py-1.5 bg-brand-700 hover:bg-brand-600 text-white text-[12px] font-mono uppercase tracking-widest transition-colors rounded">
+                    className="flex items-center gap-1.5 ml-2 px-3 py-1.5 bg-rose-700 hover:bg-rose-600 text-white text-[12px] font-mono uppercase tracking-widest transition-colors rounded">
               <Plus className="w-3.5 h-3.5" strokeWidth={2.5} /> Nuevo
             </button>
           )}
@@ -2577,8 +2577,8 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
         <div>
           {pageData.map(p => (
             <div key={p.id}>
-              <div onClick={() => onSelect(p)} className="w-full grid grid-cols-12 gap-2 px-4 py-3 border-b border-stone-300/50 hover:bg-brand-500/5 hover:border-brand-600/20 transition-colors text-left items-center cursor-pointer">
-                <div className="col-span-2 font-mono text-sm text-brand-500 flex items-center gap-1.5 flex-wrap">
+              <div onClick={() => onSelect(p)} className="w-full grid grid-cols-12 gap-2 px-4 py-3 border-b border-stone-300/50 hover:bg-rose-500/5 hover:border-rose-600/20 transition-colors text-left items-center cursor-pointer">
+                <div className="col-span-2 font-mono text-sm text-rose-500 flex items-center gap-1.5 flex-wrap">
                   {onJumpToMap && (
                     <button
                       type="button"
@@ -2650,7 +2650,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
               return (
                 <Fragment key={p.id}>
                   <tr onClick={() => setExpandedPostId(isExpanded ? null : p.id)}
-                      className={`border-b border-stone-300/50 hover:bg-brand-500/5 cursor-pointer transition-colors ${isExpanded ? 'bg-brand-500/5' : ''}`}>
+                      className={`border-b border-stone-300/50 hover:bg-rose-500/5 cursor-pointer transition-colors ${isExpanded ? 'bg-rose-500/5' : ''}`}>
                     {isAdmin && (
                       <td className="px-1 py-2 text-center" onClick={e => e.stopPropagation()}>
                         <input type="checkbox" checked={selectedForDelete.has(p.id)}
@@ -2658,7 +2658,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
                           className="w-3.5 h-3.5 accent-red-500" />
                       </td>
                     )}
-                    <td className="px-3 py-2 font-mono text-brand-500 whitespace-nowrap sticky left-0 bg-stone-50/95 z-10">
+                    <td className="px-3 py-2 font-mono text-rose-500 whitespace-nowrap sticky left-0 bg-stone-50/95 z-10">
                       <span className="inline-flex items-center gap-1.5">
                         {onJumpToMap && (
                           <button
@@ -2672,7 +2672,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
                         )}
                         <span>{postDisplayId(p)}</span>
                       </span>
-                      {p.alias && <span className="text-brand-600 text-[10px] ml-1 font-medium">"{p.alias}"</span>}
+                      {p.alias && <span className="text-rose-600 text-[10px] ml-1 font-medium">"{p.alias}"</span>}
                       {p.tags?.length > 0 && (
                         <span className="ml-1 inline-flex align-middle">
                           <TagBadgeList tags={p.tags} size="xs" limit={2} />
@@ -2701,7 +2701,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
                           const val = d?.attrs?.[a.key];
                           let display = '—';
                           if (d?.done && val !== undefined && val !== null && val !== '') {
-                            if (a.type === 'image' && typeof val === 'string' && val.startsWith('http')) display = <a href={val} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}><img src={val} alt="" className="w-8 h-8 object-cover rounded border border-stone-300 hover:border-brand-600 inline-block" /></a>;
+                            if (a.type === 'image' && typeof val === 'string' && val.startsWith('http')) display = <a href={val} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}><img src={val} alt="" className="w-8 h-8 object-cover rounded border border-stone-300 hover:border-rose-600 inline-block" /></a>;
                             else if (a.type === 'gps' && val && typeof val === 'object' && val.lat) display = `${Number(val.lat).toFixed(4)},${Number(val.lng).toFixed(4)}`;
                             else if (a.type === 'password') display = '•••••';
                             else if (a.type === 'bullet_orientations') display = (Array.isArray(val) ? val : []).filter(v => v).join(', ') || '—';
@@ -2720,7 +2720,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
                           {p.stages[filteredStageDef.id]?.photo ? (
                             typeof p.stages[filteredStageDef.id]?.photo === 'string' && p.stages[filteredStageDef.id]?.photo.startsWith('http') ? (
                               <a href={p.stages[filteredStageDef.id]?.photo} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
-                                <img src={p.stages[filteredStageDef.id]?.photo} alt="" className="w-8 h-8 object-cover rounded border border-stone-300 hover:border-brand-600 inline-block" />
+                                <img src={p.stages[filteredStageDef.id]?.photo} alt="" className="w-8 h-8 object-cover rounded border border-stone-300 hover:border-rose-600 inline-block" />
                               </a>
                             ) : <span className="text-stone-400">—</span>
                           ) : <span className="text-stone-400">—</span>}
@@ -2737,7 +2737,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
                           {p.stages[filteredStageDef.id]?.verified
                             ? <span className="text-emerald-400">✓</span>
                             : p.stages[filteredStageDef.id]?.done
-                              ? <span className="text-brand-400">⏳</span>
+                              ? <span className="text-rose-400">⏳</span>
                               : <span className="text-stone-400">—</span>}
                         </td>
                       </>
@@ -2763,7 +2763,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
                               <div className="flex flex-col items-center gap-0.5">
                                 {photoUrl ? (
                                   <a href={photoUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
-                                    <img src={photoUrl} alt="" className="w-8 h-8 object-cover rounded border border-stone-300 hover:border-brand-600" />
+                                    <img src={photoUrl} alt="" className="w-8 h-8 object-cover rounded border border-stone-300 hover:border-rose-600" />
                                   </a>
                                 ) : (
                                   <span className="text-emerald-400 text-[12px]">✓</span>
@@ -2775,7 +2775,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
                           );
                         })}
                         <td className="px-2 py-2 text-center font-mono">
-                          <span className={verifiedCount === doneCount && doneCount > 0 ? 'text-emerald-400' : verifiedCount > 0 ? 'text-brand-400' : 'text-stone-500'}>
+                          <span className={verifiedCount === doneCount && doneCount > 0 ? 'text-emerald-400' : verifiedCount > 0 ? 'text-rose-400' : 'text-stone-500'}>
                             {verifiedCount}/{doneCount}
                           </span>
                         </td>
@@ -2817,10 +2817,10 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
                             );
                             return (
                               <div key={s.id} onClick={(e) => { e.stopPropagation(); onSelect(p, s.id); }}
-                                   className="p-2 border border-stone-300 bg-stone-100/40 cursor-pointer hover:border-brand-400 hover:bg-stone-100/60 transition-colors">
+                                   className="p-2 border border-stone-300 bg-stone-100/40 cursor-pointer hover:border-rose-400 hover:bg-stone-100/60 transition-colors">
                                 <div className="flex items-center justify-between">
                                   <span className="text-[12px] font-mono font-bold" style={{ color: s.color }}>E{s.num} {s.name}</span>
-                                  <span className={`text-[13px] font-mono ${d.verified ? 'text-emerald-400' : 'text-brand-400'}`}>
+                                  <span className={`text-[13px] font-mono ${d.verified ? 'text-emerald-400' : 'text-rose-400'}`}>
                                     {d.verified ? '✓ Verif.' : '⏳'}
                                   </span>
                                 </div>
@@ -2828,7 +2828,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
                                 {/* Foto thumbnail */}
                                 {d.photo && typeof d.photo === 'string' && (
                                   <a href={d.photo} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="inline-block mt-1">
-                                    <img src={d.photo} alt="" className="w-12 h-12 object-cover rounded border border-stone-300 hover:border-brand-600" />
+                                    <img src={d.photo} alt="" className="w-12 h-12 object-cover rounded border border-stone-300 hover:border-rose-600" />
                                   </a>
                                 )}
                                 {/* Atributos */}
@@ -2841,7 +2841,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
                                       if (!showWhenPasses(ad.showWhen, d.attrs)) return null;
                                       let display;
                                       if (ad.type === 'image' && typeof v === 'string' && v.startsWith('http')) {
-                                        display = <a href={v} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="inline-block"><img src={v} alt="" className="w-10 h-10 object-cover rounded border border-stone-300 hover:border-brand-600" /></a>;
+                                        display = <a href={v} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="inline-block"><img src={v} alt="" className="w-10 h-10 object-cover rounded border border-stone-300 hover:border-rose-600" /></a>;
                                       }
                                       else if (ad.type === 'gps' && v?.lat) display = `${Number(v.lat).toFixed(4)},${Number(v.lng).toFixed(4)}`;
                                       else if (ad.type === 'password') display = '•••••';
@@ -2858,7 +2858,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
                           })}
                         </div>
                         <div className="mt-2 flex gap-2">
-                          <button onClick={(e) => { e.stopPropagation(); onSelect(p); }} className="text-[12px] font-mono text-brand-400 hover:text-brand-300 px-2 py-1 border border-stone-300 hover:border-brand-600/50">
+                          <button onClick={(e) => { e.stopPropagation(); onSelect(p); }} className="text-[12px] font-mono text-rose-400 hover:text-rose-300 px-2 py-1 border border-stone-300 hover:border-rose-600/50">
                             Ver detalle completo →
                           </button>
                         </div>
@@ -2897,16 +2897,16 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
                 onChange={(e) => setPageInput(e.target.value)}
                 onBlur={commitPageInput}
                 onFocus={(e) => e.currentTarget.select()}
-                className="w-16 px-2 py-1.5 bg-stone-50 border border-stone-300 text-stone-800 text-xs font-mono focus:outline-none focus:border-brand-600/50"
+                className="w-16 px-2 py-1.5 bg-stone-50 border border-stone-300 text-stone-800 text-xs font-mono focus:outline-none focus:border-rose-600/50"
               />
             </form>
             <div className="flex gap-1">
               <button disabled={safePage === 0} onClick={() => setPage(Math.max(0, safePage - 1))}
-                      className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-brand-600/50 hover:text-brand-500 disabled:opacity-30 text-xs font-mono">
+                      className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-600/50 hover:text-rose-500 disabled:opacity-30 text-xs font-mono">
                 <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.5} />
               </button>
               <button disabled={safePage >= totalPages - 1} onClick={() => setPage(Math.min(totalPages - 1, safePage + 1))}
-                      className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-brand-600/50 hover:text-brand-500 disabled:opacity-30 text-xs font-mono">
+                      className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-600/50 hover:text-rose-500 disabled:opacity-30 text-xs font-mono">
                 <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.5} />
               </button>
             </div>
@@ -3106,10 +3106,10 @@ function GPSField({ value = {}, onChange, color = '#F59E0B' }) {
             onChange={e => setLinkInput(e.target.value)}
             onPaste={handleLinkPaste}
             placeholder="https://maps.google.com/?q=..."
-            className="flex-1 bg-stone-50 border border-stone-300 px-3 py-2 text-xs text-stone-800 placeholder-stone-500 font-mono focus:outline-none focus:border-brand-600/50"
+            className="flex-1 bg-stone-50 border border-stone-300 px-3 py-2 text-xs text-stone-800 placeholder-stone-500 font-mono focus:outline-none focus:border-rose-600/50"
           />
           <button type="button" onClick={handleExtract}
-                  className="px-3 py-2 border border-stone-300 text-stone-700 hover:border-brand-600/50 hover:text-brand-500 text-[13px] font-mono uppercase tracking-wider">
+                  className="px-3 py-2 border border-stone-300 text-stone-700 hover:border-rose-600/50 hover:text-rose-500 text-[13px] font-mono uppercase tracking-wider">
             Extraer
           </button>
         </div>
@@ -3140,7 +3140,7 @@ function GPSField({ value = {}, onChange, color = '#F59E0B' }) {
             value={value.lat ?? ''}
             onChange={e => update({ lat: e.target.value === '' ? '' : parseFloat(e.target.value), source: 'manual' })}
             placeholder="19.334567"
-            className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono tabular-nums focus:outline-none focus:border-brand-600/50"
+            className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono tabular-nums focus:outline-none focus:border-rose-600/50"
           />
         </div>
         <div>
@@ -3152,7 +3152,7 @@ function GPSField({ value = {}, onChange, color = '#F59E0B' }) {
             value={value.lng ?? ''}
             onChange={e => update({ lng: e.target.value === '' ? '' : parseFloat(e.target.value), source: 'manual' })}
             placeholder="-99.123456"
-            className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono tabular-nums focus:outline-none focus:border-brand-600/50"
+            className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono tabular-nums focus:outline-none focus:border-rose-600/50"
           />
         </div>
       </div>
@@ -3172,7 +3172,7 @@ function GPSField({ value = {}, onChange, color = '#F59E0B' }) {
             {typeof value.lat === 'number' ? value.lat.toFixed(6) : value.lat}°, {typeof value.lng === 'number' ? value.lng.toFixed(6) : value.lng}°
           </div>
           <a href={`https://maps.google.com/?q=${value.lat},${value.lng}`} target="_blank" rel="noopener noreferrer"
-             className="mt-1 inline-flex items-center gap-1 text-[13px] font-mono text-brand-500 hover:underline">
+             className="mt-1 inline-flex items-center gap-1 text-[13px] font-mono text-rose-500 hover:underline">
             Abrir en Google Maps <ArrowUpRight className="w-3 h-3" strokeWidth={1.5}/>
           </a>
         </div>
@@ -3233,7 +3233,7 @@ function BulletOrientationsField({ count, value, onChange, color = '#F59E0B' }) 
               value={current[i] || ''}
               onChange={e => updateAt(i, e.target.value)}
               placeholder={`Hacia… (ej. Av. Reforma, esquina sur)`}
-              className="flex-1 bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono focus:outline-none focus:border-brand-600/50"
+              className="flex-1 bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono focus:outline-none focus:border-rose-600/50"
             />
           </div>
         );
@@ -3448,7 +3448,7 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
               <div className="grid grid-cols-3 gap-2">
                 {existingPhotos.map((url, i) => (
                   <a key={url} href={url} target="_blank" rel="noopener noreferrer">
-                    <img src={url} alt={`Foto ${i + 1}`} className="w-full h-24 object-cover rounded border border-stone-300 hover:border-brand-600" />
+                    <img src={url} alt={`Foto ${i + 1}`} className="w-full h-24 object-cover rounded border border-stone-300 hover:border-rose-600" />
                   </a>
                 ))}
               </div>
@@ -3468,8 +3468,8 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
                   <div key={a.key}>
                     <label className="text-xs text-stone-600 font-mono flex items-center gap-1.5 mb-1.5">
                       {a.label}
-                      {a.required && <span className="text-brand-500">*</span>}
-                      {a.sensitive && <Lock className="w-3 h-3 text-brand-500" strokeWidth={1.5}/>}
+                      {a.required && <span className="text-rose-500">*</span>}
+                      {a.sensitive && <Lock className="w-3 h-3 text-rose-500" strokeWidth={1.5}/>}
                     </label>
                     {a.type === 'image' ? (
                       <div className="space-y-2">
@@ -3488,13 +3488,13 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
                         </label>
                         {attrs[a.key] && typeof attrs[a.key] === 'string' && attrs[a.key].startsWith('http') && (
                           <a href={attrs[a.key]} target="_blank" rel="noopener noreferrer">
-                            <img src={attrs[a.key]} alt="Foto" className="w-full h-32 object-cover rounded border border-stone-300 hover:border-brand-600" />
+                            <img src={attrs[a.key]} alt="Foto" className="w-full h-32 object-cover rounded border border-stone-300 hover:border-rose-600" />
                           </a>
                         )}
                       </div>
                     ) : a.type === 'select' ? (
                       <select value={attrs[a.key] || ''} onChange={e => setAttrs({...attrs, [a.key]: e.target.value})}
-                              className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-brand-600/50">
+                              className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-rose-600/50">
                         <option value="">— Seleccionar —</option>
                         {a.options.map(o => <option key={o} value={o}>{o}</option>)}
                       </select>
@@ -3540,13 +3540,13 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
                       <input type="number" value={attrs[a.key] ?? ''}
                              onChange={e => setAttrs({...attrs, [a.key]: e.target.value === '' ? '' : Math.max(a.min ?? 0, Number(e.target.value))})}
                              placeholder={a.placeholder} min={a.min ?? 0}
-                             className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-brand-600/50" />
+                             className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-rose-600/50" />
                     ) : a.type === 'password' ? (
                       <div className="relative">
                         <input type={showPwd ? 'text' : 'password'} value={attrs[a.key] || ''}
                                onChange={e => setAttrs({...attrs, [a.key]: e.target.value})}
                                placeholder={a.placeholder}
-                               className="w-full bg-stone-50 border border-stone-300 pl-3 pr-10 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-brand-600/50" />
+                               className="w-full bg-stone-50 border border-stone-300 pl-3 pr-10 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-rose-600/50" />
                         <button type="button" onClick={() => setShowPwd(!showPwd)}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-950 p-1">
                           {showPwd ? <EyeOff className="w-4 h-4" strokeWidth={1.5}/> : <Eye className="w-4 h-4" strokeWidth={1.5}/>}
@@ -3555,7 +3555,7 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
                     ) : (
                       <input type="text" value={attrs[a.key] || ''} onChange={e => setAttrs({...attrs, [a.key]: e.target.value})}
                              placeholder={a.placeholder}
-                             className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-brand-600/50" />
+                             className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-rose-600/50" />
                     )}
                   </div>
                 ); })}
@@ -3586,7 +3586,7 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
                         <div className="flex gap-1.5 mb-2 flex-wrap">
                           {c.photos.map((url, i) => (
                             <a key={url} href={url} target="_blank" rel="noopener noreferrer">
-                              <img src={url} alt={`f${i + 1}`} className="w-12 h-12 object-cover rounded border border-stone-300 hover:border-brand-600" />
+                              <img src={url} alt={`f${i + 1}`} className="w-12 h-12 object-cover rounded border border-stone-300 hover:border-rose-600" />
                             </a>
                           ))}
                         </div>
@@ -3599,7 +3599,7 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
                       </label>
                       <input type="text" value={c.notas || ''} onChange={e => setMaintCheck(id, 'notas', e.target.value)}
                              placeholder="Nota (opcional)"
-                             className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-brand-600/50" />
+                             className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-rose-600/50" />
                     </div>
                   );
                 })}
@@ -3645,7 +3645,7 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
             </div>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
                       placeholder="Opcional: anota algo sobre esta etapa…"
-                      className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono focus:outline-none focus:border-brand-600/50 resize-none" />
+                      className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono focus:outline-none focus:border-rose-600/50 resize-none" />
 
             {!showEscalate && (
               <button onClick={() => setShowEscalate(true)}
@@ -3674,7 +3674,7 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
                             className={`flex-1 px-2 py-1.5 text-[12px] font-mono uppercase tracking-wider border transition-colors ${
                               incSev === sev
                                 ? (sev === 'alta' ? 'bg-red-500/15 border-red-500/50 text-red-500'
-                                  : sev === 'media' ? 'bg-brand-500/15 border-brand-600/50 text-brand-500'
+                                  : sev === 'media' ? 'bg-rose-500/15 border-rose-600/50 text-rose-500'
                                   : 'bg-stone-200/30 border-stone-300 text-stone-700')
                                 : 'border-stone-300 text-stone-500 hover:border-stone-500'
                             }`}>{sev}</button>
@@ -3838,8 +3838,8 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
           <div className="sticky top-0 bg-amber-50 border-b border-stone-300 z-10">
             <div className="px-6 py-4 flex items-start justify-between">
               <div className="min-w-0">
-                <div className="text-[10px] font-mono uppercase tracking-[0.25em] text-brand-400/80">Poste</div>
-                <h2 className="text-2xl font-mono font-light text-brand-500">{postDisplayId(post)}</h2>
+                <div className="text-[10px] font-mono uppercase tracking-[0.25em] text-rose-400/80">Poste</div>
+                <h2 className="text-2xl font-mono font-light text-rose-500">{postDisplayId(post)}</h2>
                 <div className="text-[10px] font-mono text-stone-400">ID interno: {post.id}</div>
                 {/* PASO_11_REVISADO_UI: estado de revision + boton (solo admin) */}
                 {(() => {
@@ -3861,7 +3861,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                         </span>
                         {isAdmin && onToggleRevisado && (
                           <button onClick={() => onToggleRevisado(post)}
-                                  className="text-[11px] font-mono text-stone-500 hover:text-brand-600 underline">
+                                  className="text-[11px] font-mono text-stone-500 hover:text-rose-600 underline">
                             Desmarcar
                           </button>
                         )}
@@ -3885,7 +3885,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                   <div className="mt-1 flex items-center gap-2">
                     <input type="text" value={aliasValue} onChange={e => setAliasValue(e.target.value)}
                            placeholder="Ej: Frente a la escuela"
-                           className="flex-1 bg-stone-50 border-2 border-brand-400 rounded px-2 py-1 text-sm text-stone-950 font-medium focus:outline-none" autoFocus />
+                           className="flex-1 bg-stone-50 border-2 border-rose-400 rounded px-2 py-1 text-sm text-stone-950 font-medium focus:outline-none" autoFocus />
                     <button onClick={() => {
                       if (onUpdateMeta) onUpdateMeta(post.id, { alias: aliasValue.trim() });
                       else if (onUpdate) onUpdate({ ...post, alias: aliasValue.trim() });
@@ -3897,7 +3897,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                 ) : (
                   <div className="mt-1 flex items-center gap-2 cursor-pointer group" onClick={() => onUpdate && setEditingAlias(true)}>
                     {post.alias ? (
-                      <span className="text-sm text-brand-600 font-medium">"{post.alias}"</span>
+                      <span className="text-sm text-rose-600 font-medium">"{post.alias}"</span>
                     ) : (
                       <span className="text-xs text-stone-400 italic">Sin alias — toca para agregar</span>
                     )}
@@ -4008,7 +4008,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
               </div>
               <div className="flex gap-3 mt-1">
                 <a href={`https://maps.google.com/?q=${post.lat},${post.lng}`} target="_blank" rel="noopener noreferrer"
-                   className="text-xs font-mono text-brand-500 hover:underline flex items-center gap-1">
+                   className="text-xs font-mono text-rose-500 hover:underline flex items-center gap-1">
                   Google Maps <ArrowUpRight className="w-3 h-3" strokeWidth={1.5}/>
                 </a>
                 <button onClick={() => copyToClipboard(`${post.lat},${post.lng}`)}
@@ -4098,7 +4098,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                                   <span className="flex items-center gap-1">
                                     {stagePhotos.slice(0, 4).map((url, idx) => (
                                       <a key={url} href={url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
-                                        <img src={url} alt={`Foto ${idx + 1}`} className="w-6 h-6 object-cover rounded border border-stone-300 hover:border-brand-600 inline-block" />
+                                        <img src={url} alt={`Foto ${idx + 1}`} className="w-6 h-6 object-cover rounded border border-stone-300 hover:border-rose-600 inline-block" />
                                       </a>
                                     ))}
                                     {stagePhotos.length > 4 && <span className="text-[10px] text-stone-500">+{stagePhotos.length - 4}</span>}
@@ -4124,7 +4124,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                                     )}
                                   </span>
                                 ) : (
-                                  <span className="text-brand-500/60">⏳ Sin verificar</span>
+                                  <span className="text-rose-500/60">⏳ Sin verificar</span>
                                 )}
                               </div>
                               {isAdmin && d.done && (
@@ -4168,7 +4168,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                                           <a href={v.link || `https://maps.google.com/?q=${v.lat},${v.lng}`}
                                              target="_blank" rel="noopener noreferrer"
                                              onClick={(e) => e.stopPropagation()}
-                                             className="text-brand-500 hover:underline flex items-center gap-1 mt-0.5">
+                                             className="text-rose-500 hover:underline flex items-center gap-1 mt-0.5">
                                             Abrir en Maps <ArrowUpRight className="w-3 h-3" strokeWidth={1.5}/>
                                           </a>
                                         </div>
@@ -4185,7 +4185,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                                           <div className="mt-1 ml-2 space-y-0.5">
                                             {list.map((o, i) => (
                                               <div key={i} className="flex items-start gap-2">
-                                                <span className="text-brand-500/70 text-[12px] flex-shrink-0 mt-px">B{i + 1}:</span>
+                                                <span className="text-rose-500/70 text-[12px] flex-shrink-0 mt-px">B{i + 1}:</span>
                                                 <span className="text-stone-700">{o}</span>
                                               </div>
                                             ))}
@@ -4203,7 +4203,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                                           </span>
                                         ) : isSensitive ? (
                                           <>
-                                            <span className="text-brand-500">
+                                            <span className="text-rose-500">
                                               {showing ? v : '••••••••'}
                                             </span>
                                             <button onClick={(e) => { e.stopPropagation(); setShowPassword({...showPassword, [`${s.id}:${k}`]: !showing}); }}
@@ -4283,7 +4283,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                   {postIncidents.map(i => (
                     <div key={i.id} className="p-3 bg-stone-100/40 border border-stone-300">
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs text-brand-500">{i.id}</span>
+                        <span className="font-mono text-xs text-rose-500">{i.id}</span>
                         <span className={`text-[12px] font-mono uppercase ${
                           i.status === 'abierta' ? 'text-red-500' : 'text-emerald-500'
                         }`}>{i.status}</span>
@@ -4528,7 +4528,7 @@ function CrewsView({ posts }) {
     <div className="p-6 space-y-6 overflow-y-auto">
       <div className="flex items-end justify-between border-b border-stone-300 pb-4">
         <div>
-          <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-brand-400/80 mb-1">Recursos humanos</div>
+          <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80 mb-1">Recursos humanos</div>
           <h1 className="text-3xl font-light text-stone-950">Cuadrillas de campo</h1>
           <p className="text-sm text-stone-500 mt-1 font-mono">
             {CREWS.length} cuadrillas · {CREWS.reduce((s, c) => s + c.members, 0)} operarios
@@ -4540,12 +4540,12 @@ function CrewsView({ posts }) {
         {crewData.map(c => {
           const pct = c.total ? (c.done / c.total) * 100 : 0;
           return (
-            <div key={c.id} className="bg-stone-100/40 border border-stone-300 hover:border-brand-600/30 transition-colors">
+            <div key={c.id} className="bg-stone-100/40 border border-stone-300 hover:border-rose-600/30 transition-colors">
               <div className="px-5 py-4 border-b border-stone-300 flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <HardHat className="w-4 h-4 text-brand-500" strokeWidth={1.5} />
-                    <div className="font-mono text-xs text-brand-500 uppercase tracking-widest">{c.id}</div>
+                    <HardHat className="w-4 h-4 text-rose-500" strokeWidth={1.5} />
+                    <div className="font-mono text-xs text-rose-500 uppercase tracking-widest">{c.id}</div>
                   </div>
                   <div className="text-xl text-stone-950 mt-1">{c.name}</div>
                   <div className="text-xs text-stone-500 font-mono mt-1">
@@ -4562,11 +4562,11 @@ function CrewsView({ posts }) {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[12px] font-mono uppercase tracking-widest text-stone-500">Avance global</span>
-                    <span className="font-mono text-sm text-brand-500 tabular-nums">{pct.toFixed(1)}%</span>
+                    <span className="font-mono text-sm text-rose-500 tabular-nums">{pct.toFixed(1)}%</span>
                   </div>
                   <div className="h-2 bg-stone-50 border border-stone-300 relative overflow-hidden flex">
                     <div className="h-full bg-emerald-500" style={{ width: `${(c.done / Math.max(c.total, 1)) * 100}%` }} />
-                    <div className="h-full bg-brand-600" style={{ width: `${(c.active / Math.max(c.total, 1)) * 100}%` }} />
+                    <div className="h-full bg-rose-600" style={{ width: `${(c.active / Math.max(c.total, 1)) * 100}%` }} />
                     <div className="h-full bg-red-500" style={{ width: `${(c.blocked / Math.max(c.total, 1)) * 100}%` }} />
                   </div>
                 </div>
@@ -4582,7 +4582,7 @@ function CrewsView({ posts }) {
                   </div>
                   <div>
                     <div className="text-[12px] font-mono uppercase tracking-widest text-stone-500">Activo</div>
-                    <div className="font-mono text-lg text-brand-500 tabular-nums">{c.active}</div>
+                    <div className="font-mono text-lg text-rose-500 tabular-nums">{c.active}</div>
                   </div>
                   <div>
                     <div className="text-[12px] font-mono uppercase tracking-widest text-stone-500">Bloq.</div>
@@ -4659,7 +4659,7 @@ function ProposalsView({ proposals, posts, userNames, isAdmin, isCoordinador, on
           </div>
           {isCoordinador && (
             <button onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 bg-brand-700 hover:bg-brand-600 text-white text-sm font-medium rounded-lg px-3 py-2">
+              className="flex items-center gap-2 bg-rose-700 hover:bg-rose-600 text-white text-sm font-medium rounded-lg px-3 py-2">
               <Plus className="w-4 h-4" /> Nueva propuesta
             </button>
           )}
@@ -4668,7 +4668,7 @@ function ProposalsView({ proposals, posts, userNames, isAdmin, isCoordinador, on
         <div className="flex gap-2 mb-4">
           {['pendiente', 'aprobada', 'rechazada', 'todas'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 text-xs font-mono uppercase rounded-lg border ${filter === f ? 'bg-brand-700 text-white border-brand-700' : 'border-stone-300 text-stone-600'}`}>
+              className={`px-3 py-1.5 text-xs font-mono uppercase rounded-lg border ${filter === f ? 'bg-rose-700 text-white border-rose-700' : 'border-stone-300 text-stone-600'}`}>
               {f} {f === 'pendiente' && pendingCount > 0 ? `(${pendingCount})` : ''}
             </button>
           ))}
@@ -4762,7 +4762,7 @@ function ProposalsView({ proposals, posts, userNames, isAdmin, isCoordinador, on
               <div className="flex gap-2 pt-2">
                 <button onClick={() => setShowCreate(false)} className="flex-1 bg-stone-100 text-stone-800 text-sm rounded-lg py-3">Cancelar</button>
                 <button onClick={handleCreate} disabled={saving || !newPostId || !newChanges.trim()}
-                  className="flex-1 bg-brand-700 hover:bg-brand-600 disabled:bg-stone-200 text-white text-sm font-bold rounded-lg py-3">
+                  className="flex-1 bg-rose-700 hover:bg-rose-600 disabled:bg-stone-200 text-white text-sm font-bold rounded-lg py-3">
                   {saving ? 'Enviando…' : 'Enviar propuesta'}
                 </button>
               </div>
@@ -4991,14 +4991,14 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
     <div className="p-6 space-y-5 overflow-y-auto">
       <div className="flex items-end justify-between border-b border-stone-300 pb-4">
         <div>
-          <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-brand-400/80 mb-1">Registro</div>
+          <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80 mb-1">Registro</div>
           <h1 className="text-3xl font-light text-stone-950">Incidencias y bloqueos</h1>
         </div>
         {/* Admin: manage categories */}
         {isAdmin && (
           <div className="flex items-center gap-2">
             <button onClick={() => { setShowNewCat(!showNewCat); setShowManageCat(false); }}
-                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-brand-500 hover:text-brand-500 text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-colors">
+                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-500 hover:text-rose-500 text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-colors">
               <TagIcon className="w-3 h-3" /> {showNewCat ? 'Cerrar' : 'Nueva categoría'}
             </button>
             <button onClick={() => { setShowManageCat(!showManageCat); setShowNewCat(false); setEditingCatId(null); }}
@@ -5011,20 +5011,20 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
 
       {/* New category form (admin only) */}
       {isAdmin && showNewCat && (
-        <div className="border border-brand-300 bg-brand-50/30 rounded-lg p-4 space-y-3">
-          <div className="text-xs font-mono uppercase tracking-widest text-brand-600 font-medium">Crear nueva categoría de incidencia</div>
+        <div className="border border-rose-300 bg-rose-50/30 rounded-lg p-4 space-y-3">
+          <div className="text-xs font-mono uppercase tracking-widest text-rose-600 font-medium">Crear nueva categoría de incidencia</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] text-stone-500 mb-1">Nombre *</label>
               <input type="text" value={newCatName} onChange={e => setNewCatName(e.target.value)}
                      placeholder="Ej: Falla de cimentación"
-                     className="w-full bg-white border border-stone-300 rounded px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-brand-500" />
+                     className="w-full bg-white border border-stone-300 rounded px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-rose-500" />
             </div>
             <div>
               <label className="block text-[11px] text-stone-500 mb-1">Descripción</label>
               <input type="text" value={newCatDesc} onChange={e => setNewCatDesc(e.target.value)}
                      placeholder="Opcional"
-                     className="w-full bg-white border border-stone-300 rounded px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-brand-500" />
+                     className="w-full bg-white border border-stone-300 rounded px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-rose-500" />
             </div>
           </div>
           <div>
@@ -5040,7 +5040,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
           <div className="flex gap-2">
             <button onClick={() => setShowNewCat(false)} className="px-3 py-2 border border-stone-300 text-stone-600 text-xs font-mono rounded">Cancelar</button>
             <button onClick={handleCreateCategory} disabled={!newCatName.trim() || creatingCat}
-                    className="px-4 py-2 bg-brand-600 text-white text-xs font-mono uppercase rounded disabled:opacity-40 flex items-center gap-1.5">
+                    className="px-4 py-2 bg-rose-600 text-white text-xs font-mono uppercase rounded disabled:opacity-40 flex items-center gap-1.5">
               {creatingCat ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} Crear
             </button>
           </div>
@@ -5094,7 +5094,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                         <Edit2 className="w-3 h-3" /> Editar
                       </button>
                       <button onClick={() => handleDeleteCategory(c)} disabled={busyCatId === c.id}
-                              className="px-2.5 py-1 text-xs font-mono text-brand-600 hover:bg-brand-50 rounded flex items-center gap-1 disabled:opacity-40">
+                              className="px-2.5 py-1 text-xs font-mono text-rose-600 hover:bg-rose-50 rounded flex items-center gap-1 disabled:opacity-40">
                         {busyCatId === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />} Eliminar
                       </button>
                     </div>
@@ -5118,20 +5118,20 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500" strokeWidth={1.5}/>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar poste, reportó, nota…"
-                 className="w-full bg-stone-100/60 border border-stone-300 pl-9 pr-3 py-2 text-sm text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-brand-600/50" />
+                 className="w-full bg-stone-100/60 border border-stone-300 pl-9 pr-3 py-2 text-sm text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-rose-600/50" />
         </div>
         <div className="flex border border-stone-300">
           {['abierta', 'atendida', 'resuelta', 'todas'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
                     className={`px-4 py-2 text-xs font-mono uppercase tracking-widest ${
-                      filter === f ? 'bg-brand-700 text-stone-950' : 'text-stone-600 hover:bg-stone-50'
+                      filter === f ? 'bg-rose-700 text-stone-950' : 'text-stone-600 hover:bg-stone-50'
                     }`}>{f}</button>
           ))}
         </div>
         {/* Category filter (admin/director) */}
         {canSeeClassification && classLoaded && categories.length > 0 && (
           <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
-                  className="bg-stone-100 border border-stone-300 px-3 py-2 text-xs font-mono text-stone-700 focus:outline-none focus:border-brand-500">
+                  className="bg-stone-100 border border-stone-300 px-3 py-2 text-xs font-mono text-stone-700 focus:outline-none focus:border-rose-500">
             <option value="todas">Todas las categorías</option>
             <option value="sin_clasificar">⚠ Sin clasificar ({stats.sinClasificar})</option>
             {categories.map(c => (
@@ -5164,7 +5164,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
           const cls = classifications[i.id];
           const isClassifying = classifyingId === i.id;
           return (
-            <div key={i.id} className="px-5 py-4 hover:bg-brand-500/5 transition-colors">
+            <div key={i.id} className="px-5 py-4 hover:bg-rose-500/5 transition-colors">
               <div className="flex items-start gap-4">
                 <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
                   i.severity === 'alta' ? 'bg-red-500' : i.severity === 'media' ? 'bg-amber-500' : 'bg-gray-400'
@@ -5174,11 +5174,11 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="font-mono text-xs text-stone-500">{i.id}</span>
                     <button onClick={() => post && onSelectPost(post)}
-                            className="font-mono text-sm text-brand-500 hover:underline">{i.postId}</button>
+                            className="font-mono text-sm text-rose-500 hover:underline">{i.postId}</button>
                     {post && <span className="text-[13px] text-stone-500">{post.unidad_territorial}</span>}
                     <span className={`text-[12px] font-mono uppercase tracking-widest px-2 py-0.5 ${
                       i.severity === 'alta' ? 'bg-red-500/15 text-red-500' :
-                      i.severity === 'media' ? 'bg-brand-500/15 text-brand-500' :
+                      i.severity === 'media' ? 'bg-rose-500/15 text-rose-500' :
                       'bg-stone-200/30 text-stone-600'
                     }`}>{i.severity}</span>
                     {i.status === 'atendida' && (
@@ -5278,7 +5278,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                           </span>
                           {isAdmin && (
                             <button onClick={() => { setClassifyingId(i.id); setSelectedCatId(cls.categoryId); setClassNotes(cls.notes || ''); }}
-                                    className="text-[11px] text-brand-500 hover:underline font-mono">Reclasificar</button>
+                                    className="text-[11px] text-rose-500 hover:underline font-mono">Reclasificar</button>
                           )}
                         </div>
                       ) : (
@@ -5288,7 +5288,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                           </span>
                           {isAdmin && (
                             <button onClick={() => { setClassifyingId(i.id); setSelectedCatId(''); setClassNotes(''); }}
-                                    className="text-[11px] text-brand-500 hover:underline font-mono">Clasificar</button>
+                                    className="text-[11px] text-rose-500 hover:underline font-mono">Clasificar</button>
                           )}
                         </div>
                       )}
@@ -5297,12 +5297,12 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
 
                   {/* Classification form (admin only, inline) */}
                   {isAdmin && isClassifying && (
-                    <div className="mt-3 p-3 border border-brand-300 bg-brand-50/30 rounded-lg space-y-2">
-                      <div className="text-[11px] font-mono uppercase tracking-widest text-brand-600">
+                    <div className="mt-3 p-3 border border-rose-300 bg-rose-50/30 rounded-lg space-y-2">
+                      <div className="text-[11px] font-mono uppercase tracking-widest text-rose-600">
                         {cls ? 'Reclasificar' : 'Clasificar'} incidencia {i.id}
                       </div>
                       <select value={selectedCatId} onChange={e => setSelectedCatId(e.target.value)}
-                              className="w-full bg-white border border-stone-300 rounded px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-brand-500">
+                              className="w-full bg-white border border-stone-300 rounded px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-rose-500">
                         <option value="">Seleccionar categoría…</option>
                         {categories.map(c => (
                           <option key={c.id} value={c.id}>{c.name}</option>
@@ -5310,12 +5310,12 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                       </select>
                       <input type="text" value={classNotes} onChange={e => setClassNotes(e.target.value)}
                              placeholder="Nota de clasificación (opcional)"
-                             className="w-full bg-white border border-stone-300 rounded px-3 py-1.5 text-xs text-stone-700 focus:outline-none focus:border-brand-500" />
+                             className="w-full bg-white border border-stone-300 rounded px-3 py-1.5 text-xs text-stone-700 focus:outline-none focus:border-rose-500" />
                       <div className="flex gap-2">
                         <button onClick={() => setClassifyingId(null)}
                                 className="px-3 py-1.5 border border-stone-300 text-stone-600 text-xs font-mono rounded">Cancelar</button>
                         <button onClick={() => handleClassify(i.id)} disabled={!selectedCatId || classifying}
-                                className="flex-1 px-3 py-1.5 bg-brand-600 text-white text-xs font-mono rounded disabled:opacity-40 flex items-center justify-center gap-1.5">
+                                className="flex-1 px-3 py-1.5 bg-rose-600 text-white text-xs font-mono rounded disabled:opacity-40 flex items-center justify-center gap-1.5">
                           {classifying ? <Loader2 className="w-3 h-3 animate-spin" /> : <TagIcon className="w-3 h-3" />}
                           {cls ? 'Reclasificar' : 'Clasificar'}
                         </button>
@@ -5670,7 +5670,7 @@ function InformeIncidenciasView({ incidents, posts, onNavigate, onNavigatePostes
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-lg font-bold text-stone-950 flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-brand-500" strokeWidth={1.5} />
+            <ClipboardList className="w-5 h-5 text-rose-500" strokeWidth={1.5} />
             Informe de Incidencias
           </h2>
           <p className="text-xs font-mono text-stone-500 mt-0.5">
@@ -5683,7 +5683,7 @@ function InformeIncidenciasView({ incidents, posts, onNavigate, onNavigatePostes
             {[['7d', '7 días'], ['30d', '30 días'], ['90d', '90 días'], ['todo', 'Todo']].map(([val, lbl]) => (
               <button key={val} onClick={() => setPeriodoFiltro(val)}
                       className={`px-3 py-1.5 text-xs font-mono uppercase tracking-widest ${
-                        periodoFiltro === val ? 'bg-brand-700 text-white' : 'text-stone-600 hover:bg-stone-50'
+                        periodoFiltro === val ? 'bg-rose-700 text-white' : 'text-stone-600 hover:bg-stone-50'
                       }`}>{lbl}</button>
             ))}
           </div>
@@ -5711,7 +5711,7 @@ function InformeIncidenciasView({ incidents, posts, onNavigate, onNavigatePostes
         ].map((s, idx) => (
           <div key={idx}
                onClick={() => s.nav && onNavigate?.(s.nav)}
-               className={`bg-stone-50 border border-stone-300/60 p-4 transition-all ${s.nav ? 'cursor-pointer hover:border-brand-400 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0' : ''}`}>
+               className={`bg-stone-50 border border-stone-300/60 p-4 transition-all ${s.nav ? 'cursor-pointer hover:border-rose-400 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0' : ''}`}>
             <div className="flex items-center gap-2 mb-2">
               <s.icon className="w-3.5 h-3.5" style={{ color: s.accent }} strokeWidth={1.5} />
               <span className="text-[11px] font-mono uppercase tracking-widest text-stone-500">{s.label}</span>
@@ -5735,12 +5735,12 @@ function InformeIncidenciasView({ incidents, posts, onNavigate, onNavigatePostes
       {/* TIMELINE chart (last 30 days) */}
       <div className="bg-stone-50 border border-stone-300/60 p-5">
         <h3 className="text-xs font-mono uppercase tracking-[0.15em] text-stone-500 mb-4">
-          Tendencia últimos 30 días — <span className="text-brand-500">nuevas</span> vs <span className="text-emerald-600">resueltas</span>
+          Tendencia últimos 30 días — <span className="text-rose-500">nuevas</span> vs <span className="text-emerald-600">resueltas</span>
         </h3>
         <div className="flex items-end gap-[2px] h-28 overflow-x-auto">
           {timeline.map((d, i) => (
             <div key={i} className="flex-1 min-w-[8px] flex flex-col items-center gap-[1px] group relative">
-              <div className="w-full bg-brand-500/70 transition-all duration-300"
+              <div className="w-full bg-rose-500/70 transition-all duration-300"
                    style={{ height: `${(d.nuevas / maxTimeline) * 80}%`, minHeight: d.nuevas ? 2 : 0 }} />
               <div className="w-full bg-emerald-500/70 transition-all duration-300"
                    style={{ height: `${(d.resueltas / maxTimeline) * 80}%`, minHeight: d.resueltas ? 2 : 0 }} />
@@ -5851,7 +5851,7 @@ function InformeIncidenciasView({ incidents, posts, onNavigate, onNavigatePostes
                   const diasAbierta = Math.floor((ahora - new Date(i.createdAt)) / 86400000);
                   return (
                     <tr key={i.id} className="hover:bg-red-100/30 cursor-pointer" onClick={() => onNavigate?.('abierta', i.postId)}>
-                      <td className="py-2 pr-4 font-mono text-brand-600 text-xs underline">{i.postId}</td>
+                      <td className="py-2 pr-4 font-mono text-rose-600 text-xs underline">{i.postId}</td>
                       <td className="py-2 pr-4 text-xs text-stone-600">{post?.unidad_territorial || '—'}</td>
                       <td className="py-2 pr-4 text-xs text-stone-800">{i.type}</td>
                       <td className="py-2 pr-4 text-xs text-stone-600">{i.reportedByName || '—'}</td>
@@ -5977,12 +5977,12 @@ function InventoryView({ posts, onSelectPost }) {
     <div className="p-6 space-y-5 overflow-y-auto">
       <div className="flex items-end justify-between border-b border-stone-300 pb-4 flex-wrap gap-2">
         <div>
-          <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-brand-400/80 mb-1">Inventario desplegado</div>
+          <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80 mb-1">Inventario desplegado</div>
           <h1 className="text-3xl font-light text-stone-950">Equipos instalados en campo</h1>
           <p className="text-sm text-stone-500 mt-1 font-mono">Modems con credenciales, cámaras con orientaciones y ubicación GPS</p>
         </div>
         <button onClick={subtab === 'modems' ? exportModemsCSV : exportCamerasCSV}
-                className="flex items-center gap-2 px-3 py-2 border border-stone-300 text-stone-600 hover:border-brand-600/50 hover:text-brand-500 text-xs font-mono uppercase tracking-widest transition-colors">
+                className="flex items-center gap-2 px-3 py-2 border border-stone-300 text-stone-600 hover:border-rose-600/50 hover:text-rose-500 text-xs font-mono uppercase tracking-widest transition-colors">
           <Download className="w-3.5 h-3.5" strokeWidth={1.5} /> Exportar
         </button>
       </div>
@@ -5996,7 +5996,7 @@ function InventoryView({ posts, onSelectPost }) {
         </button>
         <button onClick={() => setSubtab('camaras')}
                 className={`flex-1 px-4 py-3 text-xs font-mono uppercase tracking-widest flex items-center justify-center gap-2 transition-colors ${
-                  subtab === 'camaras' ? 'bg-brand-500/10 text-brand-400 border-b-2 border-brand-600' : 'text-stone-600 hover:bg-stone-50'
+                  subtab === 'camaras' ? 'bg-rose-500/10 text-rose-400 border-b-2 border-rose-600' : 'text-stone-600 hover:bg-stone-50'
                 }`}>
           <Camera className="w-4 h-4" strokeWidth={1.5}/> Cámaras · {cameraStats.total}
         </button>
@@ -6036,8 +6036,8 @@ function InventoryView({ posts, onSelectPost }) {
             <div className="text-2xl font-mono font-light text-sky-300 tabular-nums">{cameraStats.bullet}</div>
           </div>
           <div className="bg-stone-100/40 border border-stone-300 p-4">
-            <div className="text-[12px] font-mono uppercase tracking-widest text-brand-400 mb-1">Total cámaras</div>
-            <div className="text-2xl font-mono font-light text-brand-300 tabular-nums">{cameraStats.total}</div>
+            <div className="text-[12px] font-mono uppercase tracking-widest text-rose-400 mb-1">Total cámaras</div>
+            <div className="text-2xl font-mono font-light text-rose-300 tabular-nums">{cameraStats.total}</div>
           </div>
         </div>
       )}
@@ -6047,21 +6047,21 @@ function InventoryView({ posts, onSelectPost }) {
           <Search className="w-3.5 h-3.5 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" strokeWidth={1.5}/>
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
                  placeholder={subtab === 'modems' ? 'Buscar ID, folio, teléfono, usuario, dirección…' : 'Buscar ID, dirección, orientación…'}
-                 className="w-full bg-stone-100/60 border border-stone-300 pl-9 pr-3 py-2 text-sm text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-brand-600/50" />
+                 className="w-full bg-stone-100/60 border border-stone-300 pl-9 pr-3 py-2 text-sm text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-rose-600/50" />
         </div>
         <select value={filterUT} onChange={e => setFilterUT(e.target.value)}
-                className="bg-stone-100/60 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-brand-600/50">
+                className="bg-stone-100/60 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-rose-600/50">
           <option value="todas">Todas las UT</option>
           {utList.map(u => <option key={u} value={u}>{u}</option>)}
         </select>
         <select value={filterCrew} onChange={e => setFilterCrew(e.target.value)}
-                className="bg-stone-100/60 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-brand-600/50">
+                className="bg-stone-100/60 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-rose-600/50">
           <option value="todas">Todas las cuadrillas</option>
 
         </select>
         {subtab === 'modems' && (
           <select value={filterModemType} onChange={e => setFilterModemType(e.target.value)}
-                  className="bg-stone-100/60 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-brand-600/50">
+                  className="bg-stone-100/60 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-rose-600/50">
             <option value="todos">Todos los tipos</option>
             {['Blanco', 'Negro', 'Blanco conejito'].map(t => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -6080,13 +6080,13 @@ function InventoryView({ posts, onSelectPost }) {
             const typeStyle = MODEM_TYPE_COLORS[m.tipo_modem] || { bg: 'bg-gray-100', border: 'border-stone-300', text: 'text-stone-600' };
             const pwdVisible = revealedPwd[m.postId];
             return (
-              <div key={m.postId} className="p-4 hover:bg-brand-500/5 transition-colors">
+              <div key={m.postId} className="p-4 hover:bg-rose-500/5 transition-colors">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex items-center gap-3 flex-wrap">
                     <button onClick={() => {
                       const post = posts.find(p => p.id === m.postId);
                       if (post) onSelectPost(post);
-                    }} className="font-mono text-sm text-brand-500 hover:underline">
+                    }} className="font-mono text-sm text-rose-500 hover:underline">
                       {m.postId}
                     </button>
                     <span className="text-[13px] font-mono text-stone-600">{m.ut}</span>
@@ -6112,7 +6112,7 @@ function InventoryView({ posts, onSelectPost }) {
                         <span className="font-mono text-xs text-stone-800 truncate">{value || '—'}</span>
                         {value && (
                           <button onClick={() => navigator.clipboard?.writeText(value)}
-                                  className="text-stone-500 hover:text-brand-500 flex-shrink-0" title="Copiar">
+                                  className="text-stone-500 hover:text-rose-500 flex-shrink-0" title="Copiar">
                             <Copy className="w-3 h-3" strokeWidth={1.5}/>
                           </button>
                         )}
@@ -6124,16 +6124,16 @@ function InventoryView({ posts, onSelectPost }) {
                       Contraseña <Lock className="w-2.5 h-2.5" strokeWidth={1.5}/>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-xs text-brand-500 truncate">
+                      <span className="font-mono text-xs text-rose-500 truncate">
                         {m.password ? (pwdVisible ? m.password : '••••••••') : '—'}
                       </span>
                       {m.password && (<>
                         <button onClick={() => setRevealedPwd({...revealedPwd,[m.postId]:!pwdVisible})}
-                                className="text-stone-500 hover:text-brand-500 flex-shrink-0" title={pwdVisible ? 'Ocultar' : 'Mostrar'}>
+                                className="text-stone-500 hover:text-rose-500 flex-shrink-0" title={pwdVisible ? 'Ocultar' : 'Mostrar'}>
                           {pwdVisible ? <EyeOff className="w-3 h-3" strokeWidth={1.5}/> : <Eye className="w-3 h-3" strokeWidth={1.5}/>}
                         </button>
                         <button onClick={() => navigator.clipboard?.writeText(m.password)}
-                                className="text-stone-500 hover:text-brand-500 flex-shrink-0" title="Copiar">
+                                className="text-stone-500 hover:text-rose-500 flex-shrink-0" title="Copiar">
                           <Copy className="w-3 h-3" strokeWidth={1.5}/>
                         </button>
                       </>)}
@@ -6146,7 +6146,7 @@ function InventoryView({ posts, onSelectPost }) {
                     <span className="text-stone-600 tabular-nums">{Number(m.ubicacion.lat).toFixed(6)}, {Number(m.ubicacion.lng).toFixed(6)}</span>
                     <a href={m.ubicacion.link || `https://maps.google.com/?q=${m.ubicacion.lat},${m.ubicacion.lng}`}
                        target="_blank" rel="noopener noreferrer"
-                       className="text-brand-500 hover:underline flex items-center gap-0.5">
+                       className="text-rose-500 hover:underline flex items-center gap-0.5">
                       Maps <ArrowUpRight className="w-2.5 h-2.5" strokeWidth={1.5}/>
                     </a>
                   </div>
@@ -6161,13 +6161,13 @@ function InventoryView({ posts, onSelectPost }) {
             <div className="px-6 py-16 text-center text-stone-500 font-mono text-sm">Sin cámaras instaladas con estos filtros</div>
           )}
           {filteredCameras.map(c => (
-            <div key={c.postId} className="p-4 hover:bg-brand-500/5 transition-colors space-y-3">
+            <div key={c.postId} className="p-4 hover:bg-rose-500/5 transition-colors space-y-3">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3 flex-wrap">
                   <button onClick={() => {
                     const post = posts.find(p => p.id === c.postId);
                     if (post) onSelectPost(post);
-                  }} className="font-mono text-sm text-brand-500 hover:underline">
+                  }} className="font-mono text-sm text-rose-500 hover:underline">
                     {c.postId}
                   </button>
                   <span className="text-[13px] font-mono text-stone-600">{c.ut}</span>
@@ -6204,7 +6204,7 @@ function InventoryView({ posts, onSelectPost }) {
                   <span className="text-stone-600 tabular-nums">{Number(c.ubicacion.lat).toFixed(6)}, {Number(c.ubicacion.lng).toFixed(6)}</span>
                   <a href={c.ubicacion.link || `https://maps.google.com/?q=${c.ubicacion.lat},${c.ubicacion.lng}`}
                      target="_blank" rel="noopener noreferrer"
-                     className="text-brand-500 hover:underline flex items-center gap-0.5">
+                     className="text-rose-500 hover:underline flex items-center gap-0.5">
                     Maps <ArrowUpRight className="w-2.5 h-2.5" strokeWidth={1.5}/>
                   </a>
                 </div>
@@ -6233,9 +6233,9 @@ function FieldCrewView({ posts, activeCrewId, setActiveCrewId, onSelectPost }) {
   return (
     <div className="p-4 md:p-6 space-y-5 overflow-y-auto">
       <div className="bg-stone-100/60 border border-stone-300 p-4">
-        <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-brand-400/80 mb-2">Operando como</div>
+        <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80 mb-2">Operando como</div>
         <select value={activeCrewId || ''} onChange={e => setActiveCrewId(e.target.value)}
-                className="w-full bg-amber-50 border border-stone-300 px-3 py-2.5 text-base text-stone-950 font-mono focus:outline-none focus:border-brand-600/50">
+                className="w-full bg-amber-50 border border-stone-300 px-3 py-2.5 text-base text-stone-950 font-mono focus:outline-none focus:border-rose-600/50">
           {CREWS.map(c => <option key={c.id} value={c.id}>{c.id} · {c.name} · {c.zone}</option>)}
         </select>
         {crew && (
@@ -6258,7 +6258,7 @@ function FieldCrewView({ posts, activeCrewId, setActiveCrewId, onSelectPost }) {
           <div className="text-[13px] font-mono uppercase tracking-widest text-stone-500 mt-0.5">Hechos</div>
         </div>
         <div className="bg-stone-100/40 border border-stone-300 p-3 text-center">
-          <div className="text-2xl font-mono font-light text-brand-500 tabular-nums">{inProgress.length}</div>
+          <div className="text-2xl font-mono font-light text-rose-500 tabular-nums">{inProgress.length}</div>
           <div className="text-[13px] font-mono uppercase tracking-widest text-stone-500 mt-0.5">En proc.</div>
         </div>
         <div className="bg-stone-100/40 border border-stone-300 p-3 text-center">
@@ -6289,11 +6289,11 @@ function FieldCrewView({ posts, activeCrewId, setActiveCrewId, onSelectPost }) {
               const cur = currentStageOf(p);
               return (
                 <button key={p.id} onClick={() => onSelectPost(p)}
-                        className="w-full p-3 bg-stone-100/40 border border-stone-300 hover:border-brand-600/40 transition-colors text-left">
+                        className="w-full p-3 bg-stone-100/40 border border-stone-300 hover:border-rose-600/40 transition-colors text-left">
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm text-brand-500">{p.id}</span>
+                        <span className="font-mono text-sm text-rose-500">{p.id}</span>
                         <span className="text-[12px] font-mono text-stone-500">{p.unidad_territorial}</span>
                       </div>
                       <div className="text-xs text-stone-700 truncate mt-0.5">{p.direccion}</div>
@@ -6539,7 +6539,7 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
             {/* Step 1: Template */}
             <section>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-5 h-5 rounded-full bg-brand-700 text-stone-950 flex items-center justify-center text-[12px] font-mono font-bold">1</div>
+                <div className="w-5 h-5 rounded-full bg-rose-700 text-stone-950 flex items-center justify-center text-[12px] font-mono font-bold">1</div>
                 <h3 className="text-sm font-mono uppercase tracking-widest text-stone-700">Plantilla</h3>
               </div>
               <div className="grid sm:grid-cols-2 gap-2">
@@ -6547,7 +6547,7 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
                   <button key={t.id} onClick={() => setTemplateId(t.id)}
                           className={`text-left p-3 border transition-colors ${
                             templateId === t.id
-                              ? 'border-brand-600/60 bg-brand-500/5'
+                              ? 'border-rose-600/60 bg-rose-500/5'
                               : 'border-stone-300 hover:border-stone-500 bg-stone-100/40'
                           }`}>
                     <div className="flex items-center gap-2">
@@ -6564,7 +6564,7 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
             {/* Step 2: Recipient */}
             <section>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-5 h-5 rounded-full bg-brand-700 text-stone-950 flex items-center justify-center text-[12px] font-mono font-bold">2</div>
+                <div className="w-5 h-5 rounded-full bg-rose-700 text-stone-950 flex items-center justify-center text-[12px] font-mono font-bold">2</div>
                 <h3 className="text-sm font-mono uppercase tracking-widest text-stone-700">Destinatario</h3>
               </div>
               <div className="flex gap-1 mb-3 border border-stone-300">
@@ -6574,7 +6574,7 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
                 ].map(o => (
                   <button key={o.id} onClick={() => setRecipientType(o.id)}
                           className={`flex-1 px-3 py-2 text-xs font-mono uppercase tracking-wider ${
-                            recipientType === o.id ? 'bg-brand-700 text-stone-950' : 'text-stone-600 hover:bg-stone-50'
+                            recipientType === o.id ? 'bg-rose-700 text-stone-950' : 'text-stone-600 hover:bg-stone-50'
                           }`}>{o.label}</button>
                 ))}
               </div>
@@ -6582,7 +6582,7 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
                 <div>
                   <input type="tel" value={manualPhone} onChange={e => setManualPhone(e.target.value)}
                          placeholder="+52 55 1234 5678"
-                         className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-brand-600/50" />
+                         className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-rose-600/50" />
                   <div className="text-[12px] text-stone-500 mt-1 font-mono">Incluye código de país. Se limpian caracteres no numéricos automáticamente.</div>
                 </div>
               )}
@@ -6596,9 +6596,9 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
             {/* Step 3: Posts selection */}
             <section>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-5 h-5 rounded-full bg-brand-700 text-stone-950 flex items-center justify-center text-[12px] font-mono font-bold">3</div>
+                <div className="w-5 h-5 rounded-full bg-rose-700 text-stone-950 flex items-center justify-center text-[12px] font-mono font-bold">3</div>
                 <h3 className="text-sm font-mono uppercase tracking-widest text-stone-700">Postes</h3>
-                <span className="ml-auto text-xs font-mono text-brand-500">{selectedIds.size} seleccionados</span>
+                <span className="ml-auto text-xs font-mono text-rose-500">{selectedIds.size} seleccionados</span>
               </div>
 
               <div className="flex gap-1 border border-stone-300 mb-3">
@@ -6609,7 +6609,7 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
                 ].map(o => (
                   <button key={o.id} onClick={() => setSelectionFilter({...selectionFilter, mode: o.id})}
                           className={`flex-1 px-2 py-1.5 text-[12px] font-mono uppercase tracking-wider ${
-                            selectionFilter.mode === o.id ? 'bg-brand-700 text-stone-950' : 'text-stone-600 hover:bg-stone-50'
+                            selectionFilter.mode === o.id ? 'bg-rose-700 text-stone-950' : 'text-stone-600 hover:bg-stone-50'
                           }`}>{o.label}</button>
                 ))}
               </div>
@@ -6617,19 +6617,19 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
               {selectionFilter.mode === 'filtered' && (
                 <div className="grid grid-cols-2 gap-2 mb-2">
                   <select value={selectionFilter.ut} onChange={e => setSelectionFilter({...selectionFilter, ut: e.target.value})}
-                          className="bg-stone-50 border border-stone-300 px-2 py-1.5 text-xs text-stone-800 font-mono focus:outline-none focus:border-brand-600/50">
+                          className="bg-stone-50 border border-stone-300 px-2 py-1.5 text-xs text-stone-800 font-mono focus:outline-none focus:border-rose-600/50">
                     <option value="todas">Todas UT</option>
                     {[...new Set(posts.map(p => p.unidad_territorial))].sort().map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                   <select value={selectionFilter.stage} onChange={e => setSelectionFilter({...selectionFilter, stage: e.target.value})}
-                          className="bg-stone-50 border border-stone-300 px-2 py-1.5 text-xs text-stone-800 font-mono focus:outline-none focus:border-brand-600/50">
+                          className="bg-stone-50 border border-stone-300 px-2 py-1.5 text-xs text-stone-800 font-mono focus:outline-none focus:border-rose-600/50">
                     <option value="todas">Todas etapas</option>
                     {STAGE_DEFS.map(s => <option key={s.id} value={s.id}>E{s.num} · {s.short}</option>)}
                     <option value="completado">Completado</option>
                     <option value="bloqueado">Bloqueado</option>
                   </select>
                   <select value={'todas'} onChange={() => {}} style={{display:'none'}}
-                          className="bg-stone-50 border border-stone-300 px-2 py-1.5 text-xs text-stone-800 font-mono focus:outline-none focus:border-brand-600/50">
+                          className="bg-stone-50 border border-stone-300 px-2 py-1.5 text-xs text-stone-800 font-mono focus:outline-none focus:border-rose-600/50">
                     <option value="todas">Todas cuadrillas</option>
           
                   </select>
@@ -6639,11 +6639,11 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
               <div className="relative mb-2">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500" strokeWidth={1.5}/>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar…"
-                       className="w-full bg-stone-50 border border-stone-300 pl-8 pr-3 py-1.5 text-xs text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-brand-600/50" />
+                       className="w-full bg-stone-50 border border-stone-300 pl-8 pr-3 py-1.5 text-xs text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-rose-600/50" />
               </div>
 
               <div className="flex gap-2 mb-2">
-                <button onClick={selectAll} className="text-[12px] font-mono uppercase tracking-wider text-brand-500 hover:underline">
+                <button onClick={selectAll} className="text-[12px] font-mono uppercase tracking-wider text-rose-500 hover:underline">
                   Seleccionar todos ({candidates.length})
                 </button>
                 <button onClick={selectNone} className="text-[12px] font-mono uppercase tracking-wider text-stone-500 hover:text-stone-950">
@@ -6660,7 +6660,7 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
                   return (
                     <button key={p.id} onClick={() => toggleSelect(p.id)}
                             className={`w-full px-3 py-2 flex items-center gap-3 border-b border-stone-300/50 text-left transition-colors ${
-                              isSel ? 'bg-brand-500/5' : 'hover:bg-stone-100/60'
+                              isSel ? 'bg-rose-500/5' : 'hover:bg-stone-100/60'
                             }`}>
                       <div className={`w-4 h-4 border flex items-center justify-center flex-shrink-0 ${
                         isSel ? 'bg-emerald-500 border-emerald-500' : 'border-stone-300'
@@ -6668,7 +6668,7 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
                         {isSel && <CheckCircle2 className="w-3 h-3 text-stone-950" strokeWidth={3}/>}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-mono text-xs text-brand-500">{p.id} · <span className="text-stone-600">{p.unidad_territorial}</span></div>
+                        <div className="font-mono text-xs text-rose-500">{p.id} · <span className="text-stone-600">{p.unidad_territorial}</span></div>
                         <div className="text-[13px] text-stone-500 truncate">{p.direccion}</div>
                       </div>
                       <StatusChip post={p} />
@@ -6684,7 +6684,7 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
             {/* Step 4: Options */}
             <section>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-5 h-5 rounded-full bg-brand-700 text-stone-950 flex items-center justify-center text-[12px] font-mono font-bold">4</div>
+                <div className="w-5 h-5 rounded-full bg-rose-700 text-stone-950 flex items-center justify-center text-[12px] font-mono font-bold">4</div>
                 <h3 className="text-sm font-mono uppercase tracking-widest text-stone-700">Contenido</h3>
               </div>
               <div className="space-y-2">
@@ -6710,7 +6710,7 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
                   <label className="text-[12px] font-mono uppercase tracking-widest text-stone-500 mb-1 block">Mensaje libre</label>
                   <textarea value={customText} onChange={e => setCustomText(e.target.value)} rows={4}
                             placeholder="Escribe el encabezado o mensaje personalizado…"
-                            className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 focus:outline-none focus:border-brand-600/50 resize-none" />
+                            className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 focus:outline-none focus:border-rose-600/50 resize-none" />
                 </div>
               )}
             </section>
@@ -6738,7 +6738,7 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
             <div className="p-4 border-t border-stone-300 bg-amber-50 space-y-2 flex-shrink-0">
               <div className="flex gap-2">
                 <button onClick={copyMessage} disabled={!messageText}
-                        className="flex-1 px-3 py-2.5 border border-stone-300 text-stone-700 hover:border-brand-600/50 disabled:opacity-30 text-xs font-mono uppercase tracking-widest flex items-center justify-center gap-2">
+                        className="flex-1 px-3 py-2.5 border border-stone-300 text-stone-700 hover:border-rose-600/50 disabled:opacity-30 text-xs font-mono uppercase tracking-widest flex items-center justify-center gap-2">
                   {copied ? <><CheckCircle2 className="w-4 h-4 text-emerald-500" strokeWidth={1.5}/> Copiado</> :
                             <><Copy className="w-4 h-4" strokeWidth={1.5}/> Copiar texto</>}
                 </button>
@@ -7421,7 +7421,7 @@ export default function FieldCoordApp() {
   if (session === undefined) {
     return (
       <div className="min-h-screen bg-amber-50 flex items-center justify-center">
-        <div className="inline-block w-12 h-12 border-2 border-brand-600/20 border-t-brand-500 rounded-full animate-spin" />
+        <div className="inline-block w-12 h-12 border-2 border-rose-600/20 border-t-rose-500 rounded-full animate-spin" />
       </div>
     );
   }
@@ -7432,7 +7432,7 @@ export default function FieldCoordApp() {
     return (
       <div className="min-h-screen bg-amber-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block w-12 h-12 border-2 border-brand-600/20 border-t-brand-500 rounded-full animate-spin mb-4" />
+          <div className="inline-block w-12 h-12 border-2 border-rose-600/20 border-t-rose-500 rounded-full animate-spin mb-4" />
           <div className="text-xs font-mono uppercase tracking-[0.3em] text-stone-500">Cargando perfil…</div>
         </div>
       </div>
@@ -7442,7 +7442,7 @@ export default function FieldCoordApp() {
     return (
       <div className="min-h-screen bg-amber-50 flex items-center justify-center p-4">
         <div className="bg-stone-50 border border-stone-300 rounded-xl p-8 max-w-md text-center">
-          <AlertCircle className="w-12 h-12 text-brand-500 mx-auto mb-4" />
+          <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-lg font-bold text-stone-950 mb-2">Acceso no configurado</h2>
           <p className="text-sm text-stone-600 mb-4">{profileError || 'Tu cuenta no tiene un rol asignado. Contacta al administrador del sistema.'}</p>
           <button onClick={handleLogout} className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 text-sm rounded-lg">
@@ -7457,7 +7457,7 @@ export default function FieldCoordApp() {
     return (
       <div className="min-h-screen bg-amber-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block w-12 h-12 border-2 border-brand-600/20 border-t-brand-500 rounded-full animate-spin mb-4" />
+          <div className="inline-block w-12 h-12 border-2 border-rose-600/20 border-t-rose-500 rounded-full animate-spin mb-4" />
           <div className="text-xs font-mono uppercase tracking-[0.3em] text-stone-500">Cargando datos del proyecto…</div>
         </div>
       </div>
@@ -7485,17 +7485,21 @@ export default function FieldCoordApp() {
               <Menu className="w-5 h-5" strokeWidth={1.5} />
             </button>
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 md:w-9 md:h-9 bg-brand-700 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+              <div className="w-7 h-7 md:w-9 md:h-9 bg-rose-700 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
                 <svg viewBox="0 0 24 24" className="w-4 h-4 md:w-5 md:h-5 text-white" fill="currentColor">
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                 </svg>
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5"><div className="text-[10px] md:text-[12px] font-mono uppercase tracking-[0.15em] text-brand-600 leading-none font-semibold truncate">
-                  <span className="hidden sm:inline">Alcaldía GAM · ¡Late con fuerza!</span>
-                  <span className="sm:hidden">CI1215</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="text-[10px] md:text-[12px] font-mono uppercase tracking-[0.15em] text-rose-600 leading-none font-semibold truncate">
+                    <span className="hidden sm:inline">Alcaldía GAM · ¡Late con fuerza!</span>
+                    <span className="sm:hidden">CI1215</span>
+                  </div>
+                  {__BUILD_ENV__ === 'v3' && (
+                    <span className="text-[8px] md:text-[9px] font-mono uppercase tracking-wider px-1.5 py-[1px] rounded bg-teal-50 text-teal-700 border border-teal-200 flex-shrink-0">v3</span>
+                  )}
                 </div>
-                {__BUILD_ENV__ === 'v3' && (<span className="text-[8px] md:text-[9px] font-mono uppercase tracking-wider px-1.5 py-[1px] rounded bg-teal-50 text-teal-700 border border-teal-200 flex-shrink-0">v3</span>)}</div>
                 <div className="text-[10px] md:text-xs font-mono text-stone-600 truncate">
                   {posts.length} postes · v{__BUILD_VERSION__}
                   {__BUILD_ENV__ === 'v3' && <span className="text-teal-600"> · v3</span>}
@@ -7539,7 +7543,7 @@ export default function FieldCoordApp() {
 
             <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 border border-stone-300 text-[11px] font-mono">
               <span className={`px-1.5 py-0.5 text-[10px] uppercase tracking-wider rounded-full font-bold ${
-                isAdmin ? 'bg-brand-700/20 text-brand-500'
+                isAdmin ? 'bg-rose-700/20 text-rose-500'
                 : isDirector ? 'bg-purple-500/20 text-purple-400'
                 : isScout ? 'bg-emerald-500/20 text-emerald-500'
                 : isCoordinador ? 'bg-orange-500/20 text-orange-500'
@@ -7556,13 +7560,13 @@ export default function FieldCoordApp() {
             </button>
 
             <button onClick={() => refreshData(false)} disabled={refreshing}
-                    className={`p-1.5 border border-stone-300 text-stone-600 hover:text-brand-500 transition-colors rounded ${refreshing ? 'animate-spin text-brand-400' : ''}`}
+                    className={`p-1.5 border border-stone-300 text-stone-600 hover:text-rose-500 transition-colors rounded ${refreshing ? 'animate-spin text-rose-400' : ''}`}
                     title={lastRefresh ? `Última actualización: ${new Date(lastRefresh).toLocaleTimeString('es-MX')}` : 'Recargar datos'}>
               <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.5} />
             </button>
 
             <button onClick={toggleDarkMode}
-                    className="p-1.5 border border-stone-300 text-stone-600 hover:text-brand-500 transition-colors rounded" title={darkMode ? 'Modo claro' : 'Modo oscuro'}>
+                    className="p-1.5 border border-stone-300 text-stone-600 hover:text-rose-500 transition-colors rounded" title={darkMode ? 'Modo claro' : 'Modo oscuro'}>
               {darkMode ? <Sun className="w-3.5 h-3.5" strokeWidth={1.5} /> : <Moon className="w-3.5 h-3.5" strokeWidth={1.5} />}
             </button>
 
@@ -7583,7 +7587,7 @@ export default function FieldCoordApp() {
               <button key={t.id} onClick={() => { setActiveTab(t.id); setSidebarOpen(false); }}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-mono uppercase tracking-wider transition-colors ${
                         activeTab === t.id
-                          ? 'bg-brand-500/10 text-brand-500 border-l-2 border-brand-600'
+                          ? 'bg-rose-500/10 text-rose-500 border-l-2 border-rose-600'
                           : 'text-stone-500 hover:text-stone-950 hover:bg-stone-50 border-l-2 border-transparent'
                       }`}>
                 <t.icon className="w-4 h-4" strokeWidth={1.5} />
@@ -7612,7 +7616,7 @@ export default function FieldCoordApp() {
             <div className="h-full flex flex-col">
               <div className="px-6 py-4 border-b border-stone-300 flex items-center gap-3 flex-wrap">
                 <div>
-                  <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-brand-400/80">Vista geoespacial</div>
+                  <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80">Vista geoespacial</div>
                   <h1 className="text-xl font-light text-stone-950">Mapa GPS</h1>
                 </div>
                 <div className="ml-auto flex items-center gap-2 flex-wrap">
@@ -7846,7 +7850,7 @@ export default function FieldCoordApp() {
              onClick={() => setShowResetConfirm(false)}>
           <div className="bg-amber-50 border border-stone-300 max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
-              <AlertTriangle className="w-5 h-5 text-brand-500" strokeWidth={1.5} />
+              <AlertTriangle className="w-5 h-5 text-rose-500" strokeWidth={1.5} />
               <h2 className="text-lg font-light text-stone-950">Restablecer datos</h2>
             </div>
             <p className="text-sm text-stone-600 mb-6">
@@ -7858,7 +7862,7 @@ export default function FieldCoordApp() {
                 Cancelar
               </button>
               <button onClick={resetData}
-                      className="px-4 py-2 text-xs font-mono uppercase tracking-widest bg-brand-700 text-stone-950 hover:bg-brand-600">
+                      className="px-4 py-2 text-xs font-mono uppercase tracking-widest bg-rose-700 text-stone-950 hover:bg-rose-600">
                 Restablecer
               </button>
             </div>
