@@ -326,6 +326,9 @@ export async function loadAllData() {
       revisado: p.revisado === true,
       revisadoAt: p.revisado_at,
       revisadoPorUserId: p.revisado_por_user_id,
+      verificado: p.verificado === true,
+      verificadoAt: p.verificado_at,
+      verificadoPorUserId: p.verificado_por_user_id,
       stages,
       tags: tagsByPost[p.id] || [],
     };
@@ -1160,7 +1163,7 @@ export async function createScoutingVisit({ routeId, postId, gps, photo, general
   if (stageChecks && stageChecks.length > 0) {
     const rows = stageChecks.map(sc => ({
       visit_id: id,
-      stage_id: (STAGE_IDS.includes(sc.stageId) || SCOUT_EXTRA_CHECK_IDS.has(sc.stageId)) ? sc.stageId : 'marca',
+      stage_id: (STAGE_IDS.includes(sc.stageId) || SCOUT_EXTRA_CHECK_IDS.has(sc.stageId) || (typeof sc.stageId === 'string' && sc.stageId.startsWith('inc_'))) ? sc.stageId : 'marca',
       result: SCOUTING_RESULT_MAP[sc.result] || sc.result || 'ok',
       notes: sc.notes || '',
       photo_url: sc.photo || null,
@@ -1169,6 +1172,17 @@ export async function createScoutingVisit({ routeId, postId, gps, photo, general
     const { error: checksErr } = await sb.from('scouting_stage_checks').insert(rows);
     if (checksErr) throw checksErr;
   }
+
+  // Marcar el punto como verificado (estado verde en el modulo Scout).
+  // No-fatal: si falla, la visita ya quedo guardada.
+  try {
+    const { error: vErr } = await sb.from('posts').update({
+      verificado: true,
+      verificado_at: new Date().toISOString(),
+      verificado_por_user_id: scoutId,
+    }).eq('id', postId);
+    if (vErr) console.warn('No se pudo marcar verificado:', vErr.message);
+  } catch (e) { console.warn('No se pudo marcar verificado:', e?.message || e); }
 
   return { id, postId, generalResult };
 }

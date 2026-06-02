@@ -407,9 +407,13 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
                     </div>
                     <div className="text-[12px] text-stone-500">{stagesDone}/7 etapas</div>
                   </div>
-                  <div className="text-xs font-mono px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 flex-shrink-0">
-                    Verificar
-                  </div>
+                  {p.verificado ? (
+                    <div className="text-xs font-mono px-2 py-1 rounded bg-emerald-500/15 text-emerald-600 flex-shrink-0">🟢 Verificado</div>
+                  ) : stagesDone >= 1 ? (
+                    <div className="text-xs font-mono px-2 py-1 rounded bg-amber-400/20 text-amber-700 flex-shrink-0">🟡 Completado</div>
+                  ) : (
+                    <div className="text-xs font-mono px-2 py-1 rounded bg-stone-200 text-stone-500 flex-shrink-0">⚪ Falta</div>
+                  )}
                 </button>
               );
             })}
