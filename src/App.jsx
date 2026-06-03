@@ -4023,7 +4023,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
             )}
 
             {/* Antena de internet (movido desde el mapa) */}
-            {isAdmin && post.stages?.internet?.done && (() => {
+            {onOpenAntena && post.stages?.internet?.done && (() => {
               const isRecuperada = post.antenaRecuperada === true || post.antena_recuperada === true;
               return (
                 <div className="border border-blue-200 bg-blue-50/60 rounded p-3">
@@ -5037,6 +5037,35 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
 
   const CAT_COLORS = ['#EF4444', '#F59E0B', '#3B82F6', '#8B5CF6', '#10B981', '#06B6D4', '#EC4899', '#6B7280', '#DC2626', '#059669'];
 
+  const exportIncidenciasCSV = () => {
+    const fmt = (ts) => ts ? new Date(ts).toLocaleString('es-MX') : '';
+    const catLabel = filterCategory === 'todas' ? 'Todas' :
+      filterCategory === 'sin_clasificar' ? 'Sin clasificar' :
+      (categories.find(c => c.id === filterCategory)?.name || filterCategory);
+    const rows = [
+      ['ID', 'Poste', 'UT', 'Tipo', 'Descripcion', 'Severidad', 'Estado', 'Etapa', 'Categoria', 'Reporto', 'Nota', 'Atendio', 'Resolvio', 'Creado', 'Resuelto'],
+      ...filtered.map(i => {
+        const post = posts.find(p => p.id === i.postId);
+        const cls = classifications[i.id];
+        const catName = cls ? (cls.categoryName || categories.find(c => c.id === cls.categoryId)?.name || '') : 'Sin clasificar';
+        return [
+          i.id, i.postId, post?.unidad_territorial || '', i.type || '', i.description || '',
+          i.severity || '', i.status || '', i.stageId || '', catName,
+          i.reportedByName || '', i.userNote || '', i.attendedByName || '', i.resolvedByName || '',
+          fmt(i.createdAt), fmt(i.resolvedAt),
+        ];
+      }),
+    ];
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `incidencias_${catLabel.replace(/[^a-zA-Z0-9]+/g, '_')}_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-6 space-y-5 overflow-y-auto">
       <div className="flex items-end justify-between border-b border-stone-300 pb-4">
@@ -5044,19 +5073,27 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
           <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80 mb-1">Registro</div>
           <h1 className="text-3xl font-light text-stone-950">Incidencias y bloqueos</h1>
         </div>
-        {/* Admin: manage categories */}
-        {isAdmin && (
-          <div className="flex items-center gap-2">
-            <button onClick={() => { setShowNewCat(!showNewCat); setShowManageCat(false); }}
-                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-500 hover:text-rose-500 text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-colors">
-              <TagIcon className="w-3 h-3" /> {showNewCat ? 'Cerrar' : 'Nueva categoría'}
+        {/* Acciones: exportar (admin/director) + gestionar categorías (admin) */}
+        <div className="flex items-center gap-2">
+          {canSeeClassification && (
+            <button onClick={exportIncidenciasCSV}
+                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-emerald-600 hover:text-emerald-600 text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-colors">
+              <Download className="w-3 h-3" /> Exportar
             </button>
-            <button onClick={() => { setShowManageCat(!showManageCat); setShowNewCat(false); setEditingCatId(null); }}
-                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-blue-500 hover:text-blue-500 text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-colors">
-              <Edit2 className="w-3 h-3" /> {showManageCat ? 'Cerrar' : 'Gestionar categorías'}
-            </button>
-          </div>
-        )}
+          )}
+          {isAdmin && (
+            <>
+              <button onClick={() => { setShowNewCat(!showNewCat); setShowManageCat(false); }}
+                      className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-500 hover:text-rose-500 text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-colors">
+                <TagIcon className="w-3 h-3" /> {showNewCat ? 'Cerrar' : 'Nueva categoría'}
+              </button>
+              <button onClick={() => { setShowManageCat(!showManageCat); setShowNewCat(false); setEditingCatId(null); }}
+                      className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-blue-500 hover:text-blue-500 text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-colors">
+                <Edit2 className="w-3 h-3" /> {showManageCat ? 'Cerrar' : 'Gestionar categorías'}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* New category form (admin only) */}
@@ -7841,7 +7878,7 @@ export default function FieldCoordApp() {
                           canViewHistory={isAdmin || isDirector}
                           historyRefreshKey={historyRefreshKey}
                           onDelete={isAdmin ? handleDeletePost : null}
-                          onOpenAntena={isAdmin ? (p) => setAntenaModalPost(p) : null} />
+                          onOpenAntena={(isAdmin || isCapturador) ? (p) => setAntenaModalPost(p) : null} />
       )}
       {comparePair && (
         <div className="fixed inset-0 z-[70] flex flex-col bg-black/60 backdrop-blur-sm">

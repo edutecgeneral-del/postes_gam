@@ -15,6 +15,7 @@ import {
   startRoute, completeRoute, createScoutingVisit, loadPostScoutingVisits,
   approvePost, unapprovePost, deleteScoutingRoute, removePostsFromRoute, updateScoutingRoute,
   normalizePhotoUrls, uploadStagePhoto, updateStageAtomic, withStagePhotoUrls,
+  setPostAntenaRecuperada,
 } from '../lib/data.js';
 import { listAllUsers } from '../lib/auth.js';
 import { GPSField, StageAttributeField } from './StageFields.jsx';
@@ -32,6 +33,7 @@ const RESULT_LABELS = {
 
 const ROUTE_TYPE_LABELS = {
   avanzada_internet: { label: 'Avanzada Internet', emoji: '🌐', color: 'text-blue-600', bg: 'bg-blue-100' },
+  recuperacion_antena: { label: 'Recuperación de Antena', emoji: '🛰️', color: 'text-teal-700', bg: 'bg-teal-100' },
   correcciones: { label: 'Correcciones', emoji: '🔧', color: 'text-orange-600', bg: 'bg-orange-100' },
   reubicaciones: { label: 'Reubicaciones', emoji: '📍', color: 'text-purple-600', bg: 'bg-purple-100' },
   m1_mantenimiento: { label: 'M1 Mantenimiento', emoji: '🔧', color: 'text-cyan-700', bg: 'bg-cyan-100' },
@@ -148,6 +150,7 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
         post={post}
         routeId={selectedRoute.id}
         routeType={selectedRoute.route_type || 'avanzada_internet'}
+        profile={profile}
         stageDefs={stageDefs}
         userNames={userNames}
         incidents={incidents}
@@ -407,13 +410,9 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
                     </div>
                     <div className="text-[12px] text-stone-500">{stagesDone}/7 etapas</div>
                   </div>
-                  {p.verificado ? (
-                    <div className="text-xs font-mono px-2 py-1 rounded bg-emerald-500/15 text-emerald-600 flex-shrink-0">🟢 Verificado</div>
-                  ) : stagesDone >= 1 ? (
-                    <div className="text-xs font-mono px-2 py-1 rounded bg-amber-400/20 text-amber-700 flex-shrink-0">🟡 Completado</div>
-                  ) : (
-                    <div className="text-xs font-mono px-2 py-1 rounded bg-stone-200 text-stone-500 flex-shrink-0">⚪ Falta</div>
-                  )}
+                  <div className="text-xs font-mono px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 flex-shrink-0">
+                    Verificar
+                  </div>
                 </button>
               );
             })}
@@ -427,7 +426,7 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
 // =============================================================================
 // ScoutVisitForm — formulario de verificación de un poste
 // =============================================================================
-function ScoutVisitForm({ post, routeId, routeType, stageDefs, userNames, incidents, onBack, onSaved, isAdmin, onApprove, onCreateIncident, onOpenPostDetail }) {
+function ScoutVisitForm({ post, routeId, routeType, stageDefs, userNames, incidents, onBack, onSaved, isAdmin, onApprove, onCreateIncident, onOpenPostDetail, profile }) {
   const formKey = `scout_${post.id}_${routeId || 'no-route'}`;
   const saved = useMemo(() => getPersistedForm(formKey), [formKey]);
   const [restoredFromSave] = useState(() => !!saved);
@@ -441,6 +440,22 @@ function ScoutVisitForm({ post, routeId, routeType, stageDefs, userNames, incide
   const [pastVisits, setPastVisits] = useState([]);
   const [loadingVisits, setLoadingVisits] = useState(true);
   const [showPwd, setShowPwd] = useState(false);
+
+  // Recuperacion de antena: accion rapida (un toque guarda en BD)
+  const [antenaRecuperada, setAntenaRecuperada] = useState(post.antenaRecuperada === true || post.antena_recuperada === true);
+  const [antenaSaving, setAntenaSaving] = useState(false);
+  const [antenaMsg, setAntenaMsg] = useState('');
+  const handleRecuperarAntena = async (val) => {
+    setAntenaSaving(true); setAntenaMsg('');
+    try {
+      await setPostAntenaRecuperada(post.id, val, profile?.userId);
+      setAntenaRecuperada(val);
+      setAntenaMsg(val ? '✓ Antena recuperada y guardada' : 'Marcada como sin recuperar');
+    } catch (e) {
+      setAntenaMsg('Error: ' + (e?.message || e));
+    }
+    setAntenaSaving(false);
+  };
 
   // E8: attrs por etapa (pre-filled con datos existentes del poste)
   const [stageAttrs, setStageAttrs] = useState(() => {
@@ -519,7 +534,7 @@ function ScoutVisitForm({ post, routeId, routeType, stageDefs, userNames, incide
   }, []);
 
   // E8: todas las etapas E2-E7 para inspección
-  const e8Stages = routeType === 'avanzada_internet'
+  const e8Stages = (routeType === 'avanzada_internet' || routeType === 'recuperacion_antena')
     ? stageDefs.filter(s => E8_FIELDS[s.id])
     : [];
 
@@ -577,7 +592,7 @@ function ScoutVisitForm({ post, routeId, routeType, stageDefs, userNames, incide
           }
         }
       }
-      if (routeType === 'avanzada_internet') {
+      if ((routeType === 'avanzada_internet' || routeType === 'recuperacion_antena')) {
         // E8: guardar attrs de cada etapa que el scout modificó
         for (const [stageId, fieldKeys] of Object.entries(E8_FIELDS)) {
           const newAttrs = stageAttrs[stageId] || {};
@@ -788,8 +803,31 @@ function ScoutVisitForm({ post, routeId, routeType, stageDefs, userNames, incide
           )}
         </div>
 
+        {routeType === 'recuperacion_antena' && (
+          <div className="p-4 rounded-lg border border-blue-200 bg-blue-50/60">
+            <div className="text-[12px] font-mono uppercase tracking-widest text-stone-500 mb-3">📡 Antena de internet</div>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <span className={`text-sm font-mono px-2.5 py-1 rounded border ${antenaRecuperada ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'}`}>
+                {antenaRecuperada ? '✓ Antena recuperada' : '⚠ Antena sin recuperar'}
+              </span>
+              {antenaRecuperada ? (
+                <button onClick={() => handleRecuperarAntena(false)} disabled={antenaSaving}
+                        className="text-sm font-mono px-4 py-2 rounded bg-stone-200 text-stone-700 hover:bg-stone-300 disabled:opacity-50">
+                  {antenaSaving ? '…' : 'Marcar sin recuperar'}
+                </button>
+              ) : (
+                <button onClick={() => handleRecuperarAntena(true)} disabled={antenaSaving}
+                        className="text-sm font-bold px-5 py-2.5 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+                  {antenaSaving ? 'Guardando…' : '📡 Recuperar antena'}
+                </button>
+              )}
+            </div>
+            {antenaMsg && <div className="mt-2 text-xs font-mono text-emerald-700">{antenaMsg}</div>}
+          </div>
+        )}
+
         {/* ===== E8 — INSPECCIÓN SCOUT ===== */}
-        {routeType === 'avanzada_internet' && (
+        {(routeType === 'avanzada_internet' || routeType === 'recuperacion_antena') && (
           <div>
             <div className="text-[12px] font-mono uppercase text-stone-500 mb-3">🔍 Inspección Scout — E2 a E7</div>
             <div className="space-y-3">
@@ -1161,7 +1199,16 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
 
   const filteredPosts = useMemo(() => {
     let source = posts;
-    if (routeType === 'avanzada_internet') {
+    if (routeType === 'recuperacion_antena') {
+      // Recuperación de antena: postes con E5 (internet) completado y E6 (conexión) pendiente
+      source = showAllPosts
+        ? [...posts].sort((a, b) => {
+            const aT = a.stages?.internet?.done && !a.stages?.conexion_poste?.done;
+            const bT = b.stages?.internet?.done && !b.stages?.conexion_poste?.done;
+            return (aT === bT) ? 0 : aT ? -1 : 1;
+          })
+        : posts.filter(p => p.stages?.internet?.done && !p.stages?.conexion_poste?.done);
+    } else if (routeType === 'avanzada_internet') {
       if (showAllPosts) {
         // Mostrar todos, pero ordenar: sin internet primero
         source = [...posts].sort((a, b) => {
@@ -1251,6 +1298,7 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
                 const active = routeType === key;
                 const info = {
                   avanzada_internet: { desc: 'Verificar avance antes de instalar internet', filter: '📋 Postes sin internet' },
+                  recuperacion_antena: { desc: 'Recuperar antenas (Etapa 6), similar a Avanzada Internet', filter: '📋 Postes sin internet' },
                   correcciones: { desc: 'Re-verificar postes con problemas reportados', filter: '⚠️ Postes con incidencias' },
                   reubicaciones: { desc: 'Evaluar si un poste necesita moverse', filter: '📌 Todos los postes' },
                 }[key] || {};
@@ -1270,7 +1318,7 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1.5">Nombre de la ruta *</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
-              placeholder={routeType === 'avanzada_internet' ? 'Ej: Avanzada Internet Zona Norte' : 'Ej: Correcciones semana 17'}
+              placeholder={(routeType === 'avanzada_internet' || routeType === 'recuperacion_antena') ? 'Ej: Avanzada Internet Zona Norte' : 'Ej: Correcciones semana 17'}
               className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2.5 text-sm text-stone-950 focus:outline-none focus:border-emerald-500" />
           </div>
           {/* Scout */}
@@ -1298,13 +1346,13 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
           {/* Postes */}
           <div>
             {/* Toggle Sugeridos / Todos */}
-            {(routeType === 'avanzada_internet' || routeType === 'correcciones') && (
+            {((routeType === 'avanzada_internet' || routeType === 'recuperacion_antena') || routeType === 'correcciones') && (
               <div className="flex items-center gap-3 mb-3 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-medium text-stone-700">
                     {showAllPosts
                       ? `Mostrando todos los ${posts.length} postes`
-                      : routeType === 'avanzada_internet'
+                      : (routeType === 'avanzada_internet' || routeType === 'recuperacion_antena')
                         ? `${posts.filter(p => !p.stages?.internet?.done).length} postes sin internet`
                         : `${postsWithIncidents.length} postes con incidencias`}
                   </div>
@@ -1328,15 +1376,15 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
             )}
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-stone-600">
-                {routeType === 'avanzada_internet'
+                {(routeType === 'avanzada_internet' || routeType === 'recuperacion_antena')
                   ? `📋 ${showAllPosts ? 'Todos los postes' : 'Postes sin internet'} (${selectedPostIds.size} de ${filteredPosts.length})`
                   : routeType === 'correcciones' ? `⚠️ ${showAllPosts ? 'Todos los postes' : 'Postes con incidencias'} (${selectedPostIds.size} de ${filteredPosts.length})`
                   : `📌 Todos los postes (${selectedPostIds.size} de ${filteredPosts.length})`}
               </label>
-              {(routeType === 'avanzada_internet' || routeType === 'reubicaciones' || routeType === 'correcciones') && (
+              {((routeType === 'avanzada_internet' || routeType === 'recuperacion_antena') || routeType === 'reubicaciones' || routeType === 'correcciones') && (
                 <div className="flex gap-2">
                   <button onClick={selectAll} className="text-[12px] text-emerald-500 hover:text-emerald-600">Todos</button>
-                  {routeType === 'avanzada_internet' && (
+                  {(routeType === 'avanzada_internet' || routeType === 'recuperacion_antena') && (
                     <button onClick={() => {
                       const noPhoto = filteredPosts.filter(p => {
                         const has = (p.stages?.parado?.photo && String(p.stages.parado.photo).startsWith('http')) || (p.stages?.camaras?.photo && String(p.stages.camaras.photo).startsWith('http'));
@@ -1374,14 +1422,14 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
                 const hasInternet = !!p.stages?.internet?.done;
                 return (
                   <label key={p.id} className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer text-xs ${
-                    hasInternet && showAllPosts && routeType === 'avanzada_internet' ? 'bg-emerald-50/50 hover:bg-emerald-100/30'
-                    : !hasPhotos && routeType === 'avanzada_internet' ? 'bg-amber-50 hover:bg-amber-100/50' : 'hover:bg-stone-100'}`}>
+                    hasInternet && showAllPosts && (routeType === 'avanzada_internet' || routeType === 'recuperacion_antena') ? 'bg-emerald-50/50 hover:bg-emerald-100/30'
+                    : !hasPhotos && (routeType === 'avanzada_internet' || routeType === 'recuperacion_antena') ? 'bg-amber-50 hover:bg-amber-100/50' : 'hover:bg-stone-100'}`}>
                     <input type="checkbox" checked={selectedPostIds.has(p.id)} onChange={() => togglePost(p.id)}  className="w-4 h-4 accent-emerald-500 flex-shrink-0" />
                     <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onSelectPost) onSelectPost(p); }}
                       className="font-mono text-stone-800 flex-shrink-0 hover:text-blue-600 hover:underline cursor-pointer">{p.id}</button>
                     {p.alias && <span className="text-brand-600 text-[12px] font-medium flex-shrink-0">"{p.alias}"</span>}
                     {p.reubicado && <span className="text-[13px] font-bold px-1 py-0.5 rounded bg-purple-100 text-purple-700 flex-shrink-0">📍</span>}
-                    {routeType === 'avanzada_internet' && (
+                    {(routeType === 'avanzada_internet' || routeType === 'recuperacion_antena') && (
                       <>
                         {showAllPosts && hasInternet && (
                           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-600 flex-shrink-0">✅ Internet</span>
@@ -1401,7 +1449,7 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
                         </a>
                       ) : <span className="text-stone-500">{p.direccion || '—'}</span>}
                     </span>
-                    {routeType === 'avanzada_internet' && <span className="text-[12px] text-stone-500 flex-shrink-0">{stagesDone}/6</span>}
+                    {(routeType === 'avanzada_internet' || routeType === 'recuperacion_antena') && <span className="text-[12px] text-stone-500 flex-shrink-0">{stagesDone}/6</span>}
                     {routeType === 'correcciones' && pInc.length > 0 && (
                       <span className="flex gap-1 flex-shrink-0 flex-wrap justify-end" style={{maxWidth:'120px'}}>
                         {pInc.slice(0, 2).map((inc, i) => (
@@ -1421,7 +1469,7 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
                 <div className="px-3 py-4 text-center text-xs text-stone-500">
                   {search.trim() || filterUT !== 'todas'
                     ? 'No hay postes que coincidan con los filtros.'
-                    : routeType === 'avanzada_internet' ? 'No hay postes sin internet instalado.' : 'No hay postes disponibles.'}
+                    : (routeType === 'avanzada_internet' || routeType === 'recuperacion_antena') ? 'No hay postes sin internet instalado.' : 'No hay postes disponibles.'}
                 </div>
               )}
             </div>
