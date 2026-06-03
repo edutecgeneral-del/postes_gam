@@ -23,6 +23,7 @@ import { fromLonLat as olFromLonLat, toLonLat as olToLonLat } from 'ol/proj';
 import { Translate as OLTranslate } from 'ol/interaction';
 import OLCollection from 'ol/Collection';
 import { boundingExtent as olBoundingExtent } from 'ol/extent';
+import { createUtLayer, setUtHover, getUtName } from './lib/utLayer.js';
 import {
   loadAllData,
   savePost as dbSavePost,
@@ -781,6 +782,8 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
   const tileLoadEndHandlerRef = useRef(() => {});
   const applyTileProviderRef = useRef(() => {});
   const [hover, setHover] = useState(null);
+  const [showUts, setShowUts] = useState(false);
+  const [utHoverName, setUtHoverName] = useState(null);
   const [tilesFailed, setTilesFailed] = useState(false);
   // Refs para que los handlers del map (closure inicial) lean el estado actual
   const addingModeRef = useRef(addingMode);
@@ -830,6 +833,35 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       .catch(() => { if (!cancel) setUtSuggestion({ error: true }); });
     return () => { cancel = true; };
   }, [editingUtPostId, cardPosts, unidadesTerritoriales]);
+
+  // Sincronizar visibilidad de la capa UT con el toggle
+  useEffect(() => {
+    if (utPolygonLayerRef.current) {
+      utPolygonLayerRef.current.setVisible(showUts);
+    }
+    if (!showUts) setUtHoverName(null);
+  }, [showUts]);
+
+  // Handler de hover sobre poligonos UT (tooltip flotante)
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+    const onMove = (evt) => {
+      if (!utPolygonLayerRef.current || !utPolygonLayerRef.current.getVisible()) {
+        if (utHoverName) setUtHoverName(null);
+        return;
+      }
+      let found = null;
+      map.forEachFeatureAtPixel(evt.pixel, (feature, layer) => {
+        if (layer === utPolygonLayerRef.current) { found = feature; return true; }
+      }, { hitTolerance: 0 });
+      const name = getUtName(found);
+      setUtHoverName(name);
+      setUtHover(utPolygonLayerRef.current, found);
+    };
+    map.on('pointermove', onMove);
+    return () => { map.un('pointermove', onMove); };
+  }, [showUts]);
   const [mergeSel, setMergeSel] = useState([]); // postes marcados para fusion (max 2)
   const [mergeOpenMap, setMergeOpenMap] = useState(false);
   const [userLoc, setUserLoc] = useState(null);   // {lat, lng, accuracy}
@@ -971,11 +1003,17 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
     const userLocSource = new OLVectorSource();
     userLocSourceRef.current = userLocSource;
 
+    // Capa de Unidades Territoriales (lazy: invisible hasta el toggle)
+    const utLayer = createUtLayer({ baseUrl: import.meta.env.BASE_URL });
+    utPolygonLayerRef.current = utLayer;
+    utPolygonSourceRef.current = utLayer.getSource();
+
     const map = new OLMap({
       target: containerRef.current,
       controls: [], // Use our custom controls instead of defaults
       layers: [
         baseLayer,
+        utLayer,
         new OLVectorLayer({ source: vectorSource }),
         new OLVectorLayer({ source: userLocSource }),
       ],
@@ -1748,6 +1786,11 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
         <button onClick={fitAll} className="w-11 h-11 flex items-center justify-center text-stone-600 hover:text-rose-500 hover:bg-stone-50 border-t border-stone-300" title="Ver todos los postes">
           <Home className="w-4 h-4" strokeWidth={1.5} />
         </button>
+        <button onClick={() => setShowUts(v => !v)}
+                className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 font-mono text-[10px] font-bold ${showUts ? 'text-rose-500 bg-rose-50' : 'text-stone-600 hover:text-rose-500 hover:bg-stone-50'}`}
+                title="Mostrar Unidades Territoriales">
+          UT
+        </button>
         <button onClick={() => setShowScout(v => !v)}
                 className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 ${showScout ? 'text-rose-500 bg-rose-50' : 'text-stone-600 hover:text-rose-500 hover:bg-stone-50'}`}
                 title="Rutas de scouting">
@@ -1765,6 +1808,13 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
           <Navigation className="w-4 h-4" strokeWidth={1.5} />
         </button>
       </div>
+
+      {/* Tooltip de UT al hover */}
+      {utHoverName && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 bg-white/95 px-3 py-1.5 rounded-full border border-rose-300 text-rose-700 font-mono text-xs shadow-md backdrop-blur-sm pointer-events-none">
+          {utHoverName}
+        </div>
+      )}
 
       {/* User location badge */}
       {userLoc && (
