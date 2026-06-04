@@ -834,13 +834,15 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
     return () => { cancel = true; };
   }, [editingUtPostId, cardPosts, unidadesTerritoriales]);
 
-  // Sincronizar visibilidad de la capa UT con el toggle
+  // Sincronizar visibilidad de la capa UT con el toggle + filtro UT del FilterBar.
+  // La capa es visible si: el usuario activo el boton UT del mapa O hay filtro arriba.
   useEffect(() => {
+    const hayFiltro = (filters?.uts?.length || 0) > 0;
     if (utPolygonLayerRef.current) {
-      utPolygonLayerRef.current.setVisible(showUts);
+      utPolygonLayerRef.current.setVisible(hayFiltro || showUts);
     }
-    if (!showUts) setUtHoverName(null);
-  }, [showUts]);
+    if (!showUts && !hayFiltro) setUtHoverName(null);
+  }, [showUts, filters?.uts]);
 
   // Handler de hover sobre poligonos UT (tooltip flotante)
   useEffect(() => {
@@ -1014,8 +1016,8 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       layers: [
         baseLayer,
         utLayer,
-        new OLVectorLayer({ source: vectorSource }),
-        new OLVectorLayer({ source: userLocSource }),
+        new OLVectorLayer({ source: vectorSource, zIndex: 10 }),
+        new OLVectorLayer({ source: userLocSource, zIndex: 20 }),
       ],
       view: new OLView({ center: olFromLonLat([centerLng, centerLat]), zoom: 12 }),
     });
@@ -1207,7 +1209,6 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       const idToName = new Map((unidadesTerritoriales || []).map(u => [u.id, u.nombre]));
       const names = new Set(utsIds.map(id => idToName.get(id)).filter(Boolean));
       setUtFilter(utPolygonLayerRef.current, names);
-      if (!showUts) setShowUts(true);
     } else {
       setUtFilter(utPolygonLayerRef.current, null);
     }

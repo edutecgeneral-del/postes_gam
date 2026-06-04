@@ -33,7 +33,7 @@ export function createUtLayer({ baseUrl = '/' } = {}) {
   const layer = new OLVectorLayer({
     source,
     declutter: false,
-    zIndex: 1,
+    zIndex: 0,
     visible: false,
     properties: { id: 'ut-boundaries', utFilter: null },
   });
