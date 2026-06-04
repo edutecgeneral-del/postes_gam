@@ -23,7 +23,7 @@ import { fromLonLat as olFromLonLat, toLonLat as olToLonLat } from 'ol/proj';
 import { Translate as OLTranslate } from 'ol/interaction';
 import OLCollection from 'ol/Collection';
 import { boundingExtent as olBoundingExtent } from 'ol/extent';
-import { createUtLayer, setUtHover, getUtName } from './lib/utLayer.js';
+import { createUtLayer, setUtHover, getUtName, setUtFilter } from './lib/utLayer.js';
 import {
   loadAllData,
   savePost as dbSavePost,
@@ -1198,71 +1198,20 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters?.uts]);
 
-  // Layer de poligonos por UT seleccionada (convex hull + label en centro)
+  // Sincroniza el filtro UT (FilterBar arriba) con la capa visual.
+  // Reemplaza el codigo viejo de convex hull. Ahora pintamos el poligono REAL del GeoJSON.
   useEffect(() => {
-    if (!mapRef.current) return;
-    if (!utPolygonLayerRef.current) {
-      const src = new OLVectorSource();
-      const layer = new OLVectorLayer({ source: src, zIndex: 0 });
-      mapRef.current.addLayer(layer);
-      utPolygonLayerRef.current = layer;
-      utPolygonSourceRef.current = src;
-      // Forzar pines y user-loc ENCIMA del poligono UT
-      const lyrs = mapRef.current.getLayers().getArray();
-      if (lyrs[1]) lyrs[1].setZIndex(10);
-      if (lyrs[2]) lyrs[2].setZIndex(20);
+    if (!utPolygonLayerRef.current) return;
+    const utsIds = (filters && filters.uts) || [];
+    if (utsIds.length > 0) {
+      const idToName = new Map((unidadesTerritoriales || []).map(u => [u.id, u.nombre]));
+      const names = new Set(utsIds.map(id => idToName.get(id)).filter(Boolean));
+      setUtFilter(utPolygonLayerRef.current, names);
+      if (!showUts) setShowUts(true);
+    } else {
+      setUtFilter(utPolygonLayerRef.current, null);
     }
-    const src = utPolygonSourceRef.current;
-    src.clear();
-    if (!filters?.uts?.length) return;
-    const byUT = new Map();
-    for (const p of filtered) {
-      if (!p.lat || !p.lng || Math.abs(p.lat) <= 1 || Math.abs(p.lng) <= 1) continue;
-      if (!filters.uts.includes(p.unidad_territorial)) continue;
-      if (!byUT.has(p.unidad_territorial)) byUT.set(p.unidad_territorial, []);
-      byUT.get(p.unidad_territorial).push({ lng: p.lng, lat: p.lat });
-    }
-    filters.uts.forEach((ut, idx) => {
-      const pts = byUT.get(ut) || [];
-      if (pts.length === 0) return;
-      const color = UT_PALETTE[idx % UT_PALETTE.length];
-      let hullPts = convexHull(pts);
-      if (hullPts.length < 3) {
-        const c = centroidLngLat(pts);
-        const r = 0.0008;
-        hullPts = [];
-        for (let i = 0; i < 24; i++) {
-          const a = (i / 24) * 2 * Math.PI;
-          hullPts.push({ lng: c.lng + r * Math.cos(a), lat: c.lat + r * Math.sin(a) });
-        }
-      }
-      const ring = hullPts.map(p => olFromLonLat([p.lng, p.lat]));
-      ring.push(ring[0]);
-      const polyFeat = new OLFeature({ geometry: new OLPolygon([ring]) });
-      polyFeat.setStyle(new OLStyle({
-        fill: new OLFill({ color: color + '33' }),
-        stroke: new OLStroke({ color: color, width: 2 }),
-      }));
-      src.addFeature(polyFeat);
-      const c = centroidLngLat(pts);
-      const utInfo = (unidadesTerritoriales || []).find(u => u?.id === ut);
-      const labelText = utInfo?.nombre ? `${ut}\n${utInfo.nombre}` : ut;
-      const labelFeat = new OLFeature({ geometry: new OLPoint(olFromLonLat([c.lng, c.lat])) });
-      labelFeat.setStyle(new OLStyle({
-        text: new OLText({
-          text: labelText,
-          font: 'bold 12px monospace',
-          fill: new OLFill({ color: '#1F2937' }),
-          backgroundFill: new OLFill({ color: 'rgba(255, 255, 255, 0.92)' }),
-          backgroundStroke: new OLStroke({ color: color, width: 2 }),
-          padding: [4, 7, 4, 7],
-          overflow: true,
-          textAlign: 'center',
-        }),
-      }));
-      src.addFeature(labelFeat);
-    });
-  }, [filters?.uts, filtered]);
+  }, [filters?.uts, unidadesTerritoriales]);
 
   // Antena: la capa de iconos en el mapa fue retirada (se evita duplicidad).
   // La gestión de antena ahora vive dentro del panel de detalle del poste.
