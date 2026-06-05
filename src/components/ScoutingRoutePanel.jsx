@@ -19,10 +19,12 @@ import {
   optimizeRoute, routeLength, haversine, googleMapsUrl, exceedsGmapsLimit, resolveByIds,
 } from '../lib/scoutingRoutes.js';
 import { createScoutingRoute, loadScoutingRoutes, deleteScoutingRoute } from '../lib/data.js';
+import { listAllUsers } from '../lib/auth.js';
 
 const ETAPA_OPTS = ['marca', 'dado', 'parado', 'camaras', 'internet', 'conexion_poste', 'centro', 'completado', 'bloqueado'];
 const ROUTE_TYPES = [
   { id: 'avanzada_internet', label: '🌐 Avanzada Internet' },
+  { id: 'recuperacion_antena', label: '🛰️ Recuperación de Antena' },
   { id: 'correcciones', label: '🔧 Correcciones' },
   { id: 'reubicaciones', label: '📍 Reubicaciones' },
   { id: 'm1_mantenimiento', label: '🔧 M1 Mantenimiento' },
@@ -44,16 +46,24 @@ export default function ScoutingRoutePanel({ map, poles = [], selected = [], set
   const [msg, setMsg] = useState(null);
   const [saved, setSaved] = useState(null);
   const [loadingSaved, setLoadingSaved] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
 
   const poolById = useMemo(() => new Map(poles.map((p) => [p.id, p])), [poles]);
   const utOpts = useMemo(() => [...new Set(poles.map((p) => p.ut).filter(Boolean))].sort(), [poles]);
-  const scoutOpts = useMemo(() => Object.entries(userNames || {}), [userNames]);
+  const scoutOpts = useMemo(() => allUsers.filter((u) => u.role === 'capturador').map((u) => [u.userId, u.displayName || u.email || 'Usuario']), [allUsers]);
+  const allNames = useMemo(() => {
+    const m = { ...(userNames || {}) };
+    for (const u of allUsers) m[u.userId] = u.displayName || u.email || m[u.userId] || 'Usuario';
+    return m;
+  }, [allUsers, userNames]);
 
   useEffect(() => {
     if (!map) return undefined;
     routeRef.current = createRouteLayer(map);
     return () => routeRef.current?.remove();
   }, [map]);
+
+  useEffect(() => { listAllUsers().then(setAllUsers).catch(() => {}); }, []);
 
   useEffect(() => {
     routeRef.current?.render(selected, { fit: false });
@@ -278,7 +288,7 @@ export default function ScoutingRoutePanel({ map, poles = [], selected = [], set
                     <span className="font-bold text-stone-700">{r.name || r.id}</span>
                     <span className="ml-2 text-[11px] text-stone-400">
                       {(r.total_posts ?? r.post_ids?.length ?? 0)} paradas · {STATUS_LABEL[r.status] || r.status || 'pendiente'}
-                      {userNames[r.scout_id] ? ' · ' + userNames[r.scout_id] : ''}
+                      {allNames[r.scout_id] ? ' · ' + allNames[r.scout_id] : ''}
                     </span>
                   </button>
                   <button onClick={() => removeRoute(r.id)} className="px-1 text-stone-400 hover:text-brand-600"><Trash2 className="h-3.5 w-3.5" /></button>
