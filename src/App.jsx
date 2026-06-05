@@ -663,35 +663,45 @@ function colorOfPost(p) {
 // Color del anillo "Revisado" en el mapa. Es un ANILLO exterior (halo), no el
 // relleno, así NO choca con los colores de etapa del punto. Cambia el tono aquí.
 const REVISADO_RING_COLOR = '#FFFFFF';
+const SELECTED_COLOR = '#39FF14'; // verde fluorescente: punto seleccionado o encontrado en busqueda
 const __POST_STYLE_CACHE = new Map();
 function cachedPostStyle(color, state /* 'normal' | 'sel' | 'editing' */, revisado = false) {
   const key = (state === 'editing' ? 'editing' : `${color}|${state}`) + (revisado ? '|R' : '');
   let st = __POST_STYLE_CACHE.get(key);
   if (!st) {
-    const radius = state === 'editing' ? 12 : (state === 'sel' ? 9 : 5);
+    const radius = state === 'editing' ? 12 : (state === 'sel' ? 10 : 5);
     const dot = new OLStyle({
       image: new OLCircle({
         radius,
-        fill: new OLFill({ color: state === 'editing' ? '#A855F7' : color }),
+        fill: new OLFill({ color: state === 'editing' ? '#A855F7' : (state === 'sel' ? SELECTED_COLOR : color) }),
         stroke: new OLStroke({
-          color: state === 'editing' ? '#FFFFFF' : (state === 'sel' ? '#ffffff' : '#0A0E14'),
-          width: state === 'editing' ? 3 : (state === 'sel' ? 2.5 : 1),
+          color: state === 'editing' ? '#FFFFFF' : (state === 'sel' ? '#0A2E0A' : '#0A0E14'),
+          width: state === 'editing' ? 3 : (state === 'sel' ? 3 : 1),
         }),
       }),
     });
+    const layers = [];
+    if (state === 'sel') {
+      // Halo verde fluorescente para que el punto seleccionado/buscado no se pierda
+      layers.push(new OLStyle({
+        image: new OLCircle({
+          radius: radius + 6,
+          fill: new OLFill({ color: 'rgba(57, 255, 20, 0.22)' }),
+          stroke: new OLStroke({ color: SELECTED_COLOR, width: 2 }),
+        }),
+      }));
+    }
     if (revisado) {
-      // Halo exterior punteado: marca "revisado" sin tapar el color de etapa
-      // y distinto del borde sólido de selección.
-      const ring = new OLStyle({
+      // Halo exterior punteado: marca "revisado" sin tapar el color de etapa.
+      layers.push(new OLStyle({
         image: new OLCircle({
           radius: radius + 4,
           stroke: new OLStroke({ color: REVISADO_RING_COLOR, width: 2.5, lineDash: [3, 3] }),
         }),
-      });
-      st = [ring, dot];
-    } else {
-      st = dot;
+      }));
     }
+    layers.push(dot);
+    st = layers.length === 1 ? layers[0] : layers;
     __POST_STYLE_CACHE.set(key, st);
   }
   return st;
