@@ -41,7 +41,7 @@ export default function ScoutingRoutePanel({ map, poles = [], selected = [], set
   const [nearMe, setNearMe] = useState(false);
   const [nombre, setNombre] = useState('');
   const [routeType, setRouteType] = useState('avanzada_internet');
-  const [scoutId, setScoutId] = useState('');
+  const [operatorIds, setOperatorIds] = useState([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
   const [saved, setSaved] = useState(null);
@@ -135,7 +135,7 @@ export default function ScoutingRoutePanel({ map, poles = [], selected = [], set
     try {
       await createScoutingRoute({
         name: nombre.trim(),
-        scoutId: scoutId || null,
+        operatorIds,
         postIds: selected.map((p) => p.id),
         notes: '',
         routeType,
@@ -153,7 +153,7 @@ export default function ScoutingRoutePanel({ map, poles = [], selected = [], set
     setSelected(resolveByIds(r.post_ids, poolById));
     setNombre(r.name || '');
     if (r.route_type) setRouteType(r.route_type);
-    if (r.scout_id) setScoutId(r.scout_id);
+    setOperatorIds(r.operator_ids?.length ? r.operator_ids : (r.scout_id ? [r.scout_id] : []));
     setTimeout(() => routeRef.current?.fit(), 80);
   };
 
@@ -255,16 +255,26 @@ export default function ScoutingRoutePanel({ map, poles = [], selected = [], set
         {tooMany && <p className="text-[11px] text-amber-600">⚠ Google Maps tomará sólo las primeras 11 paradas.</p>}
 
         {/* Datos para Scouting */}
-        <div className="grid grid-cols-2 gap-2">
-          <select value={routeType} onChange={(e) => setRouteType(e.target.value)}
-            className="w-full rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-brand-400">
-            {ROUTE_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-          </select>
-          <select value={scoutId} onChange={(e) => setScoutId(e.target.value)}
-            className="w-full rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-brand-400">
-            <option value="">Sin asignar</option>
-            {scoutOpts.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-          </select>
+        <select value={routeType} onChange={(e) => setRouteType(e.target.value)}
+          className="w-full rounded border border-stone-300 bg-white px-2 py-1 outline-none focus:border-brand-400">
+          {ROUTE_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+        </select>
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-widest text-stone-400">Operadores ({operatorIds.length})</div>
+          <div className="max-h-28 overflow-auto rounded border border-stone-300 bg-white divide-y divide-stone-100">
+            {scoutOpts.length === 0 && <div className="px-2 py-1 text-[11px] text-stone-400">Sin capturadores</div>}
+            {scoutOpts.map(([id, name]) => {
+              const on = operatorIds.includes(id);
+              return (
+                <button key={id} type="button"
+                  onClick={() => setOperatorIds((prev) => on ? prev.filter((x) => x !== id) : [...prev, id])}
+                  className={`flex w-full items-center justify-between px-2 py-1 text-left ${on ? 'bg-brand-50 text-brand-700' : 'hover:bg-stone-50'}`}>
+                  <span className="truncate">{name}</span>
+                  <span className="ml-2 flex-shrink-0 text-[11px]">{on ? '✓' : '+'}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div className="flex gap-2">
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre de la ruta"
@@ -288,7 +298,7 @@ export default function ScoutingRoutePanel({ map, poles = [], selected = [], set
                     <span className="font-bold text-stone-700">{r.name || r.id}</span>
                     <span className="ml-2 text-[11px] text-stone-400">
                       {(r.total_posts ?? r.post_ids?.length ?? 0)} paradas · {STATUS_LABEL[r.status] || r.status || 'pendiente'}
-                      {allNames[r.scout_id] ? ' · ' + allNames[r.scout_id] : ''}
+                      {r.operator_ids?.length > 1 ? ` · ${r.operator_ids.length} operadores` : (allNames[r.scout_id] ? ' · ' + allNames[r.scout_id] : '')}
                     </span>
                   </button>
                   <button onClick={() => removeRoute(r.id)} className="px-1 text-stone-400 hover:text-brand-600"><Trash2 className="h-3.5 w-3.5" /></button>

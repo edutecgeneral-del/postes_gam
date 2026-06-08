@@ -12,12 +12,13 @@ import {
 } from 'lucide-react';
 import {
   loadScoutingRoutes, createScoutingRoute, loadRoutePostIds,
-  startRoute, completeRoute, createScoutingVisit, loadPostScoutingVisits,
+  startRoute, completeRoute, createScoutingVisit, loadPostScoutingVisits, loadRouteVisitedPostIds,
   approvePost, unapprovePost, deleteScoutingRoute, removePostsFromRoute, updateScoutingRoute,
   normalizePhotoUrls, uploadStagePhoto, updateStageAtomic, withStagePhotoUrls,
   setPostAntenaRecuperada,
 } from '../lib/data.js';
 import { listAllUsers } from '../lib/auth.js';
+import RoutePreviewMap from './RoutePreviewMap.jsx';
 import { GPSField, StageAttributeField } from './StageFields.jsx';
 import { getPersistedForm, persistForm, clearPersistedForm, onBackgroundSave } from '../lib/formPersist.js';
 import { savePhotos, loadPhotos, clearPhotos } from '../lib/photoPersist.js';
@@ -281,27 +282,47 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
 // =============================================================================
 function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSelectPost, onStartRoute, onCompleteRoute, onReassign }) {
   const [postIds, setPostIds] = useState([]);
+  const [visitedIds, setVisitedIds] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [showDone, setShowDone] = useState(false);
   const [selectedForRemoval, setSelectedForRemoval] = useState(new Set());
   const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
-    loadRoutePostIds(route.id).then(ids => { setPostIds(ids); setLoading(false); }).catch(() => setLoading(false));
+    setLoading(true);
+    Promise.all([
+      loadRoutePostIds(route.id),
+      loadRouteVisitedPostIds(route.id).catch(() => []),
+    ]).then(([ids, visited]) => {
+      setPostIds(ids);
+      setVisitedIds(new Set(visited));
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, [route.id]);
 
   const routePosts = useMemo(() => {
     return postIds.map(id => posts.find(p => p.id === id)).filter(Boolean);
   }, [postIds, posts]);
 
+  // Pendientes vs completados (verificados en esta ruta)
+  const pendientes = useMemo(() => routePosts.filter(p => !visitedIds.has(p.id)), [routePosts, visitedIds]);
+  const completados = useMemo(() => routePosts.filter(p => visitedIds.has(p.id)), [routePosts, visitedIds]);
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return routePosts;
+    if (!search.trim()) return pendientes;
     const q = search.toLowerCase();
-    return routePosts.filter(p => p.id.toLowerCase().includes(q) || (p.direccion||'').toLowerCase().includes(q));
-  }, [routePosts, search]);
+    return pendientes.filter(p => p.id.toLowerCase().includes(q) || (p.direccion||'').toLowerCase().includes(q));
+  }, [pendientes, search]);
 
   const isScout = profile?.userId === route.scout_id;
   const nextType = MAINT_NEXT[route.route_type];
+  const allDone = !loading && routePosts.length > 0 && pendientes.length === 0;
+
+  // C) Al verificar todos los puntos, marcar la ruta como completada (una sola vez)
+  useEffect(() => {
+    if (allDone && route.status !== 'completada') onCompleteRoute?.();
+  }, [allDone, route.status]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -309,7 +330,7 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
         <button onClick={onBack} className="p-2 text-stone-600 hover:text-stone-950 -ml-2"><ChevronLeft className="w-5 h-5" /></button>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-bold text-stone-950">{route.name}</div>
-          <div className="text-[12px] text-stone-500">{routePosts.length} postes · {route.status}</div>
+          <div className="text-[12px] text-stone-500">{completados.length}/{routePosts.length} verificados · {route.status === 'completada' ? 'Scouting completado' : route.status}</div>
         </div>
         {isAdmin && (
           <select value={route.scout_id || ''} onChange={e => onReassign?.(e.target.value)}
@@ -348,6 +369,17 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
         </div>
       )}
 
+      {allDone ? (
+        <div className="mx-4 mt-3 p-3 rounded-lg border border-emerald-300 bg-emerald-50 text-sm text-emerald-700 font-medium text-center">
+          ✓ Scouting completado — {completados.length} puntos verificados
+        </div>
+      ) : pendientes.length > 0 && (
+        <div className="mx-4 mt-3">
+          <div className="mb-1 text-[11px] uppercase tracking-widest text-stone-400">Recorrido pendiente en mapa</div>
+          <RoutePreviewMap posts={pendientes} height={220} />
+        </div>
+      )}
+
       <div className="px-4 py-2 flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
@@ -375,7 +407,11 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-stone-500" /></div>
         ) : (
-          <div className="divide-y divide-stone-300/50">
+          <>
+            {filtered.length === 0 && !allDone && (
+              <div className="px-4 py-6 text-center text-xs text-stone-400">Sin pendientes que coincidan.</div>
+            )}
+            <div className="divide-y divide-stone-300/50">
             {filtered.map((p, idx) => {
               const stagesDone = Object.values(p.stages).filter(s => s.done).length;
               return (
@@ -416,7 +452,32 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
                 </button>
               );
             })}
-          </div>
+            </div>
+            {completados.length > 0 && (
+              <div className="border-t border-stone-200 mt-2">
+                <button onClick={() => setShowDone(v => !v)}
+                  className="w-full px-4 py-2 flex items-center justify-between text-[11px] uppercase tracking-widest text-stone-400 hover:bg-stone-50">
+                  <span>✓ Completados ({completados.length})</span>
+                  <span>{showDone ? '▲' : '▼'}</span>
+                </button>
+                {showDone && (
+                  <div className="divide-y divide-stone-200/60 opacity-70">
+                    {completados.map((p) => (
+                      <button key={p.id} onClick={() => (isScout || isAdmin) && onSelectPost(p.id)}
+                        className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-stone-50 text-left">
+                        <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-xs text-emerald-700 flex-shrink-0">✓</div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-mono font-bold text-stone-700">{p.id}</span>
+                          {p.alias && <span className="ml-2 text-xs text-brand-600">"{p.alias}"</span>}
+                        </div>
+                        <span className="text-[11px] text-emerald-600 flex-shrink-0">Verificado</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -1173,7 +1234,7 @@ function ScoutVisitForm({ post, routeId, routeType, stageDefs, userNames, incide
 function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClose, onCreated, profile, users: usersFromParent }) {
   const [routeType, setRouteType] = useState(isCoordinador ? 'reubicaciones' : 'avanzada_internet');
   const [name, setName] = useState('');
-  const [scoutId, setScoutId] = useState('');
+  const [operatorIds, setOperatorIds] = useState([]);
   const [notes, setNotes] = useState('');
   const [selectedPostIds, setSelectedPostIds] = useState(new Set());
   const [filterUT, setFilterUT] = useState('todas');
@@ -1271,10 +1332,10 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
   const clearAll = () => setSelectedPostIds(new Set());
 
   const handleSave = async () => {
-    if (!name.trim() || !scoutId || selectedPostIds.size === 0) return;
+    if (!name.trim() || operatorIds.length === 0 || selectedPostIds.size === 0) return;
     setSaving(true); setError(null);
     try {
-      await createScoutingRoute({ name: name.trim(), scoutId, postIds: [...selectedPostIds], notes, routeType });
+      await createScoutingRoute({ name: name.trim(), operatorIds, postIds: [...selectedPostIds], notes, routeType });
       onCreated();
     } catch (e) { setError(e?.message || 'Error'); }
     setSaving(false);
@@ -1321,14 +1382,24 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
               placeholder={(routeType === 'avanzada_internet' || routeType === 'recuperacion_antena') ? 'Ej: Avanzada Internet Zona Norte' : 'Ej: Correcciones semana 17'}
               className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2.5 text-sm text-stone-950 focus:outline-none focus:border-emerald-500" />
           </div>
-          {/* Scout */}
+          {/* Operadores (N) */}
           <div>
-            <label className="block text-xs font-medium text-stone-600 mb-1.5">Asignar a scout *</label>
-            <select value={scoutId} onChange={e => setScoutId(e.target.value)}
-              className="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2.5 text-sm text-stone-950 focus:outline-none focus:border-emerald-500">
-              <option value="">Seleccionar scout…</option>
-              {scouts.map(u => <option key={u.userId} value={u.userId}>{u.displayName || u.email}</option>)}
-            </select>
+            <label className="block text-xs font-medium text-stone-600 mb-1.5">Asignar operadores * <span className="text-stone-400">({operatorIds.length})</span></label>
+            <div className="max-h-40 overflow-auto border border-stone-300 rounded-lg bg-stone-100 divide-y divide-stone-200">
+              {scouts.length === 0 && <div className="px-3 py-2 text-xs text-stone-400">No hay capturadores disponibles</div>}
+              {scouts.map(u => {
+                const on = operatorIds.includes(u.userId);
+                return (
+                  <button key={u.userId} type="button"
+                    onClick={() => setOperatorIds(prev => on ? prev.filter(x => x !== u.userId) : [...prev, u.userId])}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left ${on ? 'bg-emerald-50 text-emerald-800' : 'hover:bg-stone-200 text-stone-700'}`}>
+                    <span>{u.displayName || u.email}</span>
+                    <span className="text-xs">{on ? '✓' : '+'}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-[11px] text-stone-400">Puedes asignar varios; cualquiera puede verificar los puntos.</p>
           </div>
           {/* Creado por (admin logueado) */}
           <div>
@@ -1477,7 +1548,7 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
           {error && <div className="text-xs text-red-500 bg-red-100 border border-red-300 rounded-lg p-2">{error}</div>}
           <div className="flex gap-2 pt-2">
             <button onClick={onClose} className="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-800 text-sm rounded-lg py-3">Cancelar</button>
-            <button onClick={handleSave} disabled={saving || !name.trim() || !scoutId || selectedPostIds.size === 0}
+            <button onClick={handleSave} disabled={saving || !name.trim() || operatorIds.length === 0 || selectedPostIds.size === 0}
               className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-stone-200 text-white text-sm font-medium rounded-lg py-3 flex items-center justify-center gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               {rtLabel.emoji} Crear ({selectedPostIds.size})

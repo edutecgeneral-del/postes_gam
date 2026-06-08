@@ -109,6 +109,9 @@ export function matchesFilters(post, filters, stageDefs, mode = 'map', incidents
   } else if (filters.maint === 'no_revisados') {
     // PASO_13_REVISADOS: solo postes con revisado=false o null
     if (post.revisado) return false;
+  } else if (filters.maint === 'internet_futuro') {
+    // Internet futuro: solo postes marcados con el tag internet_futuro_priorizado
+    if (!post.tags?.some(t => t.id === 'internet_futuro_priorizado')) return false;
   }
 
   // Tipo de incidencia — mostrar solo postes con al menos una incidencia abierta de ese tipo
@@ -231,7 +234,7 @@ export function computeCounts(posts, filters, stageDefs, mode = 'map', incidents
 
   // maint (faltan cámaras / falta silicón / poste 13m)
   const filtersWithoutMaint = { ...filters, maint: null };
-  for (const m of ['falta_camaras', 'falta_silicon', 'poste_13m', 'reubicados', 'boton_panico', 'revisados', 'no_revisados']) {
+  for (const m of ['falta_camaras', 'falta_silicon', 'poste_13m', 'reubicados', 'boton_panico', 'revisados', 'no_revisados', 'internet_futuro']) {
     counts.maint[m] = posts.filter(p =>
       matchesFilters(p, { ...filtersWithoutMaint, maint: m }, stageDefs, mode, incidents)
     ).length;
@@ -253,7 +256,7 @@ export function computeCounts(posts, filters, stageDefs, mode = 'map', incidents
 // URL params encoding/decoding
 // ============================================================================
 
-const MAINT_VALUES = ['falta_camaras', 'falta_silicon', 'poste_13m', 'reubicados', 'boton_panico', 'revisados', 'no_revisados'];
+const MAINT_VALUES = ['falta_camaras', 'falta_silicon', 'poste_13m', 'reubicados', 'boton_panico', 'revisados', 'no_revisados', 'internet_futuro'];
 const URL_KEYS = ['stages', 'uts', 'capturadores', 'tags', 'verified', 'maint', 'incType', 'createdFrom', 'createdTo', 'modFrom', 'modTo'];
 
 export function paramsToFilters(searchParams) {

@@ -329,6 +329,8 @@ export async function loadAllData() {
       verificado: p.verificado === true,
       verificadoAt: p.verificado_at,
       verificadoPorUserId: p.verificado_por_user_id,
+      createdBy: p.created_by,
+      origen: p.origen,
       stages,
       tags: tagsByPost[p.id] || [],
     };
@@ -1078,7 +1080,7 @@ export async function bulkAssignUT(rows) {
 export async function loadScoutingRoutes() {
   const sb = requireSupabase();
   const { data, error } = await sb.from('scouting_routes')
-    .select('*, scouting_route_posts(post_id)')
+    .select('*, scouting_route_posts(post_id), scouting_route_operators(user_id)')
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data || []).map(r => ({
@@ -1086,28 +1088,41 @@ export async function loadScoutingRoutes() {
     route_type: r.route_type || 'avanzada_internet',
     total_posts: r.scouting_route_posts?.length || 0,
     post_ids: (r.scouting_route_posts || []).map(p => p.post_id),
+    operator_ids: (r.scouting_route_operators || []).map(o => o.user_id),
   }));
 }
 
 /** Crear ruta de scouting (admin) */
-export async function createScoutingRoute({ name, scoutId, postIds, notes, routeType }) {
+export async function createScoutingRoute({ name, scoutId, operatorIds, postIds, notes, routeType }) {
   const sb = requireSupabase();
   const { data: sess } = await sb.auth.getSession();
   const adminId = sess?.session?.user?.id || null;
   const id = 'SR-' + Date.now();
 
+  // N operadores (o el scout único por compatibilidad). El primero es el "principal".
+  const ops = (Array.isArray(operatorIds) && operatorIds.length)
+    ? [...new Set(operatorIds.filter(Boolean))]
+    : (scoutId ? [scoutId] : []);
+  const leadId = scoutId || ops[0] || null;
+
   const { error: routeErr } = await sb.from('scouting_routes').insert({
-    id, name, scout_id: scoutId, assigned_by: adminId, notes: notes || '',
+    id, name, scout_id: leadId, assigned_by: adminId, notes: notes || '',
     route_type: routeType || 'avanzada_internet',
   });
   if (routeErr) throw routeErr;
+
+  if (ops.length > 0) {
+    const opRows = ops.map((uid) => ({ route_id: id, user_id: uid, added_by: adminId }));
+    const { error: opErr } = await sb.from('scouting_route_operators').insert(opRows);
+    if (opErr) throw opErr;
+  }
 
   if (postIds && postIds.length > 0) {
     const rows = postIds.map((pid, i) => ({ route_id: id, post_id: pid, order_num: i + 1 }));
     const { error: postsErr } = await sb.from('scouting_route_posts').insert(rows);
     if (postsErr) throw postsErr;
   }
-  return { id, name, scoutId, totalPosts: postIds?.length || 0, routeType };
+  return { id, name, scoutId: leadId, operatorIds: ops, totalPosts: postIds?.length || 0, routeType };
 }
 
 /** Cargar postes de una ruta */
@@ -1117,6 +1132,14 @@ export async function loadRoutePostIds(routeId) {
     .eq('route_id', routeId).order('order_num');
   if (error) throw error;
   return (data || []).map(r => r.post_id);
+}
+
+/** post_ids con visita registrada en una ruta (puntos ya verificados en esa ruta) */
+export async function loadRouteVisitedPostIds(routeId) {
+  const sb = requireSupabase();
+  const { data, error } = await sb.from('scouting_visits').select('post_id').eq('route_id', routeId);
+  if (error) throw error;
+  return [...new Set((data || []).map(v => v.post_id))];
 }
 
 /** Iniciar ruta (scout) */

@@ -821,6 +821,7 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
   const [tileProvider, setTileProvider] = useState(initialTileProvider);
   const [tileNotice, setTileNotice] = useState(null);
   const [cardPosts, setCardPosts] = useState([]); // postes mostrados en tarjetas (multi, para comparar)
+  const [highlightedPostId, setHighlightedPostId] = useState(null); // punto resaltado en verde (persistente hasta elegir otro)
   const [editingUtPostId, setEditingUtPostId] = useState(null); // tarjeta con el editor de UT abierto
   const [utQuery, setUtQuery] = useState(''); // texto del buscador de UT
   const [utSuggestion, setUtSuggestion] = useState(null); // sugerencia de UT por ubicación
@@ -1066,7 +1067,7 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       const feat = map.forEachFeatureAtPixel(e.pixel, f => f, { hitTolerance: 6 });
       if (feat) {
         const post = feat.get('post');
-        if (post) { setCardPosts(prev => prev.find(x => x.id === post.id) ? prev : [...prev, post]); return; }
+        if (post) { setHighlightedPostId(post.id); setCardPosts(prev => prev.find(x => x.id === post.id) ? prev : [...prev, post]); return; }
       }
       setCardPosts([]);
     });
@@ -1183,6 +1184,7 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
     if (selectedPost?.id) special.add(selectedPost.id);
     for (const c of cardPosts) special.add(c.id);
     if (editingPostId) special.add(editingPostId);
+    if (highlightedPostId) special.add(highlightedPostId);
     // Regresar a 'normal' los que dejaron de estar seleccionados
     for (const id of prevSpecialRef.current) {
       if (special.has(id)) continue;
@@ -1196,7 +1198,7 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       f.setStyle(cachedPostStyle(colorOfPost(p), editingPostId === id ? 'editing' : 'sel', !!p.revisado));
     }
     prevSpecialRef.current = special;
-  }, [filtered, selectedPost, cardPosts, editingPostId]);
+  }, [filtered, selectedPost, cardPosts, editingPostId, highlightedPostId]);
 
   // Zoom/centrar al bounding box de las UTs seleccionadas (cuando cambia filters.uts)
   useEffect(() => {
@@ -1359,6 +1361,7 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
   // y abre la tarjeta para identificar el pin SIN abrir el drawer.
   const focusOnPost = useCallback((p) => {
     if (!mapRef.current || !p?.lat || !p?.lng) return;
+    setHighlightedPostId(p.id);
     setCardPosts(prev => prev.find(x => x.id === p.id) ? prev : [...prev, p]);
     const view = mapRef.current.getView();
     view.animate({
@@ -1519,19 +1522,39 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
             {/* PR B - Parte 6: Toggle tag Internet a Futuro (admin only) */}
             {isAdmin && (() => {
               const hasIFTag = post.tags?.some(t => t.id === 'internet_futuro_priorizado');
+              const applyLocalIF = (add) => {
+                const upd = (p) => {
+                  if (!p || p.id !== post.id) return p;
+                  const others = (p.tags || []).filter(t => t.id !== 'internet_futuro_priorizado');
+                  return { ...p, tags: add ? [...others, { id: 'internet_futuro_priorizado', label: 'Internet futuro' }] : others };
+                };
+                setCardPosts(prev => prev.map(upd));
+                setSelectedPost(prev => upd(prev));
+              };
               return (
                 <button onClick={async (e) => {
                   e.stopPropagation();
+                  const add = !hasIFTag;
+                  applyLocalIF(add); // optimista: el chip cambia de inmediato
                   try {
-                    if (hasIFTag) {
-                      await removeTagFromPost(post.id, 'internet_futuro_priorizado');
-                    } else {
+                    if (add) {
                       await assignTagToPost(post.id, 'internet_futuro_priorizado', null);
+                    } else {
+                      await removeTagFromPost(post.id, 'internet_futuro_priorizado');
                     }
                     invalidateTagCatalog();
-                    await onRefresh?.();
+                    onRefresh?.(); // sincroniza en segundo plano (sin bloquear)
                   } catch (err) {
-                    alert('Error: ' + (err?.message || err));
+                    const msg = String(err?.message || err).toLowerCase();
+                    const esDuplicado = err?.code === '23505' || msg.includes('duplicate') || msg.includes('duplicad');
+                    if (add && esDuplicado) {
+                      // Ya estaba asignado: lo tratamos como exito y sincronizamos
+                      invalidateTagCatalog();
+                      onRefresh?.();
+                    } else {
+                      applyLocalIF(!add); // revertir en error real
+                      alert('Error: ' + (err?.message || err));
+                    }
                   }
                 }}
                   className={`text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors ${
@@ -1564,9 +1587,10 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
           return (
             <div className="px-4 py-2 border-t border-stone-200 bg-stone-100/60 flex flex-col gap-1 text-[11px] font-mono text-stone-500">
               <div className="flex items-center justify-between">
-                <span className="text-stone-700">👤 {autor}{etiq && <span className="text-stone-400"> · {etiq}</span>}</span>
+                <span className="text-stone-700">👤 Ultima edición: {autor}{etiq && <span className="text-stone-400"> · {etiq}</span>}</span>
                 {fecha && <span>🕒 {fecha}</span>}
               </div>
+              <div className="text-stone-600">✏️ Creado por: {post.createdBy ? (_names[post.createdBy] || 'Usuario') : (post.origen === 'carga_arcgis' ? '📥 Carga ArcGIS' : '—')}</div>
               {(incAbiertas > 0 || s?.verified) && (
                 <div className="flex items-center gap-3">
                   {incAbiertas > 0 && <span className="text-rose-600">⚠ {incAbiertas} incidencia{incAbiertas > 1 ? 's' : ''}</span>}
@@ -3759,6 +3783,27 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
 // POST DETAIL DRAWER
 // ============================================================================
 
+function ZoomablePhoto({ src, alt = '', thumbClass = 'w-6 h-6', borderClass = 'border-stone-300 hover:border-rose-600' }) {
+  const [hover, setHover] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const show = hover || locked;
+  return (
+    <span className="relative inline-flex" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+      <img src={src} alt={alt}
+        onClick={(e) => { e.stopPropagation(); setLocked((v) => !v); }}
+        className={`${thumbClass} object-cover rounded border ${borderClass} inline-block cursor-zoom-in`} />
+      {show && (
+        <div onClick={(e) => { e.stopPropagation(); setLocked(false); setHover(false); }}
+          className={`fixed inset-0 z-[70] flex items-center justify-center p-4 ${locked ? 'bg-black/75' : 'bg-black/40 pointer-events-none'}`}>
+          <img src={src} alt={alt} onClick={(e) => e.stopPropagation()}
+            className={`max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl ${locked ? 'cursor-zoom-out' : ''}`} />
+          {locked && <div className="fixed top-4 right-4 text-white/90 text-xs font-mono bg-black/50 px-2 py-1 rounded">Clic fuera para cerrar</div>}
+        </div>
+      )}
+    </span>
+  );
+}
+
 function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, onCreateIncident, viewMode, userNames = {}, isAdmin = false, onVerifyStage, onUnverifyStage, onDelete, initialStageId, onStartEditPosition, onRequestRelocate, canViewHistory = false, historyRefreshKey, onOpenAntena, onToggleRevisado }) {
   const [editingStage, setEditingStage] = useState(() => initialStageId ? (STAGE_DEFS.find(s => s.id === initialStageId) || null) : null);
   const [notes, setNotes] = useState('');
@@ -3851,6 +3896,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                 <div className="text-[10px] font-mono uppercase tracking-[0.25em] text-rose-400/80">Poste</div>
                 <h2 className="text-2xl font-mono font-light text-rose-500">{postDisplayId(post)}</h2>
                 <div className="text-[10px] font-mono text-stone-400">ID interno: {post.id}</div>
+                <div className="text-[10px] font-mono text-stone-400">Creado por: {post.createdBy ? (userNames[post.createdBy] || 'Usuario') : (post.origen === 'carga_arcgis' ? '📥 Carga ArcGIS' : '—')}</div>
                 {/* PASO_11_REVISADO_UI: estado de revision + boton (solo admin) */}
                 {(() => {
                   const isRevisado = !!post.revisado;
@@ -4107,9 +4153,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                                 {stagePhotos.length > 0 && (
                                   <span className="flex items-center gap-1">
                                     {stagePhotos.slice(0, 4).map((url, idx) => (
-                                      <a key={url} href={url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
-                                        <img src={url} alt={`Foto ${idx + 1}`} className="w-6 h-6 object-cover rounded border border-stone-300 hover:border-rose-600 inline-block" />
-                                      </a>
+                                      <ZoomablePhoto key={url} src={url} alt={`Foto ${idx + 1}`} thumbClass="w-6 h-6" />
                                     ))}
                                     {stagePhotos.length > 4 && <span className="text-[10px] text-stone-500">+{stagePhotos.length - 4}</span>}
                                     {isAdmin && onUpdate && (
@@ -4257,9 +4301,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                                               {Array.isArray(c?.photos) && c.photos.length > 0 && (
                                                 <span className="flex items-center gap-1 flex-shrink-0">
                                                   {c.photos.slice(0, 3).map((url, i) => (
-                                                    <a key={url} href={url} target="_blank" rel="noopener noreferrer">
-                                                      <img src={url} alt={`f${i + 1}`} className="w-5 h-5 object-cover rounded border border-sky-300 hover:border-sky-500" />
-                                                    </a>
+                                                    <ZoomablePhoto key={url} src={url} alt={`f${i + 1}`} thumbClass="w-5 h-5" borderClass="border-sky-300 hover:border-sky-500" />
                                                   ))}
                                                 </span>
                                               )}
@@ -5003,13 +5045,13 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
       filterCategory === 'sin_clasificar' ? 'Sin clasificar' :
       (categories.find(c => c.id === filterCategory)?.name || filterCategory);
     const rows = [
-      ['ID', 'Poste', 'UT', 'Tipo', 'Descripcion', 'Severidad', 'Estado', 'Etapa', 'Categoria', 'Reporto', 'Nota', 'Atendio', 'Resolvio', 'Creado', 'Resuelto'],
+      ['ID', 'Poste', 'UT', 'Lat', 'Lng', 'Tipo', 'Descripcion', 'Severidad', 'Estado', 'Etapa', 'Categoria', 'Reporto', 'Nota', 'Atendio', 'Resolvio', 'Creado', 'Resuelto'],
       ...filtered.map(i => {
         const post = posts.find(p => p.id === i.postId);
         const cls = classifications[i.id];
         const catName = cls ? (cls.categoryName || categories.find(c => c.id === cls.categoryId)?.name || '') : 'Sin clasificar';
         return [
-          i.id, i.postId, post?.unidad_territorial || '', i.type || '', i.description || '',
+          i.id, i.postId, post?.unidad_territorial || '', post?.lat ?? '', post?.lng ?? '', i.type || '', i.description || '',
           i.severity || '', i.status || '', i.stageId || '', catName,
           i.reportedByName || '', i.userNote || '', i.attendedByName || '', i.resolvedByName || '',
           fmt(i.createdAt), fmt(i.resolvedAt),

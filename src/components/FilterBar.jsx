@@ -430,6 +430,13 @@ export function FilterBar({
             onToggle={() => toggleMaint('boton_panico')}
             activeClass="bg-red-50 border-red-400 text-red-700 hover:border-red-500"
           />
+          <ToggleChip
+            label="📡 Internet futuro"
+            count={counts.maint?.internet_futuro || 0}
+            active={filters.maint === 'internet_futuro'}
+            onToggle={() => toggleMaint('internet_futuro')}
+            activeClass="bg-blue-50 border-blue-400 text-blue-700 hover:border-blue-500"
+          />
         </>
       )}
 
