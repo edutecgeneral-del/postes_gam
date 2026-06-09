@@ -431,6 +431,20 @@ export function FilterBar({
             activeClass="bg-red-50 border-red-400 text-red-700 hover:border-red-500"
           />
           <ToggleChip
+            label="📡 Con módem"
+            count={counts.maint?.con_modem || 0}
+            active={filters.maint === 'con_modem'}
+            onToggle={() => toggleMaint('con_modem')}
+            activeClass="bg-sky-50 border-sky-400 text-sky-700 hover:border-sky-500"
+          />
+          <ToggleChip
+            label="🚫 Sin módem"
+            count={counts.maint?.sin_modem || 0}
+            active={filters.maint === 'sin_modem'}
+            onToggle={() => toggleMaint('sin_modem')}
+            activeClass="bg-orange-50 border-orange-400 text-orange-700 hover:border-orange-500"
+          />
+          <ToggleChip
             label="📡 Internet futuro"
             count={counts.maint?.internet_futuro || 0}
             active={filters.maint === 'internet_futuro'}
