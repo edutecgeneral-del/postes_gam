@@ -24,6 +24,7 @@ import { Translate as OLTranslate } from 'ol/interaction';
 import OLCollection from 'ol/Collection';
 import { boundingExtent as olBoundingExtent } from 'ol/extent';
 import { createUtLayer, setUtHover, getUtName, setUtFilter } from './lib/utLayer.js';
+import UtReviewPanel from './components/UtReviewPanel.jsx';
 import {
   loadAllData,
   savePost as dbSavePost,
@@ -770,7 +771,7 @@ function readStoredMapView() {
   return null;
 }
 
-function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost, stageDefs, darkMode,
+function MapView({ posts, setPosts, selectedPost, setSelectedPost, filters, onCapturePost, stageDefs, darkMode,
                    measureMode = false, setMeasureMode, measurePoints = [], setMeasurePoints,
                    editingPostId, onConfirmRelocate, onCancelRelocate,
                    addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado }) {
@@ -780,6 +781,9 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
   const featByIdRef = useRef(new Map());
   const prevSpecialRef = useRef(new Set());
   const vectorSourceRef = useRef(null);
+  const haloSourceRef = useRef(null);
+  const haloLayerRef = useRef(null);
+  const haloPhaseRef = useRef(0);
   const userLocSourceRef = useRef(null);
   const baseLayerRef = useRef(null);
   const initialTileProvider = useMemo(readStoredMapTileProvider, []);
@@ -794,6 +798,7 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
   const [hover, setHover] = useState(null);
   const [showUts, setShowUts] = useState(false);
   const [utHoverName, setUtHoverName] = useState(null);
+  const [reviewUt, setReviewUt] = useState(null);
   const [tilesFailed, setTilesFailed] = useState(false);
   // Refs para que los handlers del map (closure inicial) lean el estado actual
   const addingModeRef = useRef(addingMode);
@@ -1014,6 +1019,44 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
     vectorSourceRef.current = vectorSource;
 
     const userLocSource = new OLVectorSource();
+      const haloSource = new OLVectorSource();
+      const haloLayer = new OLVectorLayer({
+        source: haloSource,
+        zIndex: 5,
+        style: (feature) => {
+          const estado = feature.get('estado') || 'no_definido';
+          const phase = haloPhaseRef.current;
+          const isAnimated = estado === 'verificado' || estado === 'no_existe';
+          let color, radius, opacity;
+          if (estado === 'verificado') {
+            color = '#BC955C';
+            radius = isAnimated ? (14 + Math.sin(phase) * 4) : 14;
+            opacity = isAnimated ? (0.5 + Math.sin(phase) * 0.2) : 0.4;
+          } else if (estado === 'no_existe') {
+            color = '#9F2241';
+            radius = isAnimated ? (14 + Math.sin(phase) * 4) : 14;
+            opacity = isAnimated ? (0.5 + Math.sin(phase) * 0.2) : 0.4;
+          } else {
+            color = '#55585A';
+            radius = 11;
+            opacity = 0.25;
+          }
+          const r = parseInt(color.slice(1, 3), 16);
+          const g = parseInt(color.slice(3, 5), 16);
+          const b = parseInt(color.slice(5, 7), 16);
+          const rgbaFill = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+          const rgbaStroke = `rgba(${r}, ${g}, ${b}, ${Math.min(opacity + 0.2, 1)})`;
+          return new OLStyle({
+            image: new OLCircle({
+              radius,
+              fill: new OLFill({ color: rgbaFill }),
+              stroke: new OLStroke({ color: rgbaStroke, width: 1.5 }),
+            }),
+          });
+        },
+      });
+      haloSourceRef.current = haloSource;
+      haloLayerRef.current = haloLayer;
     userLocSourceRef.current = userLocSource;
 
     // Capa de Unidades Territoriales (lazy: invisible hasta el toggle)
@@ -1027,6 +1070,7 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       layers: [
         baseLayer,
         utLayer,
+        haloLayer,
         new OLVectorLayer({ source: vectorSource, zIndex: 10 }),
         new OLVectorLayer({ source: userLocSource, zIndex: 20 }),
       ],
@@ -1225,6 +1269,61 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       setUtFilter(utPolygonLayerRef.current, null);
     }
   }, [filters?.uts, unidadesTerritoriales]);
+
+  // Handler de click sobre poligono UT: abre el panel de revision.
+  // Postes tienen prioridad: si hay poste bajo el pixel, ignora el click sobre UT.
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+    const onClick = (e) => {
+      if (!utPolygonLayerRef.current || !utPolygonLayerRef.current.getVisible()) return;
+      const postFeat = map.forEachFeatureAtPixel(e.pixel, (f, l) => {
+        if (l !== utPolygonLayerRef.current && f.get('post')) return f;
+      }, { hitTolerance: 6 });
+      if (postFeat) return;
+      const utFeat = map.forEachFeatureAtPixel(e.pixel, (f, l) => {
+        if (l === utPolygonLayerRef.current) return f;
+      }, { hitTolerance: 0 });
+      if (!utFeat) return;
+      const utName = getUtName(utFeat);
+      if (!utName) return;
+      const utObj = (unidadesTerritoriales || []).find(u => u.nombre === utName);
+      if (utObj) setReviewUt(utObj);
+    };
+    map.on('click', onClick);
+    return () => { map.un('click', onClick); };
+  }, [unidadesTerritoriales]);
+
+  // Sincroniza halos de estado con los postes.
+  // Si hay filtro UT activo (FilterBar arriba), solo se muestran halos de postes en esas UTs.
+  useEffect(() => {
+    const src = haloSourceRef.current;
+    if (!src) return;
+    src.clear();
+    const utsFilter = (filters && filters.uts) || [];
+    const hayFiltroUt = utsFilter.length > 0;
+    (posts || []).forEach(p => {
+      if (typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
+      // Si hay filtro UT activo, ocultar halos de postes que no esten en esas UTs
+      if (hayFiltroUt && !utsFilter.includes(p.unidad_territorial)) return;
+      const f = new OLFeature({
+        geometry: new OLPoint(olFromLonLat([p.lng, p.lat])),
+      });
+      f.set('estado', p.estado_verificacion || 'no_definido');
+      f.set('postId', p.id);
+      src.addFeature(f);
+    });
+  }, [posts, filters?.uts]);
+
+  // Animacion del halo: solo afecta verificado/no_existe; no_definido queda estatico.
+  useEffect(() => {
+    if (!haloLayerRef.current) return;
+    const id = setInterval(() => {
+      haloPhaseRef.current = (haloPhaseRef.current + 0.18) % (2 * Math.PI);
+      if (haloLayerRef.current) haloLayerRef.current.changed();
+    }, 80);
+    return () => clearInterval(id);
+  }, []);
 
   // Antena: la capa de iconos en el mapa fue retirada (se evita duplicidad).
   // La gestión de antena ahora vive dentro del panel de detalle del poste.
@@ -1794,6 +1893,43 @@ function MapView({ posts, selectedPost, setSelectedPost, filters, onCapturePost,
       </div>
 
       {/* Tooltip de UT al hover */}
+      {reviewUt && (
+        <UtReviewPanel
+          ut={reviewUt}
+          posts={(posts || []).filter(p => p.unidad_territorial === reviewUt.id)}
+          onClose={() => setReviewUt(null)}
+          onPostClick={null}
+          onIrAlPunto={(post) => {
+            if (typeof post.lng === 'number' && typeof post.lat === 'number' && mapRef.current) {
+              mapRef.current.getView().animate({
+                center: olFromLonLat([post.lng, post.lat]),
+                zoom: 19,
+                duration: 800,
+              });
+            }
+            // Abrir el panel de detalles del poste
+            if (typeof setSelectedPost === 'function') {
+              setSelectedPost(post);
+            }
+          }}
+          onChangeEstado={async (postId, nuevoEstado) => {
+            const prevPosts = posts;
+            setPosts(prev => prev.map(p =>
+              p.id === postId
+                ? { ...p, estado_verificacion: nuevoEstado, estado_verificacion_at: new Date().toISOString() }
+                : p
+            ));
+            try {
+              const { updatePostEstadoVerificacion } = await import('./lib/data.js');
+              await updatePostEstadoVerificacion(postId, nuevoEstado);
+            } catch (err) {
+              console.error('Error actualizando estado_verificacion:', err);
+              setPosts(prevPosts);
+              alert('Error al actualizar el estado. Intenta de nuevo.');
+            }
+          }}
+        />
+      )}
       {utHoverName && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 bg-white/95 px-3 py-1.5 rounded-full border border-rose-300 text-rose-700 font-mono text-xs shadow-md backdrop-blur-sm pointer-events-none">
           {utHoverName}
@@ -7734,7 +7870,7 @@ export default function FieldCoordApp() {
                 </div>
               </div>
               <div className="flex-1 p-4">
-                <MapView posts={posts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} filters={filters} incidents={incidents} userNames={userNames}
+                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} filters={filters} incidents={incidents} userNames={userNames}
                          stageDefs={STAGE_DEFS} darkMode={darkMode}
                          measureMode={measureMode} setMeasureMode={setMeasureMode}
                          measurePoints={measurePoints} setMeasurePoints={setMeasurePoints}

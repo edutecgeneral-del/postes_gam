@@ -331,6 +331,9 @@ export async function loadAllData() {
       verificadoPorUserId: p.verificado_por_user_id,
       createdBy: p.created_by,
       origen: p.origen,
+      estado_verificacion: p.estado_verificacion || 'no_definido',
+      estado_verificacion_at: p.estado_verificacion_at,
+      estado_verificacion_por_user_id: p.estado_verificacion_por_user_id,
       stages,
       tags: tagsByPost[p.id] || [],
     };
@@ -361,6 +364,9 @@ export async function loadAllData() {
 
   const unidadesTerritoriales = utsData.map(u => ({
     id: u.id,
+    volumenContratado: u.volumen_contratado,
+    liberados: u.liberados,
+    porLiberarPorUt: u.por_liberar_por_ut,
     nombre: u.nombre,
     zona: u.zona,
     responsable: u.responsable,
@@ -1465,6 +1471,26 @@ export async function unmarkPostRevisado(postId) {
     .eq('id', postId)
     .select('id, revisado, revisado_at, revisado_por_user_id')
     .single();
+  if (error) throw error;
+  return data;
+}
+/**
+ * Actualiza el estado de verificacion de un poste.
+ * Llama al RPC set_post_estado_verificacion en Supabase.
+ *
+ * @param {string} postId
+ * @param {'verificado'|'no_definido'|'no_existe'} estado
+ * @returns {Promise<object>} El poste actualizado
+ */
+export async function updatePostEstadoVerificacion(postId, estado) {
+  if (!hasSupabase()) {
+    throw new Error('Supabase no configurado');
+  }
+  const sb = getSupabase();
+  const { data, error } = await sb.rpc('set_post_estado_verificacion', {
+    p_post_id: postId,
+    p_estado: estado,
+  });
   if (error) throw error;
   return data;
 }
