@@ -774,7 +774,7 @@ function readStoredMapView() {
 function MapView({ posts, setPosts, selectedPost, setSelectedPost, filters, onCapturePost, stageDefs, darkMode,
                    measureMode = false, setMeasureMode, measurePoints = [], setMeasurePoints,
                    editingPostId, onConfirmRelocate, onCancelRelocate,
-                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado }) {
+                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, canMerge = false, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado }) {
   const containerRef = useRef(null);
   const isMobile = useIsMobile();
   const mapRef = useRef(null);
@@ -1715,7 +1715,7 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, filters, onCa
               <Compass className="w-3 h-3" /> Cap E{cur.stage.num}
             </button>
           )}
-          {isAdmin && (
+          {canMerge && (
             <button onClick={() => {
               setMergeSel(prev => {
                 if (prev.find(x => x.id === post.id)) return prev.filter(x => x.id !== post.id);
@@ -2546,7 +2546,7 @@ function readStoredPostsPage() {
   }
 }
 
-function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNames = {}, incidents = [], onDeletePosts, onMergePosts, readOnly, onCreatePost, onJumpToMap, unidadesTerritoriales = [] }) {
+function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerge = false, userNames = {}, incidents = [], onDeletePosts, onMergePosts, readOnly, onCreatePost, onJumpToMap, unidadesTerritoriales = [] }) {
   const { filters } = filterCtx;
   const [search, setSearch] = useState('');
   const [pageInput, setPageInput] = useState(() => String(readStoredPostsPage() + 1));
@@ -2687,7 +2687,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
               {deleting ? '…' : `🗑 Eliminar (${selectedForDelete.size})`}
             </button>
           )}
-          {isAdmin && selectedForDelete.size === 2 && (
+          {canMerge && selectedForDelete.size === 2 && (
             <button onClick={() => setMergeOpen(true)}
               className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-medium rounded px-2 py-1">
               Fusionar
@@ -2705,7 +2705,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
                 onCancel={() => setMergeOpen(false)} />
             );
           })()}
-          {isAdmin && filtered.length > 0 && (
+          {canMerge && filtered.length > 0 && (
             <button onClick={() => {
               if (selectedForDelete.size === pageData.length) setSelectedForDelete(new Set());
               else setSelectedForDelete(new Set(pageData.map(p => p.id)));
@@ -2782,7 +2782,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
         <table className="w-full text-xs" style={{ minWidth: filteredStageDef ? '700px' : '900px' }}>
           <thead className="bg-stone-100/60 border-b border-stone-300 text-[12px] font-mono uppercase tracking-[0.15em] text-stone-500">
             <tr>
-              {isAdmin && <th className="w-8 px-1 py-2"></th>}
+              {canMerge && <th className="w-8 px-1 py-2"></th>}
               <th className="text-left px-3 py-2 sticky left-0 bg-stone-50/95 z-10 min-w-[70px]">ID</th>
               <th className="text-left px-3 py-2 min-w-[60px]">UT</th>
               <th className="text-left px-3 py-2 min-w-[120px]">Dirección</th>
@@ -2821,7 +2821,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, userNam
                 <Fragment key={p.id}>
                   <tr onClick={() => setExpandedPostId(isExpanded ? null : p.id)}
                       className={`border-b border-stone-300/50 hover:bg-rose-500/5 cursor-pointer transition-colors ${isExpanded ? 'bg-rose-500/5' : ''}`}>
-                    {isAdmin && (
+                    {canMerge && (
                       <td className="px-1 py-2 text-center" onClick={e => e.stopPropagation()}>
                         <input type="checkbox" checked={selectedForDelete.has(p.id)}
                           onChange={() => setSelectedForDelete(prev => { const n = new Set(prev); if (n.has(p.id)) n.delete(p.id); else n.add(p.id); return n; })}
@@ -7878,6 +7878,7 @@ export default function FieldCoordApp() {
                          onConfirmRelocate={handleConfirmRelocate}
                          onCancelRelocate={handleCancelRelocate}
                          isAdmin={isAdmin}
+                         canMerge={isAdmin || isCapturador}
                          unidadesTerritoriales={unidadesTerritoriales}
                          onRefresh={() => refreshData(true)}
                          onClickAntena={(post) => setAntenaModalPost(post)}
@@ -7908,7 +7909,7 @@ export default function FieldCoordApp() {
           )}
           {activeTab === 'postes' && <PostsList posts={posts} onSelect={openPostDetail} filterCtx={filterCtx} incidents={incidents}
             page={postsPage} setPage={setPostsPage}
-            isAdmin={isAdmin} userNames={userNames} onDeletePosts={async (postId) => { await dbDeletePost(postId); setPosts(prev => prev.filter(p => p.id !== postId)); }}
+            isAdmin={isAdmin} canMerge={isAdmin || isCapturador} userNames={userNames} onDeletePosts={async (postId) => { await dbDeletePost(postId); setPosts(prev => prev.filter(p => p.id !== postId)); }}
             onMergePosts={async (principalId, secundarioId, stageChoices, keepAddress) => { await dbMergePosts(principalId, secundarioId, stageChoices, keepAddress); await refreshData(true); }}
             readOnly={readOnly} onCreatePost={() => setShowCreatePost(true)}
             onJumpToMap={(p) => { setMapFocusPost(p); setMapFocusKey(k => k + 1); setActiveTab('mapa'); }}
