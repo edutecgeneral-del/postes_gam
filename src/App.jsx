@@ -1959,8 +1959,8 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, filters, onCa
         <MapSearchBox posts={posts} onSelect={focusOnPost} />
       </div>
 
-      {/* Nearby button */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex gap-2">
+      {/* Nearby button — baja en móvil para no encimarse con el buscador */}
+      <div className="absolute top-16 sm:top-4 left-1/2 -translate-x-1/2 z-10 flex gap-2">
         <button onClick={() => {
           if (!userLoc) { startGPS(); return; }
           setShowNearby(!showNearby);
@@ -1982,8 +1982,8 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, filters, onCa
       {/* Attribution */}
       <div className="absolute bottom-1 right-1 text-[9px] text-stone-400 font-mono z-10">© OSM · CARTO</div>
 
-      {/* Leyenda */}
-      <div className="absolute top-4 right-4 bg-white/90 border border-stone-300 p-3 font-mono text-[12px] z-10 backdrop-blur-sm">
+      {/* Leyenda — oculta en móvil (el buscador ocupa la fila superior); visible en sm+ */}
+      <div className="hidden sm:block absolute top-4 right-4 bg-white/90 border border-stone-300 p-3 font-mono text-[12px] z-10 backdrop-blur-sm">
         <div className="text-stone-500 uppercase tracking-widest mb-2">Leyenda</div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1">
           {STAGE_DEFS.map(s => (
@@ -2088,16 +2088,16 @@ function Dashboard({ posts, incidents, inventoryTotals, setActiveTab, onNavigate
             return (
               <div key={s.id} onClick={() => onNavigatePostes?.({ stage: s.id })}
                    className="flex items-center gap-3 cursor-pointer hover:bg-stone-50/60 rounded px-1 -mx-1 py-0.5 transition-colors">
-                <div className="w-32 flex items-center gap-2 flex-shrink-0">
+                <div className="w-28 sm:w-32 flex items-center gap-2 flex-shrink-0">
                   <StageBadge stage={s.id} done={true} size="sm" />
-                  <div>
-                    <div className="text-xs font-mono text-stone-700">{s.short}</div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-mono text-stone-700 truncate">{s.short}</div>
                     <div className="text-[13px] font-mono text-stone-500">Etapa {s.num}</div>
                   </div>
                 </div>
-                <div className="flex-1 h-6 bg-stone-50 border border-stone-300 relative">
+                <div className="flex-1 h-6 bg-stone-50 border border-stone-300 relative overflow-hidden">
                   <div className="h-full transition-all flex items-center justify-end pr-2"
-                       style={{ width: `${Math.max(2, widthPct)}%`, background: `${s.color}40`, borderRight: `2px solid ${s.color}` }}>
+                       style={{ width: `${Math.min(100, Math.max(2, widthPct))}%`, background: `${s.color}40`, borderRight: `2px solid ${s.color}` }}>
                     <span className="text-[12px] font-mono font-bold" style={{ color: s.color }}>
                       {s.count}
                     </span>
@@ -2141,25 +2141,25 @@ function Dashboard({ posts, incidents, inventoryTotals, setActiveTab, onNavigate
             const pctUT = ut.total ? (ut.done / ut.total) * 100 : 0;
             return (
               <div key={ut.ut} onClick={() => onNavigatePostes?.({ ut: ut.ut })}
-                   className="px-5 py-2.5 grid grid-cols-12 items-center gap-4 hover:bg-stone-50/40 border-b border-stone-300/50 transition-colors cursor-pointer">
-                <div className="col-span-3">
-                  <div className="font-mono text-sm text-rose-500">{ut.ut}</div>
-                  <div className="text-[12px] text-stone-500 font-mono">{ut.zona}</div>
-                </div>
-                <div className="col-span-6">
-                  <div className="h-2 bg-stone-50 border border-stone-300 relative">
-                    <div className="h-full bg-emerald-500" style={{ width: `${pctUT}%` }} />
-                    {ut.blocked > 0 && (
-                      <div className="h-full bg-red-500 absolute right-0 top-0" style={{ width: `${(ut.blocked / ut.total) * 100}%` }} />
-                    )}
+                   className="px-4 sm:px-5 py-2.5 hover:bg-stone-50/40 border-b border-stone-300/50 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-mono text-sm text-rose-500 truncate">{ut.ut}</div>
+                    <div className="text-[12px] text-stone-500 font-mono truncate">{ut.zona}</div>
+                  </div>
+                  <div className="font-mono text-xs text-stone-600 tabular-nums flex-shrink-0">{pctUT.toFixed(0)}%</div>
+                  <div className="text-right font-mono text-[12px] text-stone-500 whitespace-nowrap flex-shrink-0">
+                    <span className="text-emerald-500">{ut.done}</span>
+                    <span className="text-stone-400 mx-1">/</span>
+                    {ut.total}
+                    {ut.blocked > 0 && <span className="text-red-500 ml-2">⚠{ut.blocked}</span>}
                   </div>
                 </div>
-                <div className="col-span-1 text-right font-mono text-xs text-stone-600 tabular-nums">{pctUT.toFixed(0)}%</div>
-                <div className="col-span-2 text-right font-mono text-[12px] text-stone-500">
-                  <span className="text-emerald-500">{ut.done}</span>
-                  <span className="text-stone-400 mx-1">/</span>
-                  {ut.total}
-                  {ut.blocked > 0 && <span className="text-red-500 ml-2">⚠{ut.blocked}</span>}
+                <div className="h-2 bg-stone-50 border border-stone-300 relative mt-1.5">
+                  <div className="h-full bg-emerald-500" style={{ width: `${pctUT}%` }} />
+                  {ut.blocked > 0 && (
+                    <div className="h-full bg-red-500 absolute right-0 top-0" style={{ width: `${(ut.blocked / ut.total) * 100}%` }} />
+                  )}
                 </div>
               </div>
             );
@@ -2406,6 +2406,27 @@ function MiPanel({ posts, incidents, profile, userRole, stageDefs }) {
   const today = new Date().toDateString();
   const capturesToday = myCaptures.filter(c => c.ts && new Date(c.ts).toDateString() === today).length;
 
+  // Búsqueda + paginación de "Últimas capturas" (cliente, sin tocar la BD)
+  const [capSearch, setCapSearch] = useState('');
+  const [capPage, setCapPage] = useState(0);
+  const capPageSize = 15;
+
+  const filteredCaptures = useMemo(() => {
+    if (!capSearch.trim()) return myCaptures;
+    const q = capSearch.toLowerCase();
+    return myCaptures.filter(c =>
+      c.postId.toLowerCase().includes(q) ||
+      (c.alias || '').toLowerCase().includes(q) ||
+      (c.stageName || '').toLowerCase().includes(q)
+    );
+  }, [myCaptures, capSearch]);
+
+  useEffect(() => { setCapPage(0); }, [capSearch]);
+
+  const capTotalPages = Math.max(1, Math.ceil(filteredCaptures.length / capPageSize));
+  const capSafePage = Math.min(capPage, capTotalPages - 1);
+  const capPageData = filteredCaptures.slice(capSafePage * capPageSize, (capSafePage + 1) * capPageSize);
+
   return (
     <div className="p-4 sm:p-6 space-y-5 overflow-y-auto">
       <div className="border-b border-stone-300 pb-4">
@@ -2455,13 +2476,23 @@ function MiPanel({ posts, incidents, profile, userRole, stageDefs }) {
 
       {/* Últimas capturas */}
       <div className="border border-stone-300 bg-stone-100/40">
-        <div className="px-4 py-3 border-b border-stone-300 flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-stone-300 flex items-center justify-between gap-2">
           <span className="text-xs font-mono uppercase tracking-widest text-stone-600">Últimas capturas</span>
-          <span className="text-[10px] font-mono text-stone-400">{myCaptures.length} total</span>
+          <span className="text-[10px] font-mono text-stone-400 flex-shrink-0">{myCaptures.length} total</span>
         </div>
+        {myCaptures.length > 0 && (
+          <div className="px-4 py-2 border-b border-stone-300/60">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" strokeWidth={1.5} />
+              <input value={capSearch} onChange={e => setCapSearch(e.target.value)}
+                     placeholder="Buscar por poste, alias o etapa…"
+                     className="w-full bg-stone-50 border border-stone-300 pl-8 pr-3 py-1.5 text-xs font-mono text-stone-700 placeholder-stone-400 focus:outline-none focus:border-blue-500/50" />
+            </div>
+          </div>
+        )}
         <div className="divide-y divide-stone-300/50 max-h-72 overflow-y-auto">
-          {myCaptures.slice(0, 20).map((c, i) => (
-            <div key={`${c.postId}-${c.stageId}-${i}`} className="px-4 py-2.5 flex items-center justify-between">
+          {capPageData.map((c) => (
+            <div key={`${c.postId}-${c.stageId}`} className="px-4 py-2.5 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="font-mono text-sm text-rose-500 font-bold flex-shrink-0">{c.postId}</span>
                 {c.alias && <span className="text-rose-600 text-[10px] truncate">"{c.alias}"</span>}
@@ -2476,10 +2507,21 @@ function MiPanel({ posts, incidents, profile, userRole, stageDefs }) {
               </div>
             </div>
           ))}
-          {myCaptures.length === 0 && (
-            <div className="px-4 py-8 text-center text-stone-500 text-sm">Sin capturas aún — ¡a trabajar!</div>
+          {filteredCaptures.length === 0 && (
+            <div className="px-4 py-8 text-center text-stone-500 text-sm">
+              {capSearch ? 'Sin resultados para tu búsqueda' : 'Sin capturas aún — ¡a trabajar!'}
+            </div>
           )}
         </div>
+        {capTotalPages > 1 && (
+          <div className="px-4 py-2 border-t border-stone-300/60 flex items-center justify-between">
+            <button onClick={() => setCapPage(p => Math.max(0, p - 1))} disabled={capSafePage === 0}
+                    className="text-[10px] font-mono uppercase px-2.5 py-1 border border-stone-300 text-stone-600 disabled:opacity-40 enabled:hover:border-blue-500/50 enabled:hover:text-blue-600 transition-colors">‹ Ant</button>
+            <span className="text-[10px] font-mono text-stone-500 tabular-nums">{capSafePage + 1} / {capTotalPages}</span>
+            <button onClick={() => setCapPage(p => Math.min(capTotalPages - 1, p + 1))} disabled={capSafePage >= capTotalPages - 1}
+                    className="text-[10px] font-mono uppercase px-2.5 py-1 border border-stone-300 text-stone-600 disabled:opacity-40 enabled:hover:border-blue-500/50 enabled:hover:text-blue-600 transition-colors">Sig ›</button>
+          </div>
+        )}
       </div>
 
       {/* Incidencias reportadas */}
@@ -2555,7 +2597,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
   const [selectedForDelete, setSelectedForDelete] = useState(new Set());
   const [mergeOpen, setMergeOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const pageSize = 20;
+  const pageSize = 10;
 
   // Etapa "actual" cuando hay exactamente una seleccionada — para columnas específicas
   const filteredStageDef = filters.stages?.length === 1
@@ -2639,7 +2681,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
   };
 
   return (
-    <div className="p-6 space-y-4 overflow-y-auto">
+    <div className="p-4 sm:p-6 space-y-4 overflow-y-auto">
       <div className="flex items-end justify-between border-b border-stone-300 pb-4 flex-wrap gap-2">
         <div>
           <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80 mb-1">Catálogo</div>
@@ -2674,7 +2716,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
           incidents={incidents}
           unidadesTerritoriales={unidadesTerritoriales}
         />
-        <div className="text-xs font-mono text-stone-500 ml-auto flex items-center gap-2">
+        <div className="text-xs font-mono text-stone-500 ml-auto flex flex-wrap items-center justify-end gap-2">
           {isAdmin && selectedForDelete.size > 0 && (
             <button onClick={async () => {
               if (!window.confirm(`¿Eliminar ${selectedForDelete.size} poste(s)?\n\nSe borrarán etapas, fotos, incidencias y scouting. NO se puede deshacer.`)) return;
@@ -2736,7 +2778,8 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
 
       {/* Table — Pipeline view */}
       {viewType === 'pipeline' && (
-      <div className="border border-stone-300 bg-stone-100 overflow-hidden">
+      <div className="border border-stone-300 bg-stone-100 overflow-x-auto">
+        <div className="min-w-[760px]">
         <div className="grid grid-cols-12 gap-2 px-4 py-2.5 bg-stone-100/60 border-b border-stone-300 text-[12px] font-mono uppercase tracking-[0.15em] text-stone-500">
           <div className="col-span-2">ID</div>
           <div className="col-span-1">UT</div>
@@ -2772,6 +2815,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
           {pageData.length === 0 && (
             <div className="px-4 py-12 text-center text-stone-500 text-sm font-mono">Sin resultados</div>
           )}
+        </div>
         </div>
       </div>
       )}
@@ -4822,9 +4866,32 @@ function ProposalsView({ proposals, posts, userNames, isAdmin, isCoordinador, on
   const [newReason, setNewReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [reviewNotes, setReviewNotes] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const PROP_PAGE_SIZE = 15;
 
-  const filtered = proposals.filter(p => filter === 'todas' || p.status === filter);
+  const filtered = useMemo(() => {
+    let res = proposals.filter(p => filter === 'todas' || p.status === filter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      res = res.filter(p => {
+        const post = posts.find(pp => pp.id === p.postId);
+        return (p.postId || '').toLowerCase().includes(q)
+          || (p.changes?.descripcion || '').toLowerCase().includes(q)
+          || (p.reason || '').toLowerCase().includes(q)
+          || (userNames[p.proposedBy] || '').toLowerCase().includes(q)
+          || (post?.direccion || '').toLowerCase().includes(q);
+      });
+    }
+    return res;
+  }, [proposals, filter, search, posts, userNames]);
   const pendingCount = proposals.filter(p => p.status === 'pendiente').length;
+
+  // Reiniciar paginación al cambiar filtro/búsqueda (cliente, sin tocar la BD)
+  useEffect(() => { setPage(0); }, [filter, search]);
+  const propTotalPages = Math.max(1, Math.ceil(filtered.length / PROP_PAGE_SIZE));
+  const propSafePage = Math.min(page, propTotalPages - 1);
+  const pagedProposals = filtered.slice(propSafePage * PROP_PAGE_SIZE, (propSafePage + 1) * PROP_PAGE_SIZE);
 
   const handleCreate = async () => {
     if (!newPostId || !newChanges.trim()) return;
@@ -4840,20 +4907,25 @@ function ProposalsView({ proposals, posts, userNames, isAdmin, isCoordinador, on
   return (
     <div className="h-full overflow-y-auto">
       <div className="px-4 py-6 sm:px-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="min-w-0">
             <h1 className="text-xl font-light text-stone-950">Propuestas de edición</h1>
             <p className="text-xs text-stone-600 mt-1">{pendingCount} pendientes · {proposals.length} total</p>
           </div>
           {isCoordinador && (
             <button onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 bg-rose-700 hover:bg-rose-600 text-white text-sm font-medium rounded-lg px-3 py-2">
+              className="flex items-center gap-2 bg-rose-700 hover:bg-rose-600 text-white text-sm font-medium rounded-lg px-3 py-2 flex-shrink-0">
               <Plus className="w-4 h-4" /> Nueva propuesta
             </button>
           )}
         </div>
 
-        <div className="flex gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-4 items-center">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500" strokeWidth={1.5} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar poste, descripción, razón, autor…"
+                   className="w-full bg-stone-100 border border-stone-300 rounded-lg pl-9 pr-3 py-1.5 text-xs font-mono text-stone-800 placeholder-stone-500 focus:outline-none focus:border-rose-600/50" />
+          </div>
           {['pendiente', 'aprobada', 'rechazada', 'todas'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={`px-3 py-1.5 text-xs font-mono uppercase rounded-lg border ${filter === f ? 'bg-rose-700 text-white border-rose-700' : 'border-stone-300 text-stone-600'}`}>
@@ -4866,7 +4938,7 @@ function ProposalsView({ proposals, posts, userNames, isAdmin, isCoordinador, on
           <div className="text-center py-12 text-stone-500">Sin propuestas {filter !== 'todas' ? filter + 's' : ''}</div>
         ) : (
           <div className="space-y-3">
-            {filtered.map(p => {
+            {pagedProposals.map(p => {
               const post = posts.find(pp => pp.id === p.postId);
               const userName = userNames[p.proposedBy] || p.proposedBy?.slice(0, 8) || '?';
               const reviewerName = p.reviewedBy ? (userNames[p.reviewedBy] || '?') : null;
@@ -4910,6 +4982,24 @@ function ProposalsView({ proposals, posts, userNames, isAdmin, isCoordinador, on
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {propTotalPages > 1 && (
+          <div className="flex items-center justify-between gap-3 flex-wrap mt-4">
+            <div className="text-xs font-mono text-stone-500">
+              {filtered.length.toLocaleString()} propuestas · Página {propSafePage + 1} de {propTotalPages}
+            </div>
+            <div className="flex gap-1">
+              <button disabled={propSafePage === 0} onClick={() => setPage(Math.max(0, propSafePage - 1))}
+                      className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-600/50 hover:text-rose-500 disabled:opacity-30 text-xs font-mono flex items-center gap-1">
+                <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.5} /> Anterior
+              </button>
+              <button disabled={propSafePage >= propTotalPages - 1} onClick={() => setPage(Math.min(propTotalPages - 1, propSafePage + 1))}
+                      className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-600/50 hover:text-rose-500 disabled:opacity-30 text-xs font-mono flex items-center gap-1">
+                Siguiente <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.5} />
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -4967,6 +5057,8 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
   const [search, setSearch] = useState(externalNav?.search || '');
   const [filterCategory, setFilterCategory] = useState('todas');
   const [filterPost, setFilterPost] = useState('todas'); // 'todas' | 'poste_13m' | 'falta_camaras' | 'falta_silicon'
+  const [page, setPage] = useState(0);
+  const INC_PAGE_SIZE = 10;
 
   // Sync with external navigation (from Informe cards)
   useEffect(() => {
@@ -4977,6 +5069,9 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
       setFilterPost('todas');
     }
   }, [externalNav?.ts]);
+
+  // Reiniciar paginación al cambiar filtros/búsqueda (cliente, sin tocar la BD)
+  useEffect(() => { setPage(0); }, [filter, search, filterCategory, filterPost]);
 
   // Attend flow state
   const [attendingId, setAttendingId] = useState(null);
@@ -5074,6 +5169,11 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
     atendidas: incidents.filter(i => i.status === 'atendida').length,
     sinClasificar: canSeeClassification ? incidents.filter(i => !classifications[i.id]).length : 0,
   };
+
+  // Paginación cliente
+  const incTotalPages = Math.max(1, Math.ceil(filtered.length / INC_PAGE_SIZE));
+  const incSafePage = Math.min(page, incTotalPages - 1);
+  const pagedIncidents = filtered.slice(incSafePage * INC_PAGE_SIZE, (incSafePage + 1) * INC_PAGE_SIZE);
 
   const handleClassify = async (incidentId) => {
     if (!selectedCatId) return;
@@ -5205,14 +5305,14 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
   };
 
   return (
-    <div className="p-6 space-y-5 overflow-y-auto">
-      <div className="flex items-end justify-between border-b border-stone-300 pb-4">
+    <div className="p-4 sm:p-6 space-y-5 overflow-y-auto">
+      <div className="flex items-end justify-between border-b border-stone-300 pb-4 flex-wrap gap-2">
         <div>
           <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80 mb-1">Registro</div>
           <h1 className="text-3xl font-light text-stone-950">Incidencias y bloqueos</h1>
         </div>
         {/* Acciones: exportar (admin/director) + gestionar categorías (admin) */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {canSeeClassification && (
             <button onClick={exportIncidenciasCSV}
                     className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-emerald-600 hover:text-emerald-600 text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-colors">
@@ -5384,7 +5484,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
         {filtered.length === 0 && (
           <div className="px-6 py-12 text-center text-stone-500 font-mono text-sm">Sin incidencias en este filtro</div>
         )}
-        {filtered.map(i => {
+        {pagedIncidents.map(i => {
           const post = posts.find(p => p.id === i.postId);
           const cls = classifications[i.id];
           const isClassifying = classifyingId === i.id;
@@ -5659,6 +5759,24 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
           );
         })}
       </div>
+
+      {incTotalPages > 1 && (
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-xs font-mono text-stone-500">
+            {filtered.length.toLocaleString()} incidencias · Página {incSafePage + 1} de {incTotalPages}
+          </div>
+          <div className="flex gap-1">
+            <button disabled={incSafePage === 0} onClick={() => setPage(Math.max(0, incSafePage - 1))}
+                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-600/50 hover:text-rose-500 disabled:opacity-30 text-xs font-mono flex items-center gap-1">
+              <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.5} /> Anterior
+            </button>
+            <button disabled={incSafePage >= incTotalPages - 1} onClick={() => setPage(Math.min(incTotalPages - 1, incSafePage + 1))}
+                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-600/50 hover:text-rose-500 disabled:opacity-30 text-xs font-mono flex items-center gap-1">
+              Siguiente <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -5890,7 +6008,7 @@ function InformeIncidenciasView({ incidents, posts, onNavigate, onNavigatePostes
   const maxByUT = Math.max(1, ...byUT.map(([, v]) => v.total));
 
   return (
-    <div className="space-y-6" ref={reportRef}>
+    <div className="space-y-6 h-full overflow-y-auto p-4 sm:p-6" ref={reportRef}>
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
@@ -6114,6 +6232,8 @@ function InventoryView({ posts, onSelectPost }) {
   const [filterCrew, setFilterCrew] = useState('todas');
   const [filterModemType, setFilterModemType] = useState('todos');
   const [revealedPwd, setRevealedPwd] = useState({});
+  const [page, setPage] = useState(0);
+  const INV_PAGE_SIZE = 10;
 
   const modems = useMemo(() => posts
     .filter(p => p.stages.internet.done)
@@ -6179,6 +6299,14 @@ function InventoryView({ posts, onSelectPost }) {
     return true;
   });
 
+  // Paginación cliente del subtab activo (sin tocar la BD)
+  useEffect(() => { setPage(0); }, [subtab, search, filterUT, filterCrew, filterModemType]);
+  const activeList = subtab === 'modems' ? filteredModems : filteredCameras;
+  const invTotalPages = Math.max(1, Math.ceil(activeList.length / INV_PAGE_SIZE));
+  const invSafePage = Math.min(page, invTotalPages - 1);
+  const pagedModems = filteredModems.slice(invSafePage * INV_PAGE_SIZE, (invSafePage + 1) * INV_PAGE_SIZE);
+  const pagedCameras = filteredCameras.slice(invSafePage * INV_PAGE_SIZE, (invSafePage + 1) * INV_PAGE_SIZE);
+
   const exportCSV = (rows, name) => {
     const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
@@ -6199,7 +6327,7 @@ function InventoryView({ posts, onSelectPost }) {
   ], 'camaras');
 
   return (
-    <div className="p-6 space-y-5 overflow-y-auto">
+    <div className="p-4 sm:p-6 space-y-5 overflow-y-auto">
       <div className="flex items-end justify-between border-b border-stone-300 pb-4 flex-wrap gap-2">
         <div>
           <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80 mb-1">Inventario desplegado</div>
@@ -6301,7 +6429,7 @@ function InventoryView({ posts, onSelectPost }) {
           {filteredModems.length === 0 && (
             <div className="px-6 py-16 text-center text-stone-500 font-mono text-sm">Sin modems instalados con estos filtros</div>
           )}
-          {filteredModems.map(m => {
+          {pagedModems.map(m => {
             const typeStyle = MODEM_TYPE_COLORS[m.tipo_modem] || { bg: 'bg-gray-100', border: 'border-stone-300', text: 'text-stone-600' };
             const pwdVisible = revealedPwd[m.postId];
             return (
@@ -6385,7 +6513,7 @@ function InventoryView({ posts, onSelectPost }) {
           {filteredCameras.length === 0 && (
             <div className="px-6 py-16 text-center text-stone-500 font-mono text-sm">Sin cámaras instaladas con estos filtros</div>
           )}
-          {filteredCameras.map(c => (
+          {pagedCameras.map(c => (
             <div key={c.postId} className="p-4 hover:bg-rose-500/5 transition-colors space-y-3">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3 flex-wrap">
@@ -6436,6 +6564,24 @@ function InventoryView({ posts, onSelectPost }) {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {invTotalPages > 1 && (
+        <div className="flex items-center justify-between gap-3 flex-wrap mt-4">
+          <div className="text-xs font-mono text-stone-500">
+            {activeList.length.toLocaleString()} {subtab === 'modems' ? 'modems' : 'cámaras'} · Página {invSafePage + 1} de {invTotalPages}
+          </div>
+          <div className="flex gap-1">
+            <button disabled={invSafePage === 0} onClick={() => setPage(Math.max(0, invSafePage - 1))}
+                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-600/50 hover:text-rose-500 disabled:opacity-30 text-xs font-mono flex items-center gap-1">
+              <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.5} /> Anterior
+            </button>
+            <button disabled={invSafePage >= invTotalPages - 1} onClick={() => setPage(Math.min(invTotalPages - 1, invSafePage + 1))}
+                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-600/50 hover:text-rose-500 disabled:opacity-30 text-xs font-mono flex items-center gap-1">
+              Siguiente <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -7023,19 +7169,13 @@ export default function FieldCoordApp() {
   const [captureTarget, setCaptureTarget] = useState(null);
   const [darkMode, setDarkMode] = useState(() => { try { return localStorage.getItem('ci1215-theme') === 'dark'; } catch { return false; } });
 
-  const toggleDarkMode = () => {
-    setDarkMode(prev => {
-      const next = !prev;
-      if (next) {
-        document.documentElement.classList.add('dark');
-        try { localStorage.setItem('ci1215-theme', 'dark'); } catch {}
-      } else {
-        document.documentElement.classList.remove('dark');
-        try { localStorage.setItem('ci1215-theme', 'light'); } catch {}
-      }
-      return next;
-    });
-  };
+  const toggleDarkMode = () => setDarkMode(prev => !prev);
+
+  // Sincroniza la clase .dark del <html> y persiste (aplica también al cargar)
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+    try { localStorage.setItem('ci1215-theme', darkMode ? 'dark' : 'light'); } catch {}
+  }, [darkMode]);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [createPostDefaultStage, setCreatePostDefaultStage] = useState(null);
   // Edición de ubicación desde el mapa (drag de un poste)
@@ -7749,15 +7889,6 @@ export default function FieldCoordApp() {
               </select>
             )}
 
-            {/* Admin: Mobile preview */}
-            {realIsAdmin && (
-              <button onClick={() => setMobilePreview(p => !p)}
-                className={`p-1.5 border rounded text-[10px] transition-colors ${mobilePreview ? 'bg-blue-100 border-blue-400 text-blue-600' : 'border-stone-300 text-stone-500 hover:text-stone-700'}`}
-                title="Vista móvil">
-                📱
-              </button>
-            )}
-
             {/* Simulando badge */}
             {viewAsRole && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-mono font-bold hidden sm:inline">SIMULANDO</span>}
 
@@ -7804,6 +7935,14 @@ export default function FieldCoordApp() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
+        {/* Backdrop con blur: cierra el menú al tocar afuera (solo móvil) */}
+        {sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+            className="lg:hidden fixed top-[53px] left-0 right-0 bottom-0 z-10 bg-stone-900/10 backdrop-blur-sm transition-opacity"
+          />
+        )}
         <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
                         fixed lg:static top-[53px] lg:top-auto left-0 h-[calc(100vh-53px)] lg:h-auto
                         w-60 border-r border-stone-300 bg-amber-50 z-20 flex flex-col transition-transform`}>
@@ -7839,7 +7978,7 @@ export default function FieldCoordApp() {
           {activeTab === 'geo_v2' && <GeoV2View userRole={userRole} />}
           {activeTab === 'mapa' && (
             <div className="h-full flex flex-col">
-              <div className="px-6 py-4 border-b border-stone-300 flex items-center gap-3 flex-wrap">
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-stone-300 flex items-center gap-3 flex-wrap">
                 <div>
                   <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80">Vista geoespacial</div>
                   <h1 className="text-xl font-light text-stone-950">Mapa GPS</h1>

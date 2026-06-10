@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Plus, Trash2, Loader2, AlertCircle, Shield, Eye, HardHat, X, Check, Compass, Lock, KeyRound } from 'lucide-react';
+import { Users, Plus, Trash2, Loader2, AlertCircle, Shield, Eye, HardHat, X, Check, Compass, Lock, KeyRound, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   listAllUsers,
   createUser,
@@ -47,6 +47,23 @@ export default function UsersView({ currentProfile }) {
   const [pwdUser, setPwdUser] = useState(null); // user being password-changed
   const [newPwd, setNewPwd] = useState('');
   const [pwdSaving, setPwdSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const USERS_PAGE_SIZE = 10;
+
+  const filteredUsers = search.trim()
+    ? users.filter(u => {
+        const q = search.toLowerCase();
+        return (u.displayName || '').toLowerCase().includes(q)
+          || (u.email || '').toLowerCase().includes(q)
+          || (u.role || '').toLowerCase().includes(q)
+          || (ROLE_LABELS[u.role]?.label || '').toLowerCase().includes(q);
+      })
+    : users;
+  useEffect(() => { setPage(0); }, [search]);
+  const usersTotalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PAGE_SIZE));
+  const usersSafePage = Math.min(page, usersTotalPages - 1);
+  const pagedUsers = filteredUsers.slice(usersSafePage * USERS_PAGE_SIZE, (usersSafePage + 1) * USERS_PAGE_SIZE);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -94,24 +111,30 @@ export default function UsersView({ currentProfile }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-brand-700/20 flex items-center justify-center">
+    <div className="space-y-4 h-full overflow-y-auto p-4 sm:p-6">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-brand-700/20 flex items-center justify-center flex-shrink-0">
             <Users className="w-5 h-5 text-brand-400" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-lg font-bold text-stone-950">Usuarios</h2>
             <p className="text-xs text-stone-600">{users.length} cuentas activas</p>
           </div>
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-brand-700 hover:bg-brand-600 text-stone-950 text-sm font-medium rounded-lg px-3 py-2 transition-colors"
+          className="flex items-center gap-2 bg-brand-700 hover:bg-brand-600 text-stone-950 text-sm font-medium rounded-lg px-3 py-2 transition-colors flex-shrink-0"
         >
           <Plus className="w-4 h-4" />
           Crear usuario
         </button>
+      </div>
+
+      <div className="relative max-w-xs">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500" strokeWidth={1.5} />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre, email o rol…"
+               className="w-full bg-white border border-stone-300 rounded-lg pl-9 pr-3 py-2 text-sm text-stone-800 placeholder-stone-500 focus:outline-none focus:border-brand-600" />
       </div>
 
       {error && (
@@ -126,8 +149,8 @@ export default function UsersView({ currentProfile }) {
           <Loader2 className="w-6 h-6 animate-spin text-stone-500" />
         </div>
       ) : (
-        <div className="bg-stone-50 border border-stone-300 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-stone-50 border border-stone-300 rounded-xl overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-stone-100/50 text-xs text-stone-600">
               <tr>
                 <th className="text-left px-4 py-2 font-medium">Usuario</th>
@@ -138,7 +161,7 @@ export default function UsersView({ currentProfile }) {
               </tr>
             </thead>
             <tbody>
-              {users.map(u => {
+              {pagedUsers.map(u => {
                 const roleInfo = ROLE_LABELS[u.role] || { label: u.role, icon: Users, color: 'text-stone-600', bg: 'bg-gray-100' };
                 const RoleIcon = roleInfo.icon;
                 const isMe = u.userId === currentProfile?.userId;
@@ -191,15 +214,33 @@ export default function UsersView({ currentProfile }) {
                   </tr>
                 );
               })}
-              {users.length === 0 && (
+              {filteredUsers.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-12 text-center text-stone-500 text-sm">
-                    No hay usuarios registrados.
+                    {search.trim() ? 'Sin usuarios que coincidan con la búsqueda.' : 'No hay usuarios registrados.'}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && usersTotalPages > 1 && (
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-xs font-mono text-stone-500">
+            {filteredUsers.length.toLocaleString()} usuarios · Página {usersSafePage + 1} de {usersTotalPages}
+          </div>
+          <div className="flex gap-1">
+            <button disabled={usersSafePage === 0} onClick={() => setPage(Math.max(0, usersSafePage - 1))}
+                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-brand-600 hover:text-brand-600 disabled:opacity-30 text-xs font-mono flex items-center gap-1 rounded">
+              <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.5} /> Anterior
+            </button>
+            <button disabled={usersSafePage >= usersTotalPages - 1} onClick={() => setPage(Math.min(usersTotalPages - 1, usersSafePage + 1))}
+                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-brand-600 hover:text-brand-600 disabled:opacity-30 text-xs font-mono flex items-center gap-1 rounded">
+              Siguiente <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </button>
+          </div>
         </div>
       )}
 

@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { History, Loader2, AlertCircle, RefreshCw, User, Database } from 'lucide-react';
+import { History, Loader2, AlertCircle, RefreshCw, User, Database, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getSupabase } from '../lib/supabase.js';
 
 const ACTION_COLORS = {
@@ -28,6 +28,9 @@ export default function AuditView() {
   const [error, setError] = useState(null);
   const [filterAction, setFilterAction] = useState('');
   const [filterTable, setFilterTable] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const AUDIT_PAGE_SIZE = 10;
 
   const load = async () => {
     setLoading(true);
@@ -48,6 +51,7 @@ export default function AuditView() {
   };
 
   useEffect(() => { load(); }, [filterAction, filterTable]);
+  useEffect(() => { setPage(0); }, [search, entries]);
 
   const describeChange = (entry) => {
     if (entry.action === 'INSERT') return `Creó ${TABLE_LABELS[entry.table_name] || entry.table_name} ${entry.row_id || ''}`;
@@ -68,8 +72,24 @@ export default function AuditView() {
     return `${entry.action} en ${entry.table_name}`;
   };
 
+  // Búsqueda + paginación cliente (la consulta a la BD no cambia)
+  const filteredEntries = search.trim()
+    ? entries.filter(e => {
+        const q = search.toLowerCase();
+        return (e.user_display_name || '').toLowerCase().includes(q)
+          || (e.user_email || '').toLowerCase().includes(q)
+          || (e.table_name || '').toLowerCase().includes(q)
+          || (TABLE_LABELS[e.table_name] || '').toLowerCase().includes(q)
+          || String(e.row_id ?? '').toLowerCase().includes(q)
+          || (e.action || '').toLowerCase().includes(q);
+      })
+    : entries;
+  const auditTotalPages = Math.max(1, Math.ceil(filteredEntries.length / AUDIT_PAGE_SIZE));
+  const auditSafePage = Math.min(page, auditTotalPages - 1);
+  const pagedEntries = filteredEntries.slice(auditSafePage * AUDIT_PAGE_SIZE, (auditSafePage + 1) * AUDIT_PAGE_SIZE);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 h-full overflow-y-auto p-4 sm:p-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
@@ -81,7 +101,12 @@ export default function AuditView() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500" strokeWidth={1.5} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar usuario, tabla, ID…"
+                   className="bg-stone-100 border border-stone-300 rounded-lg pl-8 pr-3 py-1.5 text-xs text-stone-950 placeholder-stone-500 focus:outline-none focus:border-purple-500 w-44" />
+          </div>
           <select value={filterAction} onChange={e => setFilterAction(e.target.value)}
             className="bg-stone-100 border border-stone-300 rounded-lg px-3 py-1.5 text-xs text-stone-950">
             <option value="">Todas las acciones</option>
@@ -113,8 +138,8 @@ export default function AuditView() {
           <Loader2 className="w-6 h-6 animate-spin text-stone-500" />
         </div>
       ) : (
-        <div className="bg-stone-50 border border-stone-300 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-stone-50 border border-stone-300 rounded-xl overflow-x-auto">
+          <table className="w-full text-sm min-w-[700px]">
             <thead className="bg-stone-100/50 text-xs text-stone-600">
               <tr>
                 <th className="text-left px-4 py-2 font-medium">Fecha / hora</th>
@@ -124,7 +149,7 @@ export default function AuditView() {
               </tr>
             </thead>
             <tbody>
-              {entries.map(e => (
+              {pagedEntries.map(e => (
                 <tr key={e.id} className="border-t border-stone-300 hover:bg-stone-100/30">
                   <td className="px-4 py-2 text-xs text-stone-600 whitespace-nowrap">
                     {new Date(e.ts).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'medium' })}
@@ -145,16 +170,34 @@ export default function AuditView() {
                   </td>
                 </tr>
               ))}
-              {entries.length === 0 && (
+              {filteredEntries.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-4 py-12 text-center text-stone-500 text-sm">
                     <Database className="w-8 h-8 mx-auto mb-2 text-stone-400" />
-                    No hay registros con esos filtros.
+                    {search.trim() ? 'Sin registros que coincidan con la búsqueda.' : 'No hay registros con esos filtros.'}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && auditTotalPages > 1 && (
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-xs font-mono text-stone-500">
+            {filteredEntries.length.toLocaleString()} registros · Página {auditSafePage + 1} de {auditTotalPages}
+          </div>
+          <div className="flex gap-1">
+            <button disabled={auditSafePage === 0} onClick={() => setPage(Math.max(0, auditSafePage - 1))}
+                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-purple-500 hover:text-purple-600 disabled:opacity-30 text-xs font-mono flex items-center gap-1 rounded">
+              <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.5} /> Anterior
+            </button>
+            <button disabled={auditSafePage >= auditTotalPages - 1} onClick={() => setPage(Math.min(auditTotalPages - 1, auditSafePage + 1))}
+                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-purple-500 hover:text-purple-600 disabled:opacity-30 text-xs font-mono flex items-center gap-1 rounded">
+              Siguiente <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </button>
+          </div>
         </div>
       )}
     </div>

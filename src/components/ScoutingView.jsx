@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
-  Compass, Plus, ChevronLeft, MapPin, Check, X, Loader2, Search,
+  Compass, Plus, ChevronLeft, ChevronRight, MapPin, Check, X, Loader2, Search,
   AlertCircle, Navigation, Camera, Eye, CheckCircle2, AlertTriangle, Upload
 } from 'lucide-react';
 import {
@@ -117,6 +117,8 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
   const [routePostIds, setRoutePostIds] = useState([]);
   const [selectedRouteIds, setSelectedRouteIds] = useState(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [routesPage, setRoutesPage] = useState(0);
+  const ROUTES_PAGE_SIZE = 10;
 
   const loadRoutes = useCallback(async () => {
     setLoading(true);
@@ -184,11 +186,15 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
   }
 
   // ---- ROUTE LIST ----
+  const routesTotalPages = Math.max(1, Math.ceil(routes.length / ROUTES_PAGE_SIZE));
+  const routesSafePage = Math.min(routesPage, routesTotalPages - 1);
+  const pagedRoutes = routes.slice(routesSafePage * ROUTES_PAGE_SIZE, (routesSafePage + 1) * ROUTES_PAGE_SIZE);
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="px-4 py-6 sm:px-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-2 mb-6">
+          <div className="min-w-0">
             <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-emerald-500/80">Scouting</div>
             <h1 className="text-xl font-light text-stone-950 mt-1">
               {isAdmin ? 'Rutas de verificación' : 'Mis recorridos'}
@@ -196,7 +202,7 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
             <p className="text-xs text-stone-500 mt-1">{routes.length} rutas</p>
           </div>
           {(isAdmin || isCoordinador) && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
               {selectedRouteIds.size > 0 && (
                 <button onClick={async () => {
                   if (!window.confirm(`¿Eliminar ${selectedRouteIds.size} ruta(s)? Esta acción no se puede deshacer.`)) return;
@@ -226,8 +232,9 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
             <p className="text-sm">{isAdmin ? 'No hay rutas creadas. Crea la primera.' : 'No tienes rutas asignadas.'}</p>
           </div>
         ) : (
+          <>
           <div className="space-y-3">
-            {routes.map(r => {
+            {pagedRoutes.map(r => {
               const statusColors = { pendiente: 'text-stone-600 bg-gray-100', en_curso: 'text-brand-400 bg-brand-500/10', completada: 'text-emerald-400 bg-emerald-500/10' };
               const sc = statusColors[r.status] || statusColors.pendiente;
               return (
@@ -259,6 +266,9 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
               );
             })}
           </div>
+          <Pager page={routesSafePage} totalPages={routesTotalPages} total={routes.length}
+                 unitLabel="rutas" onPage={setRoutesPage} />
+          </>
         )}
       </div>
 
@@ -288,6 +298,9 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
   const [showDone, setShowDone] = useState(false);
   const [selectedForRemoval, setSelectedForRemoval] = useState(new Set());
   const [removing, setRemoving] = useState(false);
+  const [pendPage, setPendPage] = useState(0);
+  const [donePage, setDonePage] = useState(0);
+  const RD_PAGE_SIZE = 10;
 
   useEffect(() => {
     setLoading(true);
@@ -323,6 +336,15 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
   useEffect(() => {
     if (allDone && route.status !== 'completada') onCompleteRoute?.();
   }, [allDone, route.status]);
+
+  // Paginación (10 por página) — reinicia pendientes al buscar
+  useEffect(() => { setPendPage(0); }, [search]);
+  const pendTotalPages = Math.max(1, Math.ceil(filtered.length / RD_PAGE_SIZE));
+  const pendSafePage = Math.min(pendPage, pendTotalPages - 1);
+  const pagedFiltered = filtered.slice(pendSafePage * RD_PAGE_SIZE, (pendSafePage + 1) * RD_PAGE_SIZE);
+  const doneTotalPages = Math.max(1, Math.ceil(completados.length / RD_PAGE_SIZE));
+  const doneSafePage = Math.min(donePage, doneTotalPages - 1);
+  const pagedCompletados = completados.slice(doneSafePage * RD_PAGE_SIZE, (doneSafePage + 1) * RD_PAGE_SIZE);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -412,7 +434,7 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
               <div className="px-4 py-6 text-center text-xs text-stone-400">Sin pendientes que coincidan.</div>
             )}
             <div className="divide-y divide-stone-300/50">
-            {filtered.map((p, idx) => {
+            {pagedFiltered.map((p, idx) => {
               const stagesDone = Object.values(p.stages).filter(s => s.done).length;
               return (
                 <button key={p.id}
@@ -425,7 +447,7 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
                       className="w-4 h-4 accent-red-500 flex-shrink-0" />
                   )}
                   <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-xs font-mono text-stone-600 flex-shrink-0">
-                    {idx + 1}
+                    {pendSafePage * RD_PAGE_SIZE + idx + 1}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -453,6 +475,8 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
               );
             })}
             </div>
+            <Pager page={pendSafePage} totalPages={pendTotalPages} total={filtered.length}
+                   unitLabel="pendientes" onPage={setPendPage} />
             {completados.length > 0 && (
               <div className="border-t border-stone-200 mt-2">
                 <button onClick={() => setShowDone(v => !v)}
@@ -461,8 +485,9 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
                   <span>{showDone ? '▲' : '▼'}</span>
                 </button>
                 {showDone && (
+                  <>
                   <div className="divide-y divide-stone-200/60 opacity-70">
-                    {completados.map((p) => (
+                    {pagedCompletados.map((p) => (
                       <button key={p.id} onClick={() => (isScout || isAdmin) && onSelectPost(p.id)}
                         className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-stone-50 text-left">
                         <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-xs text-emerald-700 flex-shrink-0">✓</div>
@@ -474,11 +499,38 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
                       </button>
                     ))}
                   </div>
+                  <Pager page={doneSafePage} totalPages={doneTotalPages} total={completados.length}
+                         unitLabel="completados" onPage={setDonePage} />
+                  </>
                 )}
               </div>
             )}
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Pager — paginador estilo "Usuarios": contador + ‹ Anterior / Siguiente ›
+// =============================================================================
+function Pager({ page, totalPages, total, unitLabel = 'registros', onPage }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3">
+      <div className="text-xs font-mono text-stone-500">
+        {total.toLocaleString()} {unitLabel} · Página {page + 1} de {totalPages}
+      </div>
+      <div className="flex gap-1">
+        <button type="button" disabled={page === 0} onClick={() => onPage(Math.max(0, page - 1))}
+                className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-brand-600 hover:text-brand-600 disabled:opacity-30 text-xs font-mono flex items-center gap-1 rounded">
+          <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.5} /> Anterior
+        </button>
+        <button type="button" disabled={page >= totalPages - 1} onClick={() => onPage(Math.min(totalPages - 1, page + 1))}
+                className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-brand-600 hover:text-brand-600 disabled:opacity-30 text-xs font-mono flex items-center gap-1 rounded">
+          Siguiente <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.5} />
+        </button>
       </div>
     </div>
   );

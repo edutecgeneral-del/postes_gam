@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { MapPin, ChevronLeft, Search, Check, AlertCircle, Loader2, Plus } from 'lucide-react';
+import { MapPin, ChevronLeft, ChevronRight, Search, Check, AlertCircle, Loader2, Plus } from 'lucide-react';
 import { StageFormFields, validateStageAttrs } from './StageFields.jsx';
 import { normalizePhotoUrls, uploadStagePhoto, withStagePhotoUrls } from '../lib/data.js';
 import { getPersistedForm, persistForm, clearPersistedForm, onBackgroundSave } from '../lib/formPersist.js';
@@ -20,6 +20,9 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
   const [selectedStageId, setSelectedStageId] = useState(initialStageId || null);
   const [selectedPostId, setSelectedPostId] = useState(initialPostId || null);
   const [searchText, setSearchText] = useState('');
+  const [pendPage, setPendPage] = useState(0);
+  const [donePage, setDonePage] = useState(0);
+  const LIST_PAGE_SIZE = 10; // 10 elementos por página
 
   // Auto-open from map "Capturar" button
   useEffect(() => {
@@ -29,6 +32,9 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
       if (onClearTarget) onClearTarget();
     }
   }, [initialPostId, initialStageId]);
+
+  // Reiniciar paginación al cambiar búsqueda o etapa
+  useEffect(() => { setPendPage(0); setDonePage(0); }, [searchText, selectedStageId]);
 
   const selectedStage = stageDefs?.find(s => s.id === selectedStageId);
 
@@ -134,6 +140,14 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
   }
 
   // ---- POST LIST ----
+  const pendTotalPages = Math.max(1, Math.ceil(filteredPending.length / LIST_PAGE_SIZE));
+  const pendSafePage = Math.min(pendPage, pendTotalPages - 1);
+  const pagedPending = filteredPending.slice(pendSafePage * LIST_PAGE_SIZE, (pendSafePage + 1) * LIST_PAGE_SIZE);
+
+  const doneTotalPages = Math.max(1, Math.ceil(filteredDone.length / LIST_PAGE_SIZE));
+  const doneSafePage = Math.min(donePage, doneTotalPages - 1);
+  const pagedDone = filteredDone.slice(doneSafePage * LIST_PAGE_SIZE, (doneSafePage + 1) * LIST_PAGE_SIZE);
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="px-4 py-3 border-b border-stone-300 flex items-center gap-3">
@@ -189,78 +203,151 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
         ) : (
           <>
             {filteredPending.length > 0 && (
-              <div>
+              <div className="px-4 py-3">
+                <div className="border border-stone-300 rounded-lg overflow-hidden bg-stone-100">
                 <div className="px-4 py-2 text-[12px] font-mono uppercase tracking-widest text-brand-400 bg-stone-200 border-b border-stone-300">
                   Pendientes · {filteredPending.length}
                 </div>
-                <div className="divide-y divide-stone-300/50">
-                  {filteredPending.map(p => {
-                    const stagesDone = Object.values(p.stages || {}).filter(s => s.done).length;
-                    return (
-                      <button key={p.id} onClick={() => hasPermission && setSelectedPostId(p.id)} disabled={!hasPermission}
-                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-stone-100 active:bg-stone-200 text-left transition-colors disabled:opacity-40">
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${selectedStage.color}15` }}>
-                          <MapPin className="w-5 h-5" style={{ color: selectedStage.color }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-mono font-bold text-stone-950">{p.id}</span>
-                            <span className="text-[12px] font-mono text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded">{p.unidad_territorial}</span>
-                          </div>
-                          <div className="text-xs text-stone-600 truncate mt-0.5">{p.direccion || 'Sin dirección'}</div>
-                          <div className="text-[12px] text-stone-500 mt-0.5">{stagesDone}/7 etapas</div>
-                        </div>
-                        <div className="flex-shrink-0 text-xs font-mono px-2 py-1 rounded" style={{ background: `${selectedStage.color}15`, color: selectedStage.color }}>
-                          Capturar
-                        </div>
-                      </button>
-                    );
-                  })}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs" style={{ minWidth: '520px' }}>
+                    <thead className="bg-stone-100/60 border-b border-stone-300 text-[12px] font-mono uppercase tracking-[0.15em] text-stone-500">
+                      <tr>
+                        <th className="text-left px-3 py-2 sticky left-0 bg-stone-50/95 z-10 min-w-[90px]">ID</th>
+                        <th className="text-left px-3 py-2 min-w-[60px]">UT</th>
+                        <th className="text-left px-3 py-2 min-w-[140px]">Dirección</th>
+                        <th className="text-center px-3 py-2">Etapas</th>
+                        <th className="text-right px-3 py-2">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagedPending.map(p => {
+                        const stagesDone = Object.values(p.stages || {}).filter(s => s.done).length;
+                        return (
+                          <tr key={p.id} onClick={() => hasPermission && setSelectedPostId(p.id)}
+                              className={`border-b border-stone-300/50 transition-colors ${hasPermission ? 'hover:bg-rose-500/5 cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}>
+                            <td className="px-3 py-2 font-mono font-bold text-stone-950 whitespace-nowrap sticky left-0 bg-stone-50/95 z-10">
+                              <span className="inline-flex items-center gap-1.5">
+                                {onJumpToMap && (
+                                  <button type="button" title="Ver en mapa"
+                                          onClick={(e) => { e.stopPropagation(); onJumpToMap(p); }}
+                                          className="text-stone-500 hover:text-purple-600 p-0.5 -ml-0.5 transition-colors">
+                                    <MapPin className="w-3.5 h-3.5" strokeWidth={1.5} />
+                                  </button>
+                                )}
+                                <span>{p.id}</span>
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 font-mono text-stone-700 whitespace-nowrap">{p.unidad_territorial}</td>
+                            <td className="px-3 py-2 max-w-[200px] truncate text-stone-600">{p.direccion || 'Sin dirección'}</td>
+                            <td className="px-3 py-2 text-center font-mono text-stone-500 whitespace-nowrap">{stagesDone}/7</td>
+                            <td className="px-3 py-2 text-right">
+                              <span className="inline-block text-xs font-mono px-2 py-1 rounded whitespace-nowrap" style={{ background: `${selectedStage.color}15`, color: selectedStage.color }}>
+                                Capturar
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <TablePager page={pendSafePage} totalPages={pendTotalPages} total={filteredPending.length}
+                            unitLabel="pendientes" onPage={setPendPage} />
                 </div>
               </div>
             )}
 
             {/* Postes completados — editables */}
             {filteredDone.length > 0 && (
-              <div>
-                <div className="px-4 py-2 text-[12px] font-mono uppercase tracking-widest text-emerald-400 bg-stone-200 border-b border-stone-300 border-t">
+              <div className="px-4 py-3">
+                <div className="border border-stone-300 rounded-lg overflow-hidden bg-stone-100">
+                <div className="px-4 py-2 text-[12px] font-mono uppercase tracking-widest text-emerald-400 bg-stone-200 border-b border-stone-300">
                   Completados · {filteredDone.length} — toca para editar / agregar foto
                 </div>
-                <div className="divide-y divide-stone-300/50">
-                  {filteredDone.map(p => {
-                    const d = p.stages[selectedStageId];
-                    const hasPhoto = typeof d?.photo === 'string' && d.photo.startsWith('http');
-                    const stagesDone = Object.values(p.stages || {}).filter(s => s.done).length;
-                    return (
-                      <button key={p.id} onClick={() => hasPermission && setSelectedPostId(p.id)} disabled={!hasPermission}
-                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-stone-100 active:bg-stone-200 text-left transition-colors disabled:opacity-40">
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-emerald-500/10">
-                          <Check className="w-5 h-5 text-emerald-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-mono font-bold text-stone-950">{p.id}</span>
-                            <span className="text-[12px] font-mono text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded">{p.unidad_territorial}</span>
-                            {hasPhoto && <span className="text-[12px] text-emerald-400">📷</span>}
-                            {d?.verified && <span className="text-[12px] text-blue-400">✔</span>}
-                          </div>
-                          <div className="text-xs text-stone-600 truncate mt-0.5">{p.direccion || 'Sin dirección'}</div>
-                          <div className="text-[12px] text-stone-500 mt-0.5">
-                            {stagesDone}/7 · {d?.ts ? new Date(d.ts).toLocaleDateString('es-MX', { day:'2-digit', month:'short' }) : ''}
-                            {!hasPhoto && <span className="text-brand-400 ml-2">⚠ sin foto</span>}
-                          </div>
-                        </div>
-                        <div className="flex-shrink-0 text-xs font-mono px-2 py-1 rounded bg-stone-100 text-stone-600">
-                          Editar
-                        </div>
-                      </button>
-                    );
-                  })}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs" style={{ minWidth: '620px' }}>
+                    <thead className="bg-stone-100/60 border-b border-stone-300 text-[12px] font-mono uppercase tracking-[0.15em] text-stone-500">
+                      <tr>
+                        <th className="text-left px-3 py-2 sticky left-0 bg-stone-50/95 z-10 min-w-[90px]">ID</th>
+                        <th className="text-left px-3 py-2 min-w-[60px]">UT</th>
+                        <th className="text-left px-3 py-2 min-w-[140px]">Dirección</th>
+                        <th className="text-center px-3 py-2">Etapas</th>
+                        <th className="text-left px-3 py-2">Estado</th>
+                        <th className="text-right px-3 py-2">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagedDone.map(p => {
+                        const d = p.stages[selectedStageId];
+                        const hasPhoto = typeof d?.photo === 'string' && d.photo.startsWith('http');
+                        const stagesDone = Object.values(p.stages || {}).filter(s => s.done).length;
+                        return (
+                          <tr key={p.id} onClick={() => hasPermission && setSelectedPostId(p.id)}
+                              className={`border-b border-stone-300/50 transition-colors ${hasPermission ? 'hover:bg-rose-500/5 cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}>
+                            <td className="px-3 py-2 font-mono font-bold text-stone-950 whitespace-nowrap sticky left-0 bg-stone-50/95 z-10">
+                              <span className="inline-flex items-center gap-1.5">
+                                {onJumpToMap && (
+                                  <button type="button" title="Ver en mapa"
+                                          onClick={(e) => { e.stopPropagation(); onJumpToMap(p); }}
+                                          className="text-stone-500 hover:text-purple-600 p-0.5 -ml-0.5 transition-colors">
+                                    <MapPin className="w-3.5 h-3.5" strokeWidth={1.5} />
+                                  </button>
+                                )}
+                                <span>{p.id}</span>
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 font-mono text-stone-700 whitespace-nowrap">{p.unidad_territorial}</td>
+                            <td className="px-3 py-2 max-w-[200px] truncate text-stone-600">{p.direccion || 'Sin dirección'}</td>
+                            <td className="px-3 py-2 text-center font-mono text-stone-500 whitespace-nowrap">
+                              {stagesDone}/7
+                              {d?.ts && <div className="text-[11px] text-stone-400">{new Date(d.ts).toLocaleDateString('es-MX', { day:'2-digit', month:'short' })}</div>}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {hasPhoto ? <span className="text-emerald-500">📷 foto</span> : <span className="text-brand-500">⚠ sin foto</span>}
+                              {d?.verified && <span className="text-blue-500 ml-2">✔ verif.</span>}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <span className="inline-block text-xs font-mono px-2 py-1 rounded bg-stone-100 text-stone-600 border border-stone-300 whitespace-nowrap">Editar</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <TablePager page={doneSafePage} totalPages={doneTotalPages} total={filteredDone.length}
+                            unitLabel="completados" onPage={setDonePage} />
                 </div>
               </div>
             )}
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// TablePager — paginador estilo "Usuarios": contador + ‹ Anterior / Siguiente ›
+// =============================================================================
+
+function TablePager({ page, totalPages, total, unitLabel = 'registros', onPage }) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-2.5">
+      <div className="text-xs font-mono text-stone-500">
+        {total.toLocaleString()} {unitLabel} · Página {page + 1} de {totalPages}
+      </div>
+      <div className="flex gap-1">
+        <button type="button" disabled={page === 0} onClick={() => onPage(Math.max(0, page - 1))}
+                className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-brand-600 hover:text-brand-600 disabled:opacity-30 text-xs font-mono flex items-center gap-1 rounded">
+          <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.5} /> Anterior
+        </button>
+        <button type="button" disabled={page >= totalPages - 1} onClick={() => onPage(Math.min(totalPages - 1, page + 1))}
+                className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-brand-600 hover:text-brand-600 disabled:opacity-30 text-xs font-mono flex items-center gap-1 rounded">
+          Siguiente <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.5} />
+        </button>
       </div>
     </div>
   );

@@ -49,20 +49,29 @@ body {
   right: 0.5em !important;
 }
 
-/* Scrollbar oscuro */
+/* Scrollbar — fondo blanco, barra #ad5069 */
+* {
+  scrollbar-width: thin;                  /* Firefox: barra delgada */
+  scrollbar-color: #ad5069 #ffffff;       /* thumb / track */
+}
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #0a0a0b;
+  background: #ffffff;                     /* fondo blanco */
 }
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 0;
+  background-color: #ad5069;               /* barra que se desplaza */
+  border-radius: 9999px;
+  border: 2px solid #ffffff;              /* aire blanco alrededor (coincide con el track) */
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background-color: #934458;               /* un poco más oscuro al hover */
+}
+::-webkit-scrollbar-corner {
+  background: #ffffff;
 }
 /* Tema "brand" dinamico - se cambia con data-env="v3" en el HTML root */
 :root {
@@ -92,3 +101,99 @@ body {
   --brand-800: 17 94 89;
   --brand-900: 19 78 74;
 }
+
+/* ============================================================
+   MODO OSCURO — remapeo de superficies/neutros bajo .dark
+   Los acentos (rose/brand, emerald, blue, amber, violet…) se
+   conservan tal cual: lucen bien sobre fondo oscuro.
+   ============================================================ */
+.dark {
+  --dk-bg:        #0c0a09;  /* fondo de página */
+  --dk-surface:   #1a1714;  /* tarjetas / inputs (bg-white, bg-stone-50) */
+  --dk-surface-2: #221f1c;  /* paneles (bg-stone-100) */
+  --dk-surface-3: #2b2724;  /* realces (bg-stone-200) */
+  --dk-border:    #38322d;
+  --dk-border-2:  #4a423b;
+  --dk-text:      #ece9e6;
+  --dk-text-2:    #cfc9c4;
+  --dk-muted:     #a39c95;
+  --dk-dim:       #837b73;
+  color-scheme: dark;
+}
+.dark body { background-color: var(--dk-bg); }
+
+/* Fondos sólidos */
+.dark .bg-amber-50  { background-color: var(--dk-bg); }
+.dark .bg-white     { background-color: var(--dk-surface); }
+.dark .bg-stone-50  { background-color: var(--dk-surface); }
+.dark .bg-stone-100 { background-color: var(--dk-surface-2); }
+.dark .bg-stone-200 { background-color: var(--dk-surface-3); }
+.dark .bg-stone-300 { background-color: #3a3531; }
+.dark .bg-gray-100  { background-color: var(--dk-surface-2); }
+.dark .bg-amber-100 { background-color: #2b2520; }
+
+/* Fondos con opacidad */
+.dark .bg-white\/90     { background-color: rgba(26,23,20,0.90); }
+.dark .bg-white\/95     { background-color: rgba(26,23,20,0.95); }
+.dark .bg-stone-50\/95  { background-color: rgba(26,23,20,0.95); }
+.dark .bg-stone-50\/60  { background-color: rgba(26,23,20,0.60); }
+.dark .bg-stone-100\/60 { background-color: rgba(34,31,28,0.60); }
+.dark .bg-stone-100\/50 { background-color: rgba(34,31,28,0.55); }
+.dark .bg-stone-100\/40 { background-color: rgba(34,31,28,0.50); }
+.dark .bg-stone-100\/30 { background-color: rgba(34,31,28,0.40); }
+.dark .bg-stone-100\/20 { background-color: rgba(34,31,28,0.30); }
+.dark .bg-stone-200\/40 { background-color: rgba(43,39,36,0.50); }
+.dark .bg-stone-200\/30 { background-color: rgba(43,39,36,0.40); }
+
+/* Bordes */
+.dark .border-stone-100 { border-color: var(--dk-surface-2); }
+.dark .border-stone-200 { border-color: var(--dk-surface-3); }
+.dark .border-stone-300 { border-color: var(--dk-border); }
+.dark .border-stone-400 { border-color: var(--dk-border-2); }
+.dark .border-stone-500 { border-color: #5a524b; }
+.dark .border-stone-800 { border-color: var(--dk-border-2); }
+.dark .border-stone-300\/60 { border-color: rgba(56,50,45,0.60); }
+.dark .border-stone-300\/50 { border-color: rgba(56,50,45,0.50); }
+.dark .border-stone-300\/40 { border-color: rgba(56,50,45,0.40); }
+
+/* Divisores (divide-*) */
+.dark .divide-stone-300\/50 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(56,50,45,0.50); }
+.dark .divide-stone-300\/60 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(56,50,45,0.60); }
+.dark .divide-stone-200\/60 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(43,39,36,0.60); }
+.dark .divide-stone-200 > :not([hidden]) ~ :not([hidden])     { border-color: var(--dk-surface-3); }
+.dark .divide-stone-100 > :not([hidden]) ~ :not([hidden])     { border-color: var(--dk-surface-2); }
+
+/* Texto neutro */
+.dark .text-stone-950 { color: var(--dk-text); }
+.dark .text-stone-900 { color: var(--dk-text); }
+.dark .text-stone-800 { color: var(--dk-text-2); }
+.dark .text-stone-700 { color: var(--dk-text-2); }
+.dark .text-stone-600 { color: var(--dk-muted); }
+.dark .text-stone-500 { color: var(--dk-muted); }
+.dark .text-stone-400 { color: var(--dk-dim); }
+.dark .text-stone-300 { color: var(--dk-dim); }
+.dark .text-gray-500  { color: var(--dk-muted); }
+.dark .text-gray-700  { color: var(--dk-text-2); }
+
+/* Placeholders */
+.dark .placeholder-stone-500::placeholder { color: #6f6760; }
+.dark .placeholder-stone-400::placeholder { color: #6f6760; }
+
+/* Hover — superficies */
+.dark .hover\:bg-stone-50:hover     { background-color: var(--dk-surface-2); }
+.dark .hover\:bg-stone-100:hover    { background-color: var(--dk-surface-3); }
+.dark .hover\:bg-stone-200:hover    { background-color: #332e2a; }
+.dark .hover\:bg-stone-50\/40:hover { background-color: rgba(34,31,28,0.40); }
+.dark .hover\:bg-stone-50\/60:hover { background-color: rgba(34,31,28,0.50); }
+.dark .hover\:bg-stone-100\/60:hover{ background-color: rgba(43,39,36,0.60); }
+.dark .hover\:bg-stone-100\/30:hover{ background-color: rgba(43,39,36,0.40); }
+.dark .hover\:bg-amber-50:hover     { background-color: var(--dk-surface-2); }
+
+/* Hover — bordes y texto */
+.dark .hover\:border-stone-500:hover { border-color: #6a615a; }
+.dark .hover\:border-stone-400:hover { border-color: #5a524b; }
+.dark .hover\:text-stone-950:hover { color: var(--dk-text); }
+.dark .hover\:text-stone-900:hover { color: var(--dk-text); }
+.dark .hover\:text-stone-800:hover { color: var(--dk-text-2); }
+.dark .hover\:text-stone-700:hover { color: var(--dk-text-2); }
+.dark .hover\:text-stone-600:hover { color: var(--dk-muted); }

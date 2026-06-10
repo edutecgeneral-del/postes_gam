@@ -14,6 +14,10 @@
 
     <title>Coordinación de Campo</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Aplica el tema antes del render para evitar parpadeo (FOUC) -->
+    <script>
+      try { if (localStorage.getItem('ci1215-theme') === 'dark') document.documentElement.classList.add('dark'); } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
