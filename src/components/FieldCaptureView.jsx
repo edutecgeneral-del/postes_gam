@@ -165,7 +165,7 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
         </div>
         {onRequestCreatePost && (
           <button onClick={() => onRequestCreatePost(selectedStageId)}
-                  className="flex items-center gap-1.5 bg-brand-700 hover:bg-brand-600 text-stone-950 text-xs font-medium rounded-lg px-3 py-2 transition-colors">
+                  className="flex items-center gap-1.5 bg-brand-700 hover:bg-brand-600 text-white text-xs font-medium rounded-lg px-3 py-2 transition-colors">
             <Plus className="w-4 h-4" /> Nuevo poste
           </button>
         )}
@@ -204,15 +204,15 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
           <>
             {filteredPending.length > 0 && (
               <div className="px-4 py-3">
-                <div className="border border-stone-300 rounded-lg overflow-hidden bg-stone-100">
-                <div className="px-4 py-2 text-[12px] font-mono uppercase tracking-widest text-brand-400 bg-stone-200 border-b border-stone-300">
+                <div className="border border-stone-300 rounded-lg overflow-hidden bg-white">
+                <div className="px-4 py-2 text-[12px] font-mono uppercase tracking-widest text-rose-600 bg-stone-200 border-b border-stone-300">
                   Pendientes · {filteredPending.length}
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs" style={{ minWidth: '520px' }}>
                     <thead className="bg-stone-100/60 border-b border-stone-300 text-[12px] font-mono uppercase tracking-[0.15em] text-stone-500">
                       <tr>
-                        <th className="text-left px-3 py-2 sticky left-0 bg-stone-50/95 z-10 min-w-[90px]">ID</th>
+                        <th className="text-left px-3 py-2 min-w-[90px]">ID</th>
                         <th className="text-left px-3 py-2 min-w-[60px]">UT</th>
                         <th className="text-left px-3 py-2 min-w-[140px]">Dirección</th>
                         <th className="text-center px-3 py-2">Etapas</th>
@@ -225,7 +225,7 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
                         return (
                           <tr key={p.id} onClick={() => hasPermission && setSelectedPostId(p.id)}
                               className={`border-b border-stone-300/50 transition-colors ${hasPermission ? 'hover:bg-rose-500/5 cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}>
-                            <td className="px-3 py-2 font-mono font-bold text-stone-950 whitespace-nowrap sticky left-0 bg-stone-50/95 z-10">
+                            <td className="px-3 py-2 font-mono font-bold text-stone-950 whitespace-nowrap">
                               <span className="inline-flex items-center gap-1.5">
                                 {onJumpToMap && (
                                   <button type="button" title="Ver en mapa"
@@ -251,24 +251,24 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
                     </tbody>
                   </table>
                 </div>
-                <TablePager page={pendSafePage} totalPages={pendTotalPages} total={filteredPending.length}
-                            unitLabel="pendientes" onPage={setPendPage} />
                 </div>
+                <TablePager page={pendSafePage} totalPages={pendTotalPages} total={filteredPending.length}
+                            unitLabel="pendientes" onPage={setPendPage} className="px-1 pt-3" />
               </div>
             )}
 
             {/* Postes completados — editables */}
             {filteredDone.length > 0 && (
               <div className="px-4 py-3">
-                <div className="border border-stone-300 rounded-lg overflow-hidden bg-stone-100">
-                <div className="px-4 py-2 text-[12px] font-mono uppercase tracking-widest text-emerald-400 bg-stone-200 border-b border-stone-300">
+                <div className="border border-stone-300 rounded-lg overflow-hidden bg-white">
+                <div className="px-4 py-2 text-[12px] font-mono uppercase tracking-widest text-blue-600 bg-stone-200 border-b border-stone-300">
                   Completados · {filteredDone.length} — toca para editar / agregar foto
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs" style={{ minWidth: '620px' }}>
                     <thead className="bg-stone-100/60 border-b border-stone-300 text-[12px] font-mono uppercase tracking-[0.15em] text-stone-500">
                       <tr>
-                        <th className="text-left px-3 py-2 sticky left-0 bg-stone-50/95 z-10 min-w-[90px]">ID</th>
+                        <th className="text-left px-3 py-2 min-w-[90px]">ID</th>
                         <th className="text-left px-3 py-2 min-w-[60px]">UT</th>
                         <th className="text-left px-3 py-2 min-w-[140px]">Dirección</th>
                         <th className="text-center px-3 py-2">Etapas</th>
@@ -284,7 +284,7 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
                         return (
                           <tr key={p.id} onClick={() => hasPermission && setSelectedPostId(p.id)}
                               className={`border-b border-stone-300/50 transition-colors ${hasPermission ? 'hover:bg-rose-500/5 cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}>
-                            <td className="px-3 py-2 font-mono font-bold text-stone-950 whitespace-nowrap sticky left-0 bg-stone-50/95 z-10">
+                            <td className="px-3 py-2 font-mono font-bold text-stone-950 whitespace-nowrap">
                               <span className="inline-flex items-center gap-1.5">
                                 {onJumpToMap && (
                                   <button type="button" title="Ver en mapa"
@@ -315,9 +315,9 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
                     </tbody>
                   </table>
                 </div>
-                <TablePager page={doneSafePage} totalPages={doneTotalPages} total={filteredDone.length}
-                            unitLabel="completados" onPage={setDonePage} />
                 </div>
+                <TablePager page={doneSafePage} totalPages={doneTotalPages} total={filteredDone.length}
+                            unitLabel="completados" onPage={setDonePage} className="px-1 pt-3" />
               </div>
             )}
           </>
@@ -331,11 +331,11 @@ export default function FieldCaptureView({ posts, stageDefs, onUpdatePost, userP
 // TablePager — paginador estilo "Usuarios": contador + ‹ Anterior / Siguiente ›
 // =============================================================================
 
-function TablePager({ page, totalPages, total, unitLabel = 'registros', onPage }) {
+function TablePager({ page, totalPages, total, unitLabel = 'registros', onPage, className = 'px-4 py-2.5' }) {
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-2.5">
+    <div className={`flex items-center justify-between gap-3 flex-wrap ${className}`}>
       <div className="text-xs font-mono text-stone-500">
         {total.toLocaleString()} {unitLabel} · Página {page + 1} de {totalPages}
       </div>

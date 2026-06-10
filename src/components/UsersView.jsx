@@ -124,7 +124,7 @@ export default function UsersView({ currentProfile }) {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-brand-700 hover:bg-brand-600 text-stone-950 text-sm font-medium rounded-lg px-3 py-2 transition-colors flex-shrink-0"
+          className="flex items-center gap-2 bg-brand-700 hover:bg-brand-600 text-white text-sm font-medium rounded-lg px-3 py-2 transition-colors flex-shrink-0"
         >
           <Plus className="w-4 h-4" />
           Crear usuario
@@ -252,7 +252,7 @@ export default function UsersView({ currentProfile }) {
       )}
       {/* Modal cambiar contraseña */}
       {pwdUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setPwdUser(null)}>
+        <div className="fixed inset-x-0 bottom-0 top-[53px] z-50 flex items-center justify-center backdrop-blur-sm p-4" onClick={() => setPwdUser(null)}>
           <div className="bg-stone-50 border border-stone-300 rounded-xl max-w-sm w-full p-6 shadow-lg" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -342,7 +342,7 @@ function CreateUserModal({ onClose, onCreated }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-x-0 bottom-0 top-[53px] backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-stone-50 border border-stone-300 rounded-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-bold text-stone-950">Crear usuario</h3>
@@ -455,7 +455,7 @@ function EditUserModal({ user, onClose, onUpdated }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-x-0 bottom-0 top-[53px] backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-stone-50 border border-stone-300 rounded-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-bold text-stone-950">Editar usuario</h3>
@@ -513,7 +513,7 @@ function EditUserModal({ user, onClose, onUpdated }) {
               Cancelar
             </button>
             <button onClick={submit} disabled={loading}
-              className="flex-1 bg-brand-700 hover:bg-brand-600 disabled:bg-stone-200 text-stone-950 text-sm font-medium rounded-lg py-2 flex items-center justify-center gap-2">
+              className="flex-1 bg-brand-700 hover:bg-brand-600 disabled:bg-stone-200 text-white disabled:text-stone-500 text-sm font-medium rounded-lg py-2 flex items-center justify-center gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               Guardar
             </button>

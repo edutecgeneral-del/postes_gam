@@ -267,7 +267,7 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
             })}
           </div>
           <Pager page={routesSafePage} totalPages={routesTotalPages} total={routes.length}
-                 unitLabel="rutas" onPage={setRoutesPage} />
+                 unitLabel="rutas" onPage={setRoutesPage} className="py-3 mt-1" />
           </>
         )}
       </div>
@@ -515,10 +515,10 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
 // =============================================================================
 // Pager — paginador estilo "Usuarios": contador + ‹ Anterior / Siguiente ›
 // =============================================================================
-function Pager({ page, totalPages, total, unitLabel = 'registros', onPage }) {
+function Pager({ page, totalPages, total, unitLabel = 'registros', onPage, className = 'px-4 py-3' }) {
   if (totalPages <= 1) return null;
   return (
-    <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3">
+    <div className={`flex items-center justify-between gap-3 flex-wrap ${className}`}>
       <div className="text-xs font-mono text-stone-500">
         {total.toLocaleString()} {unitLabel} · Página {page + 1} de {totalPages}
       </div>

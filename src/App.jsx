@@ -2591,7 +2591,6 @@ function readStoredPostsPage() {
 function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerge = false, userNames = {}, incidents = [], onDeletePosts, onMergePosts, readOnly, onCreatePost, onJumpToMap, unidadesTerritoriales = [] }) {
   const { filters } = filterCtx;
   const [search, setSearch] = useState('');
-  const [pageInput, setPageInput] = useState(() => String(readStoredPostsPage() + 1));
   const [viewType, setViewType] = useState('detalle'); // 'pipeline' | 'detalle'
   const [expandedPostId, setExpandedPostId] = useState(null);
   const [selectedForDelete, setSelectedForDelete] = useState(new Set());
@@ -2630,21 +2629,6 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
   useEffect(() => {
     if (page !== safePage) setPage(safePage);
   }, [page, safePage]);
-
-  useEffect(() => {
-    setPageInput(String(safePage + 1));
-  }, [safePage]);
-
-  const commitPageInput = () => {
-    const requestedPage = Number.parseInt(pageInput, 10);
-    if (!Number.isFinite(requestedPage)) {
-      setPageInput(String(safePage + 1));
-      return;
-    }
-    const nextPage = Math.min(totalPages - 1, Math.max(0, requestedPage - 1));
-    setPage(nextPage);
-    setPageInput(String(nextPage + 1));
-  };
 
   const exportCSV = () => {
     const rows = [
@@ -2759,11 +2743,11 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
           {filtered.length.toLocaleString()} resultados
           <div className="flex border border-stone-300 ml-2">
             <button onClick={() => setViewType('pipeline')}
-                    className={`px-2 py-1 text-[12px] font-mono uppercase ${viewType === 'pipeline' ? 'bg-rose-700 text-stone-950' : 'text-stone-500 hover:text-stone-950'}`}>
+                    className={`px-2 py-1 text-[12px] font-mono uppercase ${viewType === 'pipeline' ? 'bg-rose-700 text-rose-50' : 'text-stone-500 hover:text-stone-950'}`}>
               Pipeline
             </button>
             <button onClick={() => setViewType('detalle')}
-                    className={`px-2 py-1 text-[12px] font-mono uppercase ${viewType === 'detalle' ? 'bg-rose-700 text-stone-950' : 'text-stone-500 hover:text-stone-950'}`}>
+                    className={`px-2 py-1 text-[12px] font-mono uppercase ${viewType === 'detalle' ? 'bg-rose-700 text-rose-50' : 'text-stone-500 hover:text-stone-950'}`}>
               Detalle
             </button>
           </div>
@@ -3095,35 +3079,15 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
           <div className="text-xs font-mono text-stone-500">
             {filtered.length.toLocaleString()} postes · Página {safePage + 1} de {totalPages}
           </div>
-          <div className="flex items-center gap-2">
-            <form
-              onSubmit={(e) => { e.preventDefault(); commitPageInput(); }}
-              className="flex items-center gap-1.5"
-            >
-              <label className="text-[11px] font-mono text-stone-500" htmlFor="postes-page-input">Ir a</label>
-              <input
-                id="postes-page-input"
-                type="number"
-                inputMode="numeric"
-                min="1"
-                max={totalPages}
-                value={pageInput}
-                onChange={(e) => setPageInput(e.target.value)}
-                onBlur={commitPageInput}
-                onFocus={(e) => e.currentTarget.select()}
-                className="w-16 px-2 py-1.5 bg-stone-50 border border-stone-300 text-stone-800 text-xs font-mono focus:outline-none focus:border-rose-600/50"
-              />
-            </form>
-            <div className="flex gap-1">
-              <button disabled={safePage === 0} onClick={() => setPage(Math.max(0, safePage - 1))}
-                      className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-600/50 hover:text-rose-500 disabled:opacity-30 text-xs font-mono">
-                <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.5} />
-              </button>
-              <button disabled={safePage >= totalPages - 1} onClick={() => setPage(Math.min(totalPages - 1, safePage + 1))}
-                      className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-rose-600/50 hover:text-rose-500 disabled:opacity-30 text-xs font-mono">
-                <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.5} />
-              </button>
-            </div>
+          <div className="flex gap-1">
+            <button type="button" disabled={safePage === 0} onClick={() => setPage(Math.max(0, safePage - 1))}
+                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-brand-600 hover:text-brand-600 disabled:opacity-30 text-xs font-mono flex items-center gap-1 rounded">
+              <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.5} /> Anterior
+            </button>
+            <button type="button" disabled={safePage >= totalPages - 1} onClick={() => setPage(Math.min(totalPages - 1, safePage + 1))}
+                    className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-brand-600 hover:text-brand-600 disabled:opacity-30 text-xs font-mono flex items-center gap-1 rounded">
+              Siguiente <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </button>
           </div>
         </div>
       )}
@@ -5443,13 +5407,13 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500" strokeWidth={1.5}/>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar poste, reportó, nota…"
-                 className="w-full bg-stone-100/60 border border-stone-300 pl-9 pr-3 py-2 text-sm text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-rose-600/50" />
+                 className="w-full bg-stone-100/60 border border-stone-300 pl-9 pr-3 py-1.5 text-sm text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-rose-600/50" />
         </div>
         <div className="flex border border-stone-300">
           {['abierta', 'atendida', 'resuelta', 'todas'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
                     className={`px-4 py-2 text-xs font-mono uppercase tracking-widest ${
-                      filter === f ? 'bg-rose-700 text-stone-950' : 'text-stone-600 hover:bg-stone-50'
+                      filter === f ? 'bg-rose-700 text-rose-50' : 'text-stone-600 hover:bg-stone-50'
                     }`}>{f}</button>
           ))}
         </div>
@@ -7877,7 +7841,7 @@ export default function FieldCoordApp() {
             {/* Admin: Ver como otro rol */}
             {realIsAdmin && (
               <select value={viewAsRole || ''} onChange={e => { setViewAsRole(e.target.value || null); setActiveTab('dashboard'); }}
-                className="bg-stone-100 border border-stone-300 text-stone-700 text-[10px] font-mono rounded px-1.5 py-1.5 focus:outline-none max-w-[100px] md:max-w-none"
+                className="bg-stone-100 border border-stone-300 text-stone-700 text-[10px] font-mono rounded h-7 px-1.5 focus:outline-none max-w-[100px] md:max-w-none"
                 title="Ver como otro rol">
                 <option value="">👁 Admin</option>
                 <option value="capturador">👁 Capturador</option>
@@ -7892,12 +7856,12 @@ export default function FieldCoordApp() {
             {/* Simulando badge */}
             {viewAsRole && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-mono font-bold hidden sm:inline">SIMULANDO</span>}
 
-            <div className="hidden md:flex items-center gap-2 px-2 py-1 border border-stone-300 font-mono text-[11px] uppercase tracking-widest text-stone-500">
+            <div className="hidden md:flex items-center gap-2 h-7 px-2 border border-stone-300 rounded font-mono text-[11px] uppercase tracking-widest text-stone-500">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Sync
             </div>
 
-            <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 border border-stone-300 text-[11px] font-mono">
+            <div className="hidden sm:flex items-center gap-1.5 h-7 px-2 border border-stone-300 rounded text-[11px] font-mono">
               <span className={`px-1.5 py-0.5 text-[10px] uppercase tracking-wider rounded-full font-bold ${
                 isAdmin ? 'bg-rose-700/20 text-rose-500'
                 : isDirector ? 'bg-purple-500/20 text-purple-400'
@@ -7910,24 +7874,24 @@ export default function FieldCoordApp() {
             </div>
 
             <button onClick={() => setShowWhatsApp(true)}
-                    className="hidden sm:flex items-center gap-1 px-2 py-1.5 border border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 text-[11px] font-mono uppercase tracking-widest transition-colors">
+                    className="hidden sm:flex items-center gap-1 h-7 px-2 border border-emerald-500/40 rounded text-emerald-500 hover:bg-emerald-500/10 text-[11px] font-mono uppercase tracking-widest transition-colors">
               <Send className="w-3 h-3" strokeWidth={2}/>
               <span className="hidden md:inline">WA</span>
             </button>
 
             <button onClick={() => refreshData(false)} disabled={refreshing}
-                    className={`p-1.5 border border-stone-300 text-stone-600 hover:text-rose-500 transition-colors rounded ${refreshing ? 'animate-spin text-rose-400' : ''}`}
+                    className={`h-7 w-7 flex items-center justify-center border border-stone-300 text-stone-600 hover:text-rose-500 transition-colors rounded ${refreshing ? 'animate-spin text-rose-400' : ''}`}
                     title={lastRefresh ? `Última actualización: ${new Date(lastRefresh).toLocaleTimeString('es-MX')}` : 'Recargar datos'}>
               <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.5} />
             </button>
 
             <button onClick={toggleDarkMode}
-                    className="p-1.5 border border-stone-300 text-stone-600 hover:text-rose-500 transition-colors rounded" title={darkMode ? 'Modo claro' : 'Modo oscuro'}>
+                    className="h-7 w-7 flex items-center justify-center border border-stone-300 text-stone-600 hover:text-rose-500 transition-colors rounded" title={darkMode ? 'Modo claro' : 'Modo oscuro'}>
               {darkMode ? <Sun className="w-3.5 h-3.5" strokeWidth={1.5} /> : <Moon className="w-3.5 h-3.5" strokeWidth={1.5} />}
             </button>
 
             <button onClick={handleLogout}
-                    className="p-1.5 text-stone-500 hover:text-red-400 transition-colors" title="Cerrar sesión">
+                    className="h-7 w-7 flex items-center justify-center text-stone-500 hover:text-red-400 transition-colors rounded" title="Cerrar sesión">
               <LogOut className="w-3.5 h-3.5" strokeWidth={1.5} />
             </button>
           </div>
