@@ -62,7 +62,7 @@ export default function PostFusionHistory({ postId, canView, refreshKey }) {
             <div className="mt-1 text-[11px] text-stone-400">
               {formatFull(f.fusionado_at)}
               {f.fusionado_por ? (
-                <span className="ml-2 font-mono" title={f.fusionado_por}>- {f.fusionado_por.slice(0, 8)}...</span>
+                <span className="ml-2 font-semibold text-amber-800" title={f.fusionado_por}>- por {f.fusionado_por_nombre || f.fusionado_por.slice(0, 8)}</span>
               ) : null}
             </div>
           </li>

@@ -1407,7 +1407,7 @@ export async function dbMergePosts(principalId, secundarioId, stageChoices, keep
 export async function listFusiones(postId) {
   const sb = requireSupabase();
   const { data, error } = await sb
-    .from('post_fusiones')
+    .from('post_fusiones_named')
     .select('*')
     .eq('principal_id', postId)
     .order('fusionado_at', { ascending: false });
