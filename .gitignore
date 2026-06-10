@@ -12,6 +12,8 @@ patch_*.py
 integra_*.py
 geo.py
 EOF
+memory/
+CLAUDE_CONTEXT.md
 # Respaldo de .env (credenciales) y artefactos de build
 .env.bak
 *.bak
