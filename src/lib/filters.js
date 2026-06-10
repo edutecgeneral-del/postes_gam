@@ -89,8 +89,10 @@ export function matchesFilters(post, filters, stageDefs, mode = 'map', incidents
   }
 
   // Mantenimiento / pendientes especiales (E4) -----------------------
-  if (filters.maint === 'con_modem') {
-    // Lleva módem = E5 (internet) hecha con tipo_modem registrado
+if (filters.maint === 'antena_recuperada') {
+    // Antenas ya recuperadas (post.antenaRecuperada = true)
+    if (!post.antenaRecuperada) return false;
+  } else if (filters.maint === 'con_modem') {  // Lleva módem = E5 (internet) hecha con tipo_modem registrado
     if (!post.stages?.internet?.done) return false;
     if (!String(post.stages?.internet?.attrs?.tipo_modem || '').trim()) return false;
   } else if (filters.maint === 'sin_modem') {
@@ -242,7 +244,7 @@ export function computeCounts(posts, filters, stageDefs, mode = 'map', incidents
 
   // maint (faltan cámaras / falta silicón / poste 13m)
   const filtersWithoutMaint = { ...filters, maint: null };
-  for (const m of ['falta_camaras', 'falta_silicon', 'poste_13m', 'reubicados', 'boton_panico', 'revisados', 'no_revisados', 'con_modem', 'sin_modem', 'internet_futuro']) {
+  for (const m of ['falta_camaras', 'falta_silicon', 'poste_13m', 'reubicados', 'boton_panico', 'revisados', 'no_revisados', 'con_modem', 'sin_modem', 'internet_futuro', 'antena_recuperada']) {
     counts.maint[m] = posts.filter(p =>
       matchesFilters(p, { ...filtersWithoutMaint, maint: m }, stageDefs, mode, incidents)
     ).length;
@@ -264,7 +266,7 @@ export function computeCounts(posts, filters, stageDefs, mode = 'map', incidents
 // URL params encoding/decoding
 // ============================================================================
 
-const MAINT_VALUES = ['falta_camaras', 'falta_silicon', 'poste_13m', 'reubicados', 'boton_panico', 'revisados', 'no_revisados', 'internet_futuro'];
+const MAINT_VALUES = ['falta_camaras', 'falta_silicon', 'poste_13m', 'reubicados', 'boton_panico', 'revisados', 'no_revisados', 'con_modem', 'sin_modem', 'internet_futuro', 'antena_recuperada'];
 const URL_KEYS = ['stages', 'uts', 'capturadores', 'tags', 'verified', 'maint', 'incType', 'createdFrom', 'createdTo', 'modFrom', 'modTo'];
 
 export function paramsToFilters(searchParams) {

@@ -445,6 +445,13 @@ export function FilterBar({
             activeClass="bg-orange-50 border-orange-400 text-orange-700 hover:border-orange-500"
           />
           <ToggleChip
+            label="🛰️ Antena recuperada"
+            count={counts.maint?.antena_recuperada || 0}
+            active={filters.maint === 'antena_recuperada'}
+            onToggle={() => toggleMaint('antena_recuperada')}
+            activeClass="bg-teal-50 border-teal-400 text-teal-700 hover:border-teal-500"
+          />
+          <ToggleChip
             label="📡 Internet futuro"
             count={counts.maint?.internet_futuro || 0}
             active={filters.maint === 'internet_futuro'}

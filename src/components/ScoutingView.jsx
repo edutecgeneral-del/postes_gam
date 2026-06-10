@@ -125,7 +125,7 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
     try {
       const data = await loadScoutingRoutes();
       // Scout solo ve las suyas
-      const filtered = isAdmin ? data : data.filter(r => r.scout_id === profile?.userId);
+      const filtered = isAdmin ? data : data.filter(r => r.scout_id === profile?.userId || (r.operator_ids || []).includes(profile?.userId));
       setRoutes(filtered);
     } catch (e) { console.error('loadRoutes', e); }
     setLoading(false);
@@ -328,7 +328,7 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
     return pendientes.filter(p => p.id.toLowerCase().includes(q) || (p.direccion||'').toLowerCase().includes(q));
   }, [pendientes, search]);
 
-  const isScout = profile?.userId === route.scout_id;
+  const isScout = profile?.userId === route.scout_id || (route.operator_ids || []).includes(profile?.userId);
   const nextType = MAINT_NEXT[route.route_type];
   const allDone = !loading && routePosts.length > 0 && pendientes.length === 0;
 
