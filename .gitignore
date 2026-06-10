@@ -14,6 +14,8 @@ geo.py
 EOF
 memory/
 CLAUDE_CONTEXT.md
+.idea/
+.claude/
 # Respaldo de .env (credenciales) y artefactos de build
 .env.bak
 *.bak
