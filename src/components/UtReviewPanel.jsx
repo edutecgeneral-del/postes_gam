@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { assignIpsToPost } from '../lib/data.js';
 
 const EQUIPOS = [
@@ -25,6 +25,23 @@ export default function UtReviewPanel({ ut, posts, onClose, onPostClick, onChang
   const [expandedEquipos, setExpandedEquipos] = useState(new Set());
   const [savingIps, setSavingIps] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [utPolygonGeom, setUtPolygonGeom] = useState(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(null);
+
+  // Cargar poligono de la UT cuando entre a modo preview
+  useEffect(() => {
+    if (viewMode !== 'preview' || utPolygonGeom || !ut?.nombre) return;
+    const norm = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+    const target = norm(ut.nombre);
+    fetch(`${import.meta.env.BASE_URL}ut_boundaries.geojson`)
+      .then(r => r.ok ? r.json() : null)
+      .then(gj => {
+        if (!gj) return;
+        const match = (gj.features || []).find(ft => norm(ft.properties?.nombre_uat) === target);
+        if (match) setUtPolygonGeom(match.geometry);
+      })
+      .catch(err => console.error('Error cargando poligono UT:', err));
+  }, [viewMode, ut?.nombre, utPolygonGeom])
 
   if (!ut) return null;
 
@@ -159,18 +176,23 @@ export default function UtReviewPanel({ ut, posts, onClose, onPostClick, onChang
   const goToEquiposMode = () => {
     const initial = { ...equiposByPost };
     Array.from(selectedE4Ids).forEach(postId => {
-      if (!initial[postId]) {
-        // Pre-poblar con datos existentes en E6 si los hay
-        const postObj = posts.find(p => p.id === postId);
-        const existing = postObj?.stages?.conexion_poste?.attrs?.equipos || {};
-        initial[postId] = {};
-        EQUIPOS.forEach(eq => {
-          const existingData = existing[eq.key];
-          initial[postId][eq.key] = existingData
+      // SIEMPRE refrescar con datos frescos de BD (no condicional)
+      // Esto asegura que al re-editar IPs, se vean los valores guardados actuales
+      const postObj = posts.find(p => p.id === postId);
+      const existing = postObj?.stages?.conexion_poste?.attrs?.equipos || {};
+      // Si ya hay datos locales editados pero no guardados, preservarlos
+      const localData = initial[postId] || {};
+      initial[postId] = {};
+      EQUIPOS.forEach(eq => {
+        const existingData = existing[eq.key];
+        const local = localData[eq.key];
+        // Preferir datos locales (en edicion) si existen, sino datos de BD
+        initial[postId][eq.key] = local && (local.ip || local.no_instalado)
+          ? local
+          : existingData
             ? { ip: existingData.ip || '', no_instalado: existingData.no_instalado || false, motivo: existingData.motivo || '' }
             : { ip: '', no_instalado: false, motivo: '' };
-        });
-      }
+      });
     });
     Object.keys(initial).forEach(postId => {
       if (!selectedE4Ids.has(postId)) delete initial[postId];
@@ -236,16 +258,10 @@ export default function UtReviewPanel({ ut, posts, onClose, onPostClick, onChang
       }
       // Refrescar data global
       if (onRefresh) await onRefresh();
-      // Limpiar estado y volver a modo review
-      const totalAsignados = Object.keys(equiposByPost).length;
-      setSelectedModem(null);
-      setSelectedE4Ids(new Set());
-      setEquiposByPost({});
-      setExpandedPosts(new Set());
-      setExpandedEquipos(new Set());
+      // Mostrar modal custom de exito (la limpieza ocurre al cerrar el modal)
+      const postIds = Object.keys(equiposByPost);
       setSavingIps(false);
-      setViewMode('review');
-      alert('✅ IPs asignadas correctamente.\n\n' + totalAsignados + ' poste(s) E4 pasaron a E6.');
+      setShowSuccessDialog({ posts: postIds });
     } catch (err) {
       console.error('Error al asignar IPs:', err);
       setSaveError(err.message || 'Error desconocido al guardar');
@@ -260,10 +276,51 @@ export default function UtReviewPanel({ ut, posts, onClose, onPostClick, onChang
     return !!(e6.attrs?.modem_origen);
   };
 
+  // Handler para cerrar el dialog de exito y limpiar todo
+  const handleSuccessDialogClose = () => {
+    setShowSuccessDialog(null);
+    setSelectedModem(null);
+    setSelectedE4Ids(new Set());
+    setEquiposByPost({});
+    setExpandedPosts(new Set());
+    setExpandedEquipos(new Set());
+    setUtPolygonGeom(null);
+    setViewMode('review');
+  };
+
   // =====================================================================
   // MODO PREVIEW: vista previa con mini mapa + desglose
   // =====================================================================
   if (viewMode === 'preview' && selectedModem) {
+    if (showSuccessDialog) {
+      return (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={handleSuccessDialogClose}>
+          <div className="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 bg-emerald-100 rounded-full inline-flex items-center justify-center mb-3">
+              <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#1D9E75" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <h3 className="text-base font-medium text-stone-800 mb-1">¡Listo!</h3>
+            <p className="text-sm text-stone-600 mb-3">
+              {showSuccessDialog.posts.length === 1 ? <>El poste pasó de <strong>E4</strong> a <strong>E6</strong></> : <><strong>{showSuccessDialog.posts.length}</strong> postes pasaron de <strong>E4</strong> a <strong>E6</strong></>}.
+            </p>
+            <ul className="bg-emerald-50 border border-emerald-200 rounded-md py-2 px-3 mb-5 text-left max-h-40 overflow-y-auto">
+              {showSuccessDialog.posts.map(id => (
+                <li key={id} className="flex items-center gap-2 py-0.5 text-sm">
+                  <span className="text-emerald-600">•</span>
+                  <span className="font-mono text-emerald-800">{id}</span>
+                </li>
+              ))}
+            </ul>
+            <button onClick={handleSuccessDialogClose}
+              className="w-full px-6 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors">
+              Aceptar
+            </button>
+          </div>
+        </div>
+      );
+    }
     const tipoModemSel = selectedModem.stages?.internet?.attrs?.tipo_modem || '';
     // Postes E4 que van a recibir asignacion (solo los que tienen IPs o no_instalado)
     const e4ConAsignacion = Object.keys(equiposByPost).filter(postId => {
@@ -271,61 +328,101 @@ export default function UtReviewPanel({ ut, posts, onClose, onPostClick, onChang
       return Object.values(eqs).some(d => d.no_instalado || (d.ip && d.ip.trim()));
     }).map(pid => posts.find(p => p.id === pid)).filter(Boolean);
 
-    // Calcular bounds para el mini mapa
+    // Extraer puntos del poligono UT para bounds
+    const polyPoints = [];
+    if (utPolygonGeom) {
+      const collectRings = (rings) => rings.forEach(ring => ring.forEach(([lng, lat]) => polyPoints.push({ lat, lng })));
+      if (utPolygonGeom.type === 'Polygon') collectRings(utPolygonGeom.coordinates);
+      else if (utPolygonGeom.type === 'MultiPolygon') utPolygonGeom.coordinates.forEach(poly => collectRings(poly));
+    }
+
+    // Calcular bounds (poligono + postes)
     const allPoints = [selectedModem, ...e4ConAsignacion].filter(p => typeof p.lat === 'number' && typeof p.lng === 'number');
+    const boundPoints = polyPoints.length > 0 ? [...polyPoints, ...allPoints] : allPoints;
     let svgContent = null;
     if (allPoints.length > 0) {
-      const lats = allPoints.map(p => p.lat);
-      const lngs = allPoints.map(p => p.lng);
+      const lats = boundPoints.map(p => p.lat);
+      const lngs = boundPoints.map(p => p.lng);
       const minLat = Math.min(...lats);
       const maxLat = Math.max(...lats);
       const minLng = Math.min(...lngs);
       const maxLng = Math.max(...lngs);
       const dLat = (maxLat - minLat) || 0.001;
       const dLng = (maxLng - minLng) || 0.001;
-      const W = 480, H = 260, PAD = 40;
+      const W = 480, H = 260, PAD = 30;
       const project = (lat, lng) => {
         const x = PAD + ((lng - minLng) / dLng) * (W - PAD * 2);
         const y = PAD + ((maxLat - lat) / dLat) * (H - PAD * 2);
         return [x, y];
       };
       const [mx, my] = project(selectedModem.lat, selectedModem.lng);
+
+      // Construir paths del poligono UT
+      const polyPaths = [];
+      if (utPolygonGeom) {
+        const ringToPath = (ring) => {
+          if (!ring || ring.length === 0) return '';
+          const cmds = ring.map(([lng, lat], i) => {
+            const [x, y] = project(lat, lng);
+            return (i === 0 ? 'M ' : 'L ') + x.toFixed(2) + ' ' + y.toFixed(2);
+          });
+          return cmds.join(' ') + ' Z';
+        };
+        if (utPolygonGeom.type === 'Polygon') {
+          polyPaths.push(utPolygonGeom.coordinates.map(ringToPath).join(' '));
+        } else if (utPolygonGeom.type === 'MultiPolygon') {
+          utPolygonGeom.coordinates.forEach(poly => polyPaths.push(poly.map(ringToPath).join(' ')));
+        }
+      }
+
       svgContent = (
         <svg viewBox={`0 0 ${W} ${H}`} width="100%" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
           <defs>
             <marker id="arr-indigo" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto">
-              <path d="M 0 0 L 8 4 L 0 8 z" fill="#7F77DD" />
+              <path d="M 0 0 L 8 4 L 0 8 z" fill="#534AB7" />
             </marker>
+            <pattern id="grid-bg" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(0,0,0,0.04)" strokeWidth="1"/>
+            </pattern>
           </defs>
-          <rect x="0" y="0" width={W} height={H} fill="#1a1a1a" />
+          <rect x="0" y="0" width={W} height={H} fill="#fafafa" />
+          <rect x="0" y="0" width={W} height={H} fill="url(#grid-bg)" />
+          {/* Poligono UT */}
+          {polyPaths.map((d, i) => (
+            <path key={'poly-' + i} d={d} fill="#EEEDFE" fillOpacity="0.55" stroke="#7F77DD" strokeWidth="1.5" strokeDasharray="4 3" />
+          ))}
+          {/* Etiqueta de UT */}
+          {polyPaths.length > 0 && (
+            <text x={W/2} y={20} textAnchor="middle" fontSize="10" fill="#7F77DD" fontWeight="500" opacity="0.7">UT {ut.id}{ut.nombre ? ' · ' + ut.nombre : ''}</text>
+          )}
           {/* Flechas */}
           {e4ConAsignacion.map(e4 => {
             if (typeof e4.lat !== 'number' || typeof e4.lng !== 'number') return null;
             const [ex, ey] = project(e4.lat, e4.lng);
-            return <line key={'l-' + e4.id} x1={mx} y1={my} x2={ex} y2={ey} stroke="#7F77DD" strokeWidth="2" markerEnd="url(#arr-indigo)" opacity="0.85" />;
+            return <line key={'l-' + e4.id} x1={mx} y1={my} x2={ex} y2={ey} stroke="#534AB7" strokeWidth="2" markerEnd="url(#arr-indigo)" opacity="0.85" />;
           })}
           {/* Modem (encima de lineas) */}
-          <circle cx={mx} cy={my} r="12" fill="#7F77DD" stroke="#EEEDFE" strokeWidth="2.5" />
+          <circle cx={mx} cy={my} r="12" fill="#534AB7" stroke="white" strokeWidth="2.5" />
           <text x={mx} y={my + 4} textAnchor="middle" fontSize="11" fill="white" fontWeight="bold">M</text>
-          <text x={mx} y={my + 26} textAnchor="middle" fontSize="10" fill="#AFA9EC">{selectedModem.id}</text>
+          <text x={mx} y={my + 26} textAnchor="middle" fontSize="10" fill="#3C3489" fontWeight="500">{selectedModem.id}</text>
           {/* E4s */}
           {e4ConAsignacion.map(e4 => {
             if (typeof e4.lat !== 'number' || typeof e4.lng !== 'number') return null;
             const [ex, ey] = project(e4.lat, e4.lng);
             return (
               <g key={'p-' + e4.id}>
-                <circle cx={ex} cy={ey} r="8" fill="#EEEDFE" stroke="#7F77DD" strokeWidth="1.5" />
-                <text x={ex} y={ey + 22} textAnchor="middle" fontSize="10" fill="#AFA9EC">{e4.id}</text>
+                <circle cx={ex} cy={ey} r="8" fill="white" stroke="#534AB7" strokeWidth="2" />
+                <text x={ex} y={ey + 22} textAnchor="middle" fontSize="10" fill="#3C3489" fontWeight="500">{e4.id}</text>
               </g>
             );
           })}
-          <text x={W / 2} y={H - 8} textAnchor="middle" fontSize="9" fill="#888780">UT {ut.id} · Modem {selectedModem.id} → {e4ConAsignacion.length} E4</text>
+          <text x={W / 2} y={H - 6} textAnchor="middle" fontSize="9" fill="#888">Modem {selectedModem.id} → {e4ConAsignacion.length} E4</text>
         </svg>
       );
     }
 
     return (
-      <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-sm border border-stone-300 rounded-lg shadow-2xl z-30 w-[540px] max-w-[92vw] flex flex-col"
+      <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-white backdrop-blur-sm border border-stone-300 rounded-lg shadow-2xl z-30 w-[540px] max-w-[92vw] flex flex-col"
         style={{ maxHeight: "calc(100vh - 140px)" }}>
         <div className="p-3 border-b border-stone-200 flex flex-col gap-2">
           <div className="flex items-start justify-between gap-2">
@@ -344,7 +441,7 @@ export default function UtReviewPanel({ ut, posts, onClose, onPostClick, onChang
         <div className="flex-1 overflow-y-auto min-h-0">
           {/* Mini mapa */}
           {svgContent && (
-            <div className="bg-stone-900 p-2">{svgContent}</div>
+            <div className="bg-stone-50 p-2 border-y border-stone-200">{svgContent}</div>
           )}
 
           {/* Desglose */}
@@ -434,7 +531,7 @@ export default function UtReviewPanel({ ut, posts, onClose, onPostClick, onChang
     const puedeContinuar = completados > 0 && !hayConflictos && !hayFormatosMalos;
 
     return (
-      <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-sm border border-stone-300 rounded-lg shadow-2xl z-30 w-[520px] max-w-[92vw] flex flex-col"
+      <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-white backdrop-blur-sm border border-stone-300 rounded-lg shadow-2xl z-30 w-[520px] max-w-[92vw] flex flex-col"
         style={{ maxHeight: "calc(100vh - 140px)" }}>
         <div className="p-3 border-b border-stone-200 flex flex-col gap-2">
           <div className="flex items-start justify-between gap-2">
@@ -613,7 +710,7 @@ export default function UtReviewPanel({ ut, posts, onClose, onPostClick, onChang
     }).length;
 
     return (
-      <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-sm border border-stone-300 rounded-lg shadow-2xl z-30 w-[500px] max-w-[92vw] flex flex-col"
+      <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-white backdrop-blur-sm border border-stone-300 rounded-lg shadow-2xl z-30 w-[500px] max-w-[92vw] flex flex-col"
         style={{ maxHeight: "calc(100vh - 140px)" }}>
         <div className="p-3 border-b border-stone-200 flex flex-col gap-2">
           <div className="flex items-start justify-between gap-2">
@@ -703,7 +800,7 @@ export default function UtReviewPanel({ ut, posts, onClose, onPostClick, onChang
   // =====================================================================
   if (viewMode === 'modem') {
     return (
-      <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-sm border border-stone-300 rounded-lg shadow-2xl z-30 w-[480px] max-w-[92vw] flex flex-col"
+      <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-white backdrop-blur-sm border border-stone-300 rounded-lg shadow-2xl z-30 w-[480px] max-w-[92vw] flex flex-col"
         style={{ maxHeight: "calc(100vh - 140px)" }}>
         <div className="p-3 border-b border-stone-200 flex flex-col gap-2">
           <div className="flex items-start justify-between gap-2">
@@ -763,7 +860,7 @@ export default function UtReviewPanel({ ut, posts, onClose, onPostClick, onChang
   // MODO REVIEW (default) - con leyenda IP ASIGNADA
   // =====================================================================
   return (
-    <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-sm border border-stone-300 rounded-lg shadow-2xl z-30 w-[480px] max-w-[92vw] flex flex-col"
+    <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-white backdrop-blur-sm border border-stone-300 rounded-lg shadow-2xl z-30 w-[480px] max-w-[92vw] flex flex-col"
       style={{ maxHeight: "calc(100vh - 140px)" }}>
       <div className="p-3 border-b border-stone-200 flex flex-col gap-2">
         <div className="flex items-start justify-between gap-2">
