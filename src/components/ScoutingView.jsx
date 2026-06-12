@@ -35,6 +35,7 @@ const RESULT_LABELS = {
 const ROUTE_TYPE_LABELS = {
   avanzada_internet: { label: 'Avanzada Internet', emoji: '🌐', color: 'text-blue-600', bg: 'bg-blue-100' },
   recuperacion_antena: { label: 'Recuperación de Antena', emoji: '🛰️', color: 'text-teal-700', bg: 'bg-teal-100' },
+  instalacion_camaras: { label: 'Instalación de cámaras', emoji: '📷', color: 'text-pink-700', bg: 'bg-pink-100' },
   correcciones: { label: 'Correcciones', emoji: '🔧', color: 'text-orange-600', bg: 'bg-orange-100' },
   reubicaciones: { label: 'Reubicaciones', emoji: '📍', color: 'text-purple-600', bg: 'bg-purple-100' },
   m1_mantenimiento: { label: 'M1 Mantenimiento', emoji: '🔧', color: 'text-cyan-700', bg: 'bg-cyan-100' },
@@ -1312,7 +1313,15 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
 
   const filteredPosts = useMemo(() => {
     let source = posts;
-    if (routeType === 'recuperacion_antena') {
+    if (routeType === 'instalacion_camaras') {
+      // Falta instalación de cámaras = E4 (camaras) no hecha
+      const base = posts.filter(p => !p.stages?.camaras?.done);
+      source = showAllPosts ? [...posts] : base;
+    } else if (routeType === 'instalacion_camaras') {
+      // Falta instalación de cámaras = E4 (camaras) no hecha
+      const base = posts.filter(p => !p.stages?.camaras?.done);
+      source = showAllPosts ? [...posts] : base;
+    } else if (routeType === 'recuperacion_antena') {
       // Recuperación de antena: postes con E5 (internet) completado y E6 (conexión) pendiente
       source = showAllPosts
         ? [...posts].sort((a, b) => {
@@ -1412,6 +1421,7 @@ function CreateRouteModal({ posts, incidents, isCoordinador, onSelectPost, onClo
                 const info = {
                   avanzada_internet: { desc: 'Verificar avance antes de instalar internet', filter: '📋 Postes sin internet' },
                   recuperacion_antena: { desc: 'Recuperar antenas (Etapa 6), similar a Avanzada Internet', filter: '📋 Postes sin internet' },
+                  instalacion_camaras: { desc: 'Postes que les falta instalar cámaras (Etapa 4)', filter: '📷 Postes sin cámaras' },
                   correcciones: { desc: 'Re-verificar postes con problemas reportados', filter: '⚠️ Postes con incidencias' },
                   reubicaciones: { desc: 'Evaluar si un poste necesita moverse', filter: '📌 Todos los postes' },
                 }[key] || {};

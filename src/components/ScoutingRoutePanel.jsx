@@ -25,6 +25,7 @@ const ETAPA_OPTS = ['marca', 'dado', 'parado', 'camaras', 'internet', 'conexion_
 const ROUTE_TYPES = [
   { id: 'avanzada_internet', label: '🌐 Avanzada Internet' },
   { id: 'recuperacion_antena', label: '🛰️ Recuperación de Antena' },
+  { id: 'instalacion_camaras', label: '📷 Instalación de cámaras' },
   { id: 'correcciones', label: '🔧 Correcciones' },
   { id: 'reubicaciones', label: '📍 Reubicaciones' },
   { id: 'm1_mantenimiento', label: '🔧 M1 Mantenimiento' },
