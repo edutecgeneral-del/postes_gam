@@ -1494,3 +1494,47 @@ export async function updatePostEstadoVerificacion(postId, estado) {
   if (error) throw error;
   return data;
 }
+
+// ============================================================================
+// IP Assignment (E4 -> E6) — Fase 5
+// ============================================================================
+
+/**
+ * Asignar IPs a equipos de un poste E4 (lo conecta a un modem y lo pasa a E6).
+ *
+ * @param {string} postId - ID del poste E4 que recibira las IPs
+ * @param {string} modemPostId - ID del poste modem origen (E5)
+ * @param {object} equipos - { antena_5ac: { ip, no_instalado, motivo }, ... }
+ * @returns {Promise<object>} Resultado de la asignacion
+ */
+export async function assignIpsToPost(postId, modemPostId, equipos) {
+  if (!hasSupabase()) {
+    throw new Error('Supabase no configurado');
+  }
+  const sb = getSupabase();
+  const { data, error } = await sb.rpc('assign_ips_to_post', {
+    p_post_id: postId,
+    p_modem_post_id: modemPostId,
+    p_equipos: equipos,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Desasignar IPs de un poste E4 (lo desconecta del modem).
+ *
+ * @param {string} postId - ID del poste E4
+ * @returns {Promise<object>} Resultado
+ */
+export async function unassignIpsFromPost(postId) {
+  if (!hasSupabase()) {
+    throw new Error('Supabase no configurado');
+  }
+  const sb = getSupabase();
+  const { data, error } = await sb.rpc('unassign_ips_from_post', {
+    p_post_id: postId,
+  });
+  if (error) throw error;
+  return data;
+}
