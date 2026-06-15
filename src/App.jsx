@@ -771,7 +771,7 @@ function readStoredMapView() {
   return null;
 }
 
-function MapView({ posts, setPosts, selectedPost, setSelectedPost, filters, onCapturePost, stageDefs, darkMode,
+function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetail, filters, onCapturePost, stageDefs, darkMode,
                    measureMode = false, setMeasureMode, measurePoints = [], setMeasurePoints,
                    editingPostId, onConfirmRelocate, onCancelRelocate,
                    addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, canMerge = false, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado }) {
@@ -1896,9 +1896,10 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, filters, onCa
       {reviewUt && (
         <UtReviewPanel
           ut={reviewUt}
+          stageDefs={STAGE_DEFS}
           posts={(posts || []).filter(p => p.unidad_territorial === reviewUt.id)}
           onClose={() => setReviewUt(null)}
-          onPostClick={null}
+          onPostClick={(post, stageId) => { setReviewUt(null); openPostDetail(post, stageId || null); }}
           onIrAlPunto={(post) => {
             if (typeof post.lng === 'number' && typeof post.lat === 'number' && mapRef.current) {
               mapRef.current.getView().animate({
@@ -7973,7 +7974,7 @@ export default function FieldCoordApp() {
                 </div>
               </div>
               <div className="flex-1 p-4">
-                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} filters={filters} incidents={incidents} userNames={userNames}
+                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} openPostDetail={openPostDetail} filters={filters} incidents={incidents} userNames={userNames}
                          stageDefs={STAGE_DEFS} darkMode={darkMode}
                          measureMode={measureMode} setMeasureMode={setMeasureMode}
                          measurePoints={measurePoints} setMeasurePoints={setMeasurePoints}

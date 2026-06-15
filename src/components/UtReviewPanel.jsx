@@ -15,7 +15,12 @@ const isValidIpFormat = (ip) => {
   return /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip.trim());
 };
 
-export default function UtReviewPanel({ ut, posts, onClose, onPostClick, onChangeEstado, onIrAlPunto, onRefresh }) {
+const FASE_FISICA = ['marca', 'dado', 'parado', 'camaras'];
+const FASE_FISICA_LABEL = { marca: 'Marca', dado: 'Dado', parado: 'Parado', camaras: 'Camaras' };
+const etapasFisicasPendientes = (post) =>
+  FASE_FISICA.filter(s => !post?.stages?.[s]?.done);
+
+export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostClick, onChangeEstado, onIrAlPunto, onRefresh }) {
   const [savingId, setSavingId] = useState(null);
   const [viewMode, setViewMode] = useState('review');
   const [selectedModem, setSelectedModem] = useState(null);
@@ -27,6 +32,7 @@ export default function UtReviewPanel({ ut, posts, onClose, onPostClick, onChang
   const [saveError, setSaveError] = useState(null);
   const [utPolygonGeom, setUtPolygonGeom] = useState(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(null);
+  const [pendientesWarning, setPendientesWarning] = useState(null);
 
   // Cargar poligono de la UT cuando entre a modo preview
   useEffect(() => {
@@ -174,6 +180,19 @@ export default function UtReviewPanel({ ut, posts, onClose, onPostClick, onChang
   };
 
   const goToEquiposMode = () => {
+    const conPendientes = Array.from(selectedE4Ids)
+      .map(id => posts.find(p => p.id === id))
+      .filter(Boolean)
+      .map(p => ({ id: p.id, pendientes: etapasFisicasPendientes(p) }))
+      .filter(x => x.pendientes.length > 0);
+    if (conPendientes.length > 0) {
+      setPendientesWarning(conPendientes);
+      return;
+    }
+    proceedToEquipos();
+  };
+
+  const proceedToEquipos = () => {
     const initial = { ...equiposByPost };
     Array.from(selectedE4Ids).forEach(postId => {
       // SIEMPRE refrescar con datos frescos de BD (no condicional)
@@ -291,6 +310,43 @@ export default function UtReviewPanel({ ut, posts, onClose, onPostClick, onChang
   // =====================================================================
   // MODO PREVIEW: vista previa con mini mapa + desglose
   // =====================================================================
+  if (pendientesWarning) {
+    return (
+      <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setPendientesWarning(null)}>
+        <div className="bg-white rounded-lg shadow-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-11 h-11 rounded-full bg-amber-100 inline-flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+            <div>
+              <div className="text-base font-medium text-stone-800">Etapas pendientes</div>
+              <div className="text-xs text-stone-500">Antes de pasar a la fase de red (IPs)</div>
+            </div>
+          </div>
+          <p className="text-sm text-stone-600 mb-3">
+            Estos postes tienen etapas fisicas (E1-E4) sin marcar. Puedes continuar, pero conviene revisarlas:
+          </p>
+          <div className="max-h-48 overflow-y-auto rounded border border-amber-200 bg-amber-50 divide-y divide-amber-100 mb-4">
+            {pendientesWarning.map(item => (
+              <div key={item.id} className="px-3 py-2 text-sm">
+                <span onClick={() => { const p = posts.find(x => x.id === item.id); if (p && onPostClick) onPostClick(p, item.pendientes[0]); }} className="font-medium text-amber-900 cursor-pointer hover:underline" title="Ver detalle y revisar etapa">{item.id}</span>
+                <span className="text-amber-700"> - falta: {item.pendientes.map(s => { const d = stageDefs?.find(x => x.id === s); return d ? ('E' + d.num + ' ' + d.name) : s; }).join(', ')}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => { const it = pendientesWarning[0]; const p = posts.find(x => x.id === it.id); if (p && onPostClick) onPostClick(p, it.pendientes[0]); }} className="text-sm px-3 py-1.5 rounded border border-amber-300 bg-amber-100 hover:bg-amber-200 text-amber-900">Revisar</button>
+            <button onClick={() => { setPendientesWarning(null); proceedToEquipos(); }} className="text-sm px-3 py-1.5 rounded border border-amber-300 bg-amber-100 hover:bg-amber-200 text-amber-900">Continuar de todos modos</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (viewMode === 'preview' && selectedModem) {
     if (showSuccessDialog) {
       return (
