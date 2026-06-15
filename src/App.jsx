@@ -178,7 +178,7 @@ const STAGE_DEFS = [
     num: 2,
     name: 'Dado',
     short: 'Dado',
-    color: '#0EA5E9',
+    color: '#2563EB',
     Icon: Box,
     desc: 'Excavación y colocación del dado de cimentación',
     photoReq: 'Foto del dado colocado',
@@ -249,7 +249,7 @@ const STAGE_DEFS = [
     num: 6,
     name: 'Conexión a postes sin modem',
     short: 'Conex. postes',
-    color: '#06B6D4',
+    color: '#0E7490',
     Icon: Cable,
     desc: 'Interconexión con postes vecinos que no tienen modem propio',
     photoReq: 'Foto del cableado de interconexión realizado',
@@ -3966,6 +3966,8 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [editingAlias, setEditingAlias] = useState(false);
   const [aliasValue, setAliasValue] = useState(post.alias || '');
+  const [editingNum, setEditingNum] = useState(false);
+  const [numValue, setNumValue] = useState(post.numPoste ?? '');
 
   const loadHistory = async () => {
     setLoadingHistory(true);
@@ -4105,8 +4107,35 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                     <Edit2 className="w-3 h-3 text-stone-400 opacity-50 group-hover:opacity-100" />
                   </div>
                 )}
+                {/* NÃºmero de poste (#N) â€” editable */}
+                {editingNum ? (
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-xs text-stone-500 font-mono">N° poste:</span>
+                    <input type="number" value={numValue} onChange={e => setNumValue(e.target.value)}
+                           placeholder="Ej: 5" autoFocus
+                           className="w-20 bg-stone-50 border-2 border-rose-400 rounded px-2 py-1 text-sm text-stone-950 font-mono focus:outline-none" />
+                    <button onClick={() => {
+                      const parsed = numValue === '' || numValue === null ? null : parseInt(numValue, 10);
+                      if (onUpdateMeta) onUpdateMeta(post.id, { numPoste: parsed });
+                      else if (onUpdate) onUpdate({ ...post, numPoste: parsed });
+                      setEditingNum(false);
+                    }} className="text-emerald-600 text-xs font-bold px-2 py-1 bg-emerald-100 rounded">âœ“</button>
+                    <button onClick={() => { setEditingNum(false); setNumValue(post.numPoste ?? ''); }}
+                            className="text-stone-500 text-xs px-2 py-1">âœ—</button>
+                  </div>
+                ) : (
+                  <div className="mt-1 flex items-center gap-2 cursor-pointer group" onClick={() => onUpdate && setEditingNum(true)}>
+                    <span className="text-xs text-stone-500 font-mono">N° poste:</span>
+                    {post.numPoste != null ? (
+                      <span className="text-sm text-stone-700 font-mono font-bold">#{post.numPoste}</span>
+                    ) : (
+                      <span className="text-xs text-stone-400 italic">Sin nÃºmero â€” toca para agregar</span>
+                    )}
+                    <Edit2 className="w-3 h-3 text-stone-400 opacity-50 group-hover:opacity-100" />
+                  </div>
+                )}
                 <div className="mt-1 text-xs text-stone-500 font-mono">
-                  {post.unidad_territorial} · {post.zona_territorial}
+                  {post.unidad_territorial} Â· {post.zona_territorial}
                 </div>
                 {/* Dirección con Maps link */}
                 <div className="mt-0.5 text-xs truncate">
