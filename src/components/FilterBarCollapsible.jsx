@@ -16,17 +16,48 @@ function countActiveFilters(filters = {}) {
   return n;
 }
 
+// Herramienta "Medir" — vive fuera del menú de filtros porque no es un filtro.
+function MeasureButton({ measureMode, setMeasureMode }) {
+  return (
+    <button
+      type="button"
+      onClick={() => setMeasureMode(m => !m)}
+      className={`px-3 py-1.5 text-xs font-mono border transition-colors ${
+        measureMode
+          ? 'bg-amber-100 border-amber-500 text-amber-800 hover:border-amber-600'
+          : 'bg-stone-50 border-stone-300 text-stone-700 hover:border-stone-500'
+      }`}
+    >
+      📏 {measureMode ? 'Medir (ON)' : 'Medir'}
+    </button>
+  );
+}
+
 export function FilterBarCollapsible(props) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const activeCount = countActiveFilters(props.filters);
+  const { measureMode, setMeasureMode } = props;
+  const measureBtn = setMeasureMode
+    ? <MeasureButton measureMode={measureMode} setMeasureMode={setMeasureMode} />
+    : null;
 
+  // Desktop: herramienta Medir + un solo Dropdown Button con secciones agrupadas.
   if (!isMobile) {
-    return <FilterBar {...props} />;
+    // El mapa (con herramienta Medir) conserva items-center como siempre;
+    // en Postes (sin Medir) usamos items-stretch para igualar alturas de la fila.
+    return (
+      <div className={`flex gap-2 flex-wrap ${measureBtn ? 'items-center' : 'items-stretch'}`}>
+        {measureBtn}
+        <FilterBar {...props} layout="menu" />
+      </div>
+    );
   }
 
+  // Móvil: trigger + bottom sheet, con las mismas secciones agrupadas dentro.
   return (
-    <>
+    <div className="flex items-center gap-2">
+      {measureBtn}
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -63,7 +94,7 @@ export function FilterBarCollapsible(props) {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 pb-[max(16px,env(safe-area-inset-bottom))]">
-              <FilterBar {...props} />
+              <FilterBar {...props} layout="sections" />
             </div>
             <div className="shrink-0 p-3 border-t border-stone-200">
               <button
@@ -76,6 +107,6 @@ export function FilterBarCollapsible(props) {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

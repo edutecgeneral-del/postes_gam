@@ -8,31 +8,34 @@
 import { useState, useEffect, useCallback } from 'react';
 import { paramsToFilters, filtersToParams, EMPTY_FILTERS } from '../lib/filters';
 
-function readFromURL() {
+function readFromURL(prefix = '') {
   if (typeof window === 'undefined') return { ...EMPTY_FILTERS };
-  return paramsToFilters(window.location.search);
+  return paramsToFilters(window.location.search, prefix);
 }
 
-function writeToURL(filters) {
+function writeToURL(filters, prefix = '') {
   if (typeof window === 'undefined') return;
-  const sp = filtersToParams(filters, window.location.search);
+  const sp = filtersToParams(filters, window.location.search, prefix);
   const qs = sp.toString();
   const newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
   window.history.replaceState(null, '', newUrl);
 }
 
-export function useFilters() {
-  const [filters, setFilters] = useState(readFromURL);
+// `prefix` aísla este conjunto de filtros del resto: cada instancia de
+// useFilters con un prefix distinto mantiene su propio estado y sus propias
+// claves en la URL. Así Mapa GPS y Postes no comparten filtros.
+export function useFilters(prefix = '') {
+  const [filters, setFilters] = useState(() => readFromURL(prefix));
 
   useEffect(() => {
-    writeToURL(filters);
-  }, [filters]);
+    writeToURL(filters, prefix);
+  }, [filters, prefix]);
 
   useEffect(() => {
-    const onPop = () => setFilters(readFromURL());
+    const onPop = () => setFilters(readFromURL(prefix));
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, []);
+  }, [prefix]);
 
   const toggleArrayValue = useCallback((dim, value) => {
     setFilters(prev => {

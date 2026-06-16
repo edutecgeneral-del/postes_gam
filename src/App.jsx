@@ -95,7 +95,6 @@ import {
 } from './lib/incidentClassification.js';
 import { setActiveView, setUserContext } from './lib/errorTracker.js';
 import { useFilters } from './hooks/useFilters.js';
-import { FilterBar } from './components/FilterBar.jsx';
 import { FilterBarCollapsible } from './components/FilterBarCollapsible.jsx';
 import { filterPosts } from './lib/filters.js';
 import { UT_PALETTE } from './lib/utColors.js';
@@ -2685,19 +2684,20 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-wrap gap-2 items-stretch">
+        <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500" strokeWidth={1.5}/>
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }}
                  placeholder="Buscar por ID, dirección, UT, zona…"
-                 className="w-full bg-stone-100/60 border border-stone-300 pl-9 pr-3 py-2 text-sm text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-rose-600/50" />
+                 className="w-full h-8 bg-stone-100/60 border border-stone-300 pl-9 pr-3 text-sm text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-rose-600/50" />
         </div>
-        <FilterBar
+        <FilterBarCollapsible
           posts={posts}
           {...filterCtx}
           stageDefs={STAGE_DEFS}
           userNames={userNames}
           mode="list-detalle"
+          menuAlign="left"
           incidents={incidents}
           unidadesTerritoriales={unidadesTerritoriales}
         />
@@ -2710,13 +2710,13 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
               setSelectedForDelete(new Set());
               setDeleting(false);
             }} disabled={deleting}
-              className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white text-[11px] font-medium rounded px-2 py-1">
+              className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white text-[11px] font-medium rounded px-2 h-8">
               {deleting ? '…' : `🗑 Eliminar (${selectedForDelete.size})`}
             </button>
           )}
           {canMerge && selectedForDelete.size === 2 && (
             <button onClick={() => setMergeOpen(true)}
-              className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-medium rounded px-2 py-1">
+              className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-medium rounded px-2 h-8">
               Fusionar
             </button>
           )}
@@ -2737,24 +2737,24 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
               if (selectedForDelete.size === pageData.length) setSelectedForDelete(new Set());
               else setSelectedForDelete(new Set(pageData.map(p => p.id)));
             }}
-              className="text-[10px] text-stone-400 hover:text-stone-700 border border-stone-300 px-1.5 py-0.5 rounded">
+              className="inline-flex items-center h-8 text-[10px] text-stone-400 hover:text-stone-700 border border-stone-300 px-1.5 rounded">
               {selectedForDelete.size === pageData.length ? '☐ Ninguno' : '☑ Página'}
             </button>
           )}
           {filtered.length.toLocaleString()} resultados
-          <div className="flex border border-stone-300 ml-2">
+          <div className="flex h-8 border border-stone-300 ml-2">
             <button onClick={() => setViewType('pipeline')}
-                    className={`px-2 py-1 text-[12px] font-mono uppercase ${viewType === 'pipeline' ? 'bg-rose-700 text-rose-50' : 'text-stone-500 hover:text-stone-950'}`}>
+                    className={`flex items-center px-2 text-[12px] font-mono uppercase ${viewType === 'pipeline' ? 'bg-rose-700 text-rose-50' : 'text-stone-500 hover:text-stone-950'}`}>
               Pipeline
             </button>
             <button onClick={() => setViewType('detalle')}
-                    className={`px-2 py-1 text-[12px] font-mono uppercase ${viewType === 'detalle' ? 'bg-rose-700 text-rose-50' : 'text-stone-500 hover:text-stone-950'}`}>
+                    className={`flex items-center px-2 text-[12px] font-mono uppercase ${viewType === 'detalle' ? 'bg-rose-700 text-rose-50' : 'text-stone-500 hover:text-stone-950'}`}>
               Detalle
             </button>
           </div>
           {!readOnly && onCreatePost && (
             <button onClick={onCreatePost}
-                    className="flex items-center gap-1.5 ml-2 px-3 py-1.5 bg-rose-700 hover:bg-rose-600 text-white text-[12px] font-mono uppercase tracking-widest transition-colors rounded">
+                    className="flex items-center gap-1.5 ml-2 px-3 h-8 bg-rose-700 hover:bg-rose-600 text-white text-[12px] font-mono uppercase tracking-widest transition-colors rounded">
               <Plus className="w-3.5 h-3.5" strokeWidth={2.5} /> Nuevo
             </button>
           )}
@@ -2763,9 +2763,9 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
 
       {/* Table — Pipeline view */}
       {viewType === 'pipeline' && (
-      <div className="border border-stone-300 bg-stone-100 overflow-x-auto">
+      <div className="border border-stone-300 bg-white overflow-x-auto">
         <div className="min-w-[760px]">
-        <div className="grid grid-cols-12 gap-2 px-4 py-2.5 bg-stone-100/60 border-b border-stone-300 text-[12px] font-mono uppercase tracking-[0.15em] text-stone-500">
+        <div className="grid grid-cols-12 gap-2 px-4 py-2.5 bg-white border-b border-stone-300 text-[12px] font-mono uppercase tracking-[0.15em] text-stone-500">
           <div className="col-span-2">ID</div>
           <div className="col-span-1">UT</div>
           <div className="col-span-3">Dirección</div>
@@ -2807,12 +2807,12 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
 
       {/* Table — Detailed view with adaptable columns */}
       {viewType === 'detalle' && (
-      <div className="border border-stone-300 bg-stone-100 overflow-x-auto">
+      <div className="border border-stone-300 bg-white overflow-x-auto">
         <table className="w-full text-xs" style={{ minWidth: filteredStageDef ? '700px' : '900px' }}>
-          <thead className="bg-stone-100/60 border-b border-stone-300 text-[12px] font-mono uppercase tracking-[0.15em] text-stone-500">
+          <thead className="bg-white border-b border-stone-300 text-[12px] font-mono uppercase tracking-[0.15em] text-stone-500">
             <tr>
               {canMerge && <th className="w-8 px-1 py-2"></th>}
-              <th className="text-left px-3 py-2 sticky left-0 bg-stone-50/95 z-10 min-w-[70px]">ID</th>
+              <th className="text-left px-3 py-2 min-w-[70px]">ID</th>
               <th className="text-left px-3 py-2 min-w-[60px]">UT</th>
               <th className="text-left px-3 py-2 min-w-[120px]">Dirección</th>
               {/* Columnas dinámicas según filtro de etapa */}
@@ -2849,7 +2849,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
               return (
                 <Fragment key={p.id}>
                   <tr onClick={() => setExpandedPostId(isExpanded ? null : p.id)}
-                      className={`border-b border-stone-300/50 hover:bg-rose-500/5 cursor-pointer transition-colors ${isExpanded ? 'bg-rose-500/5' : ''}`}>
+                      className={`border-b border-stone-300/50 hover:bg-rose-500/5 hover:border-rose-600/20 cursor-pointer transition-colors ${isExpanded ? 'bg-rose-500/5' : ''}`}>
                     {canMerge && (
                       <td className="px-1 py-2 text-center" onClick={e => e.stopPropagation()}>
                         <input type="checkbox" checked={selectedForDelete.has(p.id)}
@@ -2857,8 +2857,8 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
                           className="w-3.5 h-3.5 accent-red-500" />
                       </td>
                     )}
-                    <td className="px-3 py-2 font-mono text-rose-500 whitespace-nowrap sticky left-0 bg-stone-50/95 z-10">
-                      <span className="inline-flex items-center gap-1.5">
+                    <td className="px-3 py-2 font-mono text-rose-500 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
                         {onJumpToMap && (
                           <button
                             type="button"
@@ -2870,13 +2870,13 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
                           </button>
                         )}
                         <span>{postDisplayId(p)}</span>
-                      </span>
-                      {p.alias && <span className="text-rose-600 text-[10px] ml-1 font-medium">"{p.alias}"</span>}
-                      {p.tags?.length > 0 && (
-                        <span className="ml-1 inline-flex align-middle">
-                          <TagBadgeList tags={p.tags} size="xs" limit={2} />
-                        </span>
-                      )}
+                        {p.alias && <span className="text-rose-600 text-[10px] font-medium">"{p.alias}"</span>}
+                        {p.tags?.length > 0 && (
+                          <span className="inline-flex">
+                            <TagBadgeList tags={p.tags} size="xs" limit={2} />
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2 font-mono text-stone-700">{p.unidad_territorial}</td>
                     <td className="px-3 py-2 max-w-[200px] truncate">
@@ -7128,6 +7128,85 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
 }
 
 // ============================================================================
+// NAVEGACIÓN CATEGORIZADA (header desktop + sidemenu móvil)
+// ============================================================================
+
+// Categorías de navegación. Cada grupo referencia ids de appTabs; el orden
+// dentro de tabIds define el orden de aparición. Los grupos/módulos se filtran
+// luego según los permisos (appTabs ya viene filtrado por rol).
+const NAV_GROUPS = [
+  { id: 'dashboard',      label: 'Dashboard',      tabIds: ['dashboard', 'mipanel'] },
+  { id: 'trabajo',        label: 'Trabajo',        tabIds: ['captura', 'scouting', 'mapa', 'postes'] },
+  { id: 'administrativo', label: 'Administrativo', tabIds: ['incidencias', 'propuestas', 'inventario', 'usuarios', 'auditoria', 'informe', 'geo_v2'] },
+];
+
+// Resuelve NAV_GROUPS contra las pestañas visibles (appTabs) y descarta los
+// grupos que queden sin módulos para el rol actual.
+function buildNavGroups(appTabs) {
+  return NAV_GROUPS
+    .map(g => ({ ...g, tabs: g.tabIds.map(id => appTabs.find(t => t.id === id)).filter(Boolean) }))
+    .filter(g => g.tabs.length > 0);
+}
+
+// Navegación del header en escritorio (lg+): categorías centradas con menú
+// desplegable al pasar el cursor por encima. Resalta la categoría y el módulo
+// activos. Las categorías con un solo módulo navegan directo (sin desplegable).
+function DesktopNav({ groups, activeTab, setActiveTab }) {
+  const [openGroup, setOpenGroup] = useState(null);
+  return (
+    <nav className="hidden lg:flex flex-1 items-center justify-center gap-1">
+      {groups.map(g => {
+        const isActiveGroup = g.tabs.some(t => t.id === activeTab);
+        const single = g.tabs.length === 1;
+        return (
+          <div
+            key={g.id}
+            className="relative"
+            onMouseEnter={() => setOpenGroup(g.id)}
+            onMouseLeave={() => setOpenGroup(null)}
+          >
+            <button
+              onClick={() => { if (single) setActiveTab(g.tabs[0].id); }}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-mono uppercase tracking-wider rounded transition-colors ${
+                isActiveGroup
+                  ? 'text-rose-600 bg-rose-500/10'
+                  : 'text-stone-500 hover:text-rose-600 hover:bg-rose-500/10'
+              }`}
+            >
+              <span>{g.label}</span>
+              {!single && (
+                <ChevronDown className={`w-3 h-3 transition-transform ${openGroup === g.id ? 'rotate-180' : ''}`} strokeWidth={1.5} />
+              )}
+            </button>
+            {!single && openGroup === g.id && (
+              // pt-1.5 actúa de puente para que el cursor llegue al menú sin cerrarlo
+              <div className="absolute left-1/2 -translate-x-1/2 top-full pt-1.5 z-40">
+                <div className="min-w-[200px] bg-stone-50 border border-stone-300 rounded-lg shadow-xl py-1.5">
+                  {g.tabs.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => { setActiveTab(t.id); setOpenGroup(null); }}
+                      className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-mono uppercase tracking-wider transition-colors border-l-2 ${
+                        activeTab === t.id
+                          ? 'text-rose-600 bg-rose-500/10 border-rose-600'
+                          : 'text-stone-600 hover:text-rose-600 hover:bg-rose-500/10 border-transparent'
+                      }`}
+                    >
+                      <t.icon className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} />
+                      <span className="truncate">{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
+
+// ============================================================================
 // MAIN APP
 // ============================================================================
 
@@ -7153,8 +7232,8 @@ export default function FieldCoordApp() {
   const [initialStageId, setInitialStageId] = useState(null);
   const selectedPostRef = useRef(null);
   const postDetailHistoryRef = useRef(false);
-  const filterCtx = useFilters();
-  const { filters } = filterCtx;
+  const filterCtx = useFilters();           // Postes (lista) + navegación desde Dashboard/Informe
+  const mapFilterCtx = useFilters('map_');  // Mapa GPS — filtros independientes del módulo Postes
   const [postsPage, setPostsPage] = useState(readStoredPostsPage);
   const [incidenciasNav, setIncidenciasNav] = useState({ filter: 'abierta', search: '', ts: 0 });
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -7776,6 +7855,9 @@ export default function FieldCoordApp() {
     { id: 'geo_v2',      label: 'Geo v2',       icon: Layers,        show: isAdmin || isDirector || isCoordinador },
   ].filter(t => t.show);
 
+  // Navegación categorizada (header desktop + sidemenu móvil), derivada de appTabs.
+  const navGroups = buildNavGroups(appTabs);
+
   // ---- LOGIN GATE ----
   if (session === undefined) {
     return (
@@ -7867,6 +7949,9 @@ export default function FieldCoordApp() {
             </div>
           </div>
 
+          {/* Navegación centrada por categorías (solo escritorio) */}
+          <DesktopNav groups={navGroups} activeTab={activeTab} setActiveTab={setActiveTab} />
+
           <div className="flex items-center gap-1.5 md:gap-2">
             {/* Admin: Ver como otro rol */}
             {realIsAdmin && (
@@ -7937,20 +8022,27 @@ export default function FieldCoordApp() {
             className="lg:hidden fixed top-[53px] left-0 right-0 bottom-0 z-10 bg-stone-900/10 backdrop-blur-sm transition-opacity"
           />
         )}
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
-                        fixed lg:static top-[53px] lg:top-auto left-0 h-[calc(100vh-53px)] lg:h-auto
-                        w-60 border-r border-stone-300 bg-amber-50 z-20 flex flex-col transition-transform`}>
-          <nav className="flex-1 p-3 space-y-0.5">
-            {appTabs.map(t => (
-              <button key={t.id} onClick={() => { setActiveTab(t.id); setSidebarOpen(false); }}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-mono uppercase tracking-wider transition-colors ${
-                        activeTab === t.id
-                          ? 'bg-rose-500/10 text-rose-500 border-l-2 border-rose-600'
-                          : 'text-stone-500 hover:text-stone-950 hover:bg-stone-50 border-l-2 border-transparent'
-                      }`}>
-                <t.icon className="w-4 h-4" strokeWidth={1.5} />
-                <span className="text-xs">{t.label}</span>
-              </button>
+        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+                        fixed top-[53px] left-0 h-[calc(100vh-53px)]
+                        w-60 border-r border-stone-300 bg-amber-50 z-20 flex flex-col transition-transform lg:hidden`}>
+          <nav className="flex-1 p-3 space-y-3 overflow-y-auto">
+            {navGroups.map(g => (
+              <div key={g.id}>
+                <div className="px-3 mb-1 text-[10px] font-mono uppercase tracking-[0.25em] text-stone-400">{g.label}</div>
+                <div className="space-y-0.5">
+                  {g.tabs.map(t => (
+                    <button key={t.id} onClick={() => { setActiveTab(t.id); setSidebarOpen(false); }}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-mono uppercase tracking-wider transition-colors ${
+                              activeTab === t.id
+                                ? 'bg-rose-500/10 text-rose-500 border-l-2 border-rose-600'
+                                : 'text-stone-500 hover:text-stone-950 hover:bg-stone-50 border-l-2 border-transparent'
+                            }`}>
+                      <t.icon className="w-4 h-4" strokeWidth={1.5} />
+                      <span className="text-xs">{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </nav>
           <div className="p-3 border-t border-stone-300">
@@ -7990,7 +8082,7 @@ export default function FieldCoordApp() {
                   )}
                   <FilterBarCollapsible
                     posts={posts}
-                    {...filterCtx}
+                    {...mapFilterCtx}
                     stageDefs={STAGE_DEFS}
                     userNames={userNames}
                     mode="map"
@@ -8003,7 +8095,7 @@ export default function FieldCoordApp() {
                 </div>
               </div>
               <div className="flex-1 p-4">
-                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} openPostDetail={openPostDetail} filters={filters} incidents={incidents} userNames={userNames}
+                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} openPostDetail={openPostDetail} filters={mapFilterCtx.filters} incidents={incidents} userNames={userNames}
                          stageDefs={STAGE_DEFS} darkMode={darkMode}
                          measureMode={measureMode} setMeasureMode={setMeasureMode}
                          measurePoints={measurePoints} setMeasurePoints={setMeasurePoints}

@@ -269,11 +269,14 @@ export function computeCounts(posts, filters, stageDefs, mode = 'map', incidents
 const MAINT_VALUES = ['falta_camaras', 'falta_silicon', 'poste_13m', 'reubicados', 'boton_panico', 'revisados', 'no_revisados', 'con_modem', 'sin_modem', 'internet_futuro', 'antena_recuperada'];
 const URL_KEYS = ['stages', 'uts', 'capturadores', 'tags', 'verified', 'maint', 'incType', 'createdFrom', 'createdTo', 'modFrom', 'modTo'];
 
-export function paramsToFilters(searchParams) {
+// `prefix` permite namespacing de los params en la URL para tener varios
+// conjuntos de filtros independientes en la misma página (p.ej. Mapa GPS vs
+// Postes). Sin prefijo se usan las claves "limpias" (compatibilidad previa).
+export function paramsToFilters(searchParams, prefix = '') {
   const sp = searchParams instanceof URLSearchParams
     ? searchParams
     : new URLSearchParams(searchParams || '');
-  const get = (k) => sp.get(k);
+  const get = (k) => sp.get(prefix + k);
   return {
     stages: get('stages')       ? get('stages').split(',').filter(Boolean) : [],
     uts: get('uts')             ? get('uts').split(',').filter(Boolean) : [],
@@ -291,20 +294,20 @@ export function paramsToFilters(searchParams) {
 
 // Devuelve un URLSearchParams para que el caller decida cómo aplicarlo
 // (window.history.replaceState, navigate(), etc.)
-export function filtersToParams(filters, baseSearch = '') {
+export function filtersToParams(filters, baseSearch = '', prefix = '') {
   const sp = new URLSearchParams(baseSearch);
-  // Limpiar las claves que controlamos
-  URL_KEYS.forEach(k => sp.delete(k));
-  if (filters.stages?.length)        sp.set('stages',       filters.stages.join(','));
-  if (filters.uts?.length)           sp.set('uts',          filters.uts.join(','));
-  if (filters.capturadores?.length)  sp.set('capturadores', filters.capturadores.join(','));
-  if (filters.tags?.length)          sp.set('tags',         filters.tags.join(','));
-  if (filters.verified)              sp.set('verified',     filters.verified);
-  if (filters.maint)                 sp.set('maint',        filters.maint);
-  if (filters.incType)               sp.set('incType',       filters.incType);
-  if (filters.createdFrom)           sp.set('createdFrom',  filters.createdFrom);
-  if (filters.createdTo)             sp.set('createdTo',    filters.createdTo);
-  if (filters.modFrom)               sp.set('modFrom',      filters.modFrom);
-  if (filters.modTo)                 sp.set('modTo',        filters.modTo);
+  // Limpiar las claves que controlamos (namespaced por prefix)
+  URL_KEYS.forEach(k => sp.delete(prefix + k));
+  if (filters.stages?.length)        sp.set(prefix + 'stages',       filters.stages.join(','));
+  if (filters.uts?.length)           sp.set(prefix + 'uts',          filters.uts.join(','));
+  if (filters.capturadores?.length)  sp.set(prefix + 'capturadores', filters.capturadores.join(','));
+  if (filters.tags?.length)          sp.set(prefix + 'tags',         filters.tags.join(','));
+  if (filters.verified)              sp.set(prefix + 'verified',     filters.verified);
+  if (filters.maint)                 sp.set(prefix + 'maint',        filters.maint);
+  if (filters.incType)               sp.set(prefix + 'incType',      filters.incType);
+  if (filters.createdFrom)           sp.set(prefix + 'createdFrom',  filters.createdFrom);
+  if (filters.createdTo)             sp.set(prefix + 'createdTo',    filters.createdTo);
+  if (filters.modFrom)               sp.set(prefix + 'modFrom',      filters.modFrom);
+  if (filters.modTo)                 sp.set(prefix + 'modTo',        filters.modTo);
   return sp;
 }
