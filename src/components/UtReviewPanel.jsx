@@ -16,7 +16,6 @@ const isValidIpFormat = (ip) => {
 };
 
 const FASE_FISICA = ['marca', 'dado', 'parado', 'camaras'];
-const FASE_FISICA_LABEL = { marca: 'Marca', dado: 'Dado', parado: 'Parado', camaras: 'Camaras' };
 const etapasFisicasPendientes = (post) =>
   FASE_FISICA.filter(s => !post?.stages?.[s]?.done);
 
