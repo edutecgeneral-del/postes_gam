@@ -31,7 +31,7 @@ const ROLE_LABELS = {
 const STAGE_LABELS = {
   marca: 'Marca',
   dado: 'Dado',
-  parado: 'Parado',
+  parado: 'Poste instalado',
   camaras: 'Cámaras',
   internet: 'Internet',
   conexion_poste: 'Conexión poste',
