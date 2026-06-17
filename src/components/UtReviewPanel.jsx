@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { assignIpsToPost } from '../lib/data.js';
+import { assignIpsToPost, registrarAvanceConPendientes } from '../lib/data.js';
 
 const EQUIPOS = [
   { key: 'antena_5ac', label: 'Antena 5AC', icon: '📶' },
@@ -273,6 +273,16 @@ export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostCli
         });
         if (Object.keys(equiposPayload).length > 0) {
           await assignIpsToPost(postId, selectedModem.id, equiposPayload);
+          // Registrar (no bloqueante) si el poste avanzo con etapas fisicas pendientes
+          const _postPend = posts.find(p => p.id === postId);
+          const _pendientes = _postPend ? etapasFisicasPendientes(_postPend) : [];
+          if (_pendientes.length > 0) {
+            try {
+              await registrarAvanceConPendientes(postId, _pendientes, 'conexion_poste', 'asignacion_ip');
+            } catch (e) {
+              console.warn('No se pudo registrar avance con pendientes para', postId, e);
+            }
+          }
         }
       }
       // Refrescar data global

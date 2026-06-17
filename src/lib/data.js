@@ -1538,3 +1538,28 @@ export async function unassignIpsFromPost(postId) {
   if (error) throw error;
   return data;
 }
+
+/**
+ * Registrar un avance de etapa hecho con etapas fisicas (E1-E4) pendientes.
+ * Deja huella en attrs de la etapa destino y audita en audit_log.
+ *
+ * @param {string} postId - ID del poste
+ * @param {string[]} etapasPendientes - stage_ids pendientes (ej. ['parado'])
+ * @param {string} etapaDestino - 'internet' (E5) | 'conexion_poste' (E6)
+ * @param {string} contexto - 'captura_e5' | 'asignacion_ip'
+ * @returns {Promise<object>} Resultado
+ */
+export async function registrarAvanceConPendientes(postId, etapasPendientes, etapaDestino, contexto) {
+  if (!hasSupabase()) {
+    throw new Error('Supabase no configurado');
+  }
+  const sb = getSupabase();
+  const { data, error } = await sb.rpc('registrar_avance_con_pendientes', {
+    p_post_id: postId,
+    p_etapas_pendientes: etapasPendientes,
+    p_etapa_destino: etapaDestino,
+    p_contexto: contexto,
+  });
+  if (error) throw error;
+  return data;
+}
