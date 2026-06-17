@@ -1617,6 +1617,11 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
                 </span>
               )
             )}
+            {post.stages?.conexion_poste?.attrs?.avance_con_pendientes && (
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-200 text-amber-900 border border-amber-500">
+                    ⚠ Avanzó sin {(post.stages.conexion_poste.attrs.avance_con_pendientes || []).map((s, i) => { const d = STAGE_DEFS.find(x => x.id === s); return <span key={s} style={{ color: d?.color }} className="font-semibold">{i > 0 ? ', ' : ''}{d ? ('E' + d.num) : s}</span>; })}
+                  </span>
+                )}
             {/* PR B - Parte 6: Toggle tag Internet a Futuro (admin only) */}
             {isAdmin && (() => {
               const hasIFTag = post.tags?.some(t => t.id === 'internet_futuro_priorizado');
@@ -4044,6 +4049,13 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                 <h2 className="text-2xl font-mono font-light text-rose-500">{postDisplayId(post)}</h2>
                 <div className="text-[10px] font-mono text-stone-400">ID interno: {post.id}</div>
                 <div className="text-[10px] font-mono text-stone-400">Creado por: {post.createdBy ? (userNames[post.createdBy] || 'Usuario') : (post.origen === 'carga_arcgis' ? '📥 Carga ArcGIS' : '—')}</div>
+                {post.stages?.conexion_poste?.attrs?.avance_con_pendientes ? (
+                  <div className="mt-2 text-[12px] leading-snug font-mono text-amber-900 bg-amber-200 border border-amber-500 border-l-4 border-l-amber-700 rounded px-2.5 py-1.5">
+                    ⚠️ Avanzó a la fase de red (IPs) sin completar: {(post.stages.conexion_poste.attrs.avance_con_pendientes || []).map((s, i) => { const d = STAGE_DEFS.find(x => x.id === s); return <span key={s} style={{ color: d?.color }} className="font-semibold">{i > 0 ? ', ' : ''}{d ? ('E' + d.num + ' ' + d.name) : s}</span>; })}
+                    {(post.stages.conexion_poste.attrs.avance_override_nombre || userNames[post.stages.conexion_poste.attrs.avance_override_por]) ? (' - por ' + (post.stages.conexion_poste.attrs.avance_override_nombre || userNames[post.stages.conexion_poste.attrs.avance_override_por])) : ''}
+                    {post.stages.conexion_poste.attrs.avance_override_at ? (' - ' + new Date(post.stages.conexion_poste.attrs.avance_override_at).toLocaleDateString('es-MX')) : ''}
+                  </div>
+                ) : null}
                 {/* PASO_11_REVISADO_UI: estado de revision + boton (solo admin) */}
                 {(() => {
                   const isRevisado = !!post.revisado;
@@ -5146,6 +5158,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
       if (!post) return false;
       if (filterPost === 'poste_13m' && post.stages?.dado?.attrs?.poste_tipo !== '13m') return false;
       if (filterPost === 'falta_camaras' && post.stages?.camaras?.done) return false;
+      if (filterPost === 'avanzo_huecos' && !(post.stages?.conexion_poste?.attrs?.avance_con_pendientes?.length)) return false;
       if (filterPost === 'falta_silicon') {
         const sil = ['sil_corona_1','sil_corona_2','sil_brazo_izq','sil_brazo_der','sil_acrilico'];
         const checks = post.stages?.camaras?.attrs?.mantenimiento?.m1_mantenimiento?.checks || {};
@@ -5463,6 +5476,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
           { key: 'poste_13m',     label: '📏 13m',           activeClass: 'bg-violet-100 border-violet-400 text-violet-700' },
           { key: 'falta_camaras', label: '🎥 Sin cámaras',   activeClass: 'bg-amber-100 border-amber-400 text-amber-700' },
           { key: 'falta_silicon', label: '🔵 Sin silicón',   activeClass: 'bg-sky-100 border-sky-400 text-sky-700' },
+          { key: 'avanzo_huecos', label: '⚠️ Avanzó con huecos', activeClass: 'bg-amber-200 border-amber-500 text-amber-900' },
         ].map(({ key, label, activeClass }) => (
           <button key={key}
                   onClick={() => setFilterPost(prev => prev === key ? 'todas' : key)}
