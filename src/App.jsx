@@ -798,6 +798,7 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
   const [showUts, setShowUts] = useState(false);
   const [utHoverName, setUtHoverName] = useState(null);
   const [reviewUt, setReviewUt] = useState(null);
+  const [utPicker, setUtPicker] = useState(null);
   const [tilesFailed, setTilesFailed] = useState(false);
   // Refs para que los handlers del map (closure inicial) lean el estado actual
   const addingModeRef = useRef(addingMode);
@@ -1280,14 +1281,31 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
         if (l !== utPolygonLayerRef.current && f.get('post')) return f;
       }, { hitTolerance: 6 });
       if (postFeat) return;
-      const utFeat = map.forEachFeatureAtPixel(e.pixel, (f, l) => {
-        if (l === utPolygonLayerRef.current) return f;
+      // Junta TODAS las UT bajo el click (no solo la mas chica) para poder elegir.
+      const utHits = [];
+      map.forEachFeatureAtPixel(e.pixel, (f, l) => {
+        if (l === utPolygonLayerRef.current) {
+          const g = f.getGeometry();
+          const a = g ? g.getArea() : Infinity;
+          utHits.push({ feat: f, area: a });
+        }
+        return false;
       }, { hitTolerance: 0 });
-      if (!utFeat) return;
-      const utName = getUtName(utFeat);
-      if (!utName) return;
-      const utObj = (unidadesTerritoriales || []).find(u => u.nombre === utName);
-      if (utObj) setReviewUt(utObj);
+      if (utHits.length === 0) return;
+      const seenUt = new Set();
+      const utOpts = [];
+      utHits.sort((p, q) => p.area - q.area).forEach(h => {
+        const nm = getUtName(h.feat);
+        if (!nm) return;
+        const uo = (unidadesTerritoriales || []).find(u => u.nombre === nm);
+        if (!uo || seenUt.has(uo.id)) return;
+        seenUt.add(uo.id);
+        utOpts.push(uo);
+      });
+      if (utOpts.length === 0) return;
+      if (utOpts.length === 1) { setReviewUt(utOpts[0]); return; }
+      const utEv = e.originalEvent;
+      setUtPicker({ x: utEv ? utEv.clientX : 0, y: utEv ? utEv.clientY : 0, options: utOpts });
     };
     map.on('click', onClick);
     return () => { map.un('click', onClick); };
@@ -1897,6 +1915,28 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
       </div>
 
       {/* Tooltip de UT al hover */}
+      {utPicker && (
+        <>
+          <div onClick={() => setUtPicker(null)} style={{ position: 'fixed', inset: 0, zIndex: 998 }} />
+          <div
+            style={{ position: 'fixed', left: Math.max(8, Math.min(utPicker.x, window.innerWidth - 232)), top: Math.max(8, Math.min(utPicker.y, window.innerHeight - (48 + utPicker.options.length * 40))), zIndex: 999 }}
+            className="bg-white border border-stone-300 rounded-lg shadow-lg py-1 w-56 max-w-[90vw]"
+          >
+            <div className="px-3 py-1.5 text-xs font-semibold text-stone-500 border-b border-stone-300">
+              Elegi la unidad territorial
+            </div>
+            {utPicker.options.map(u => (
+              <button
+                key={u.id}
+                onClick={() => { setReviewUt(u); setUtPicker(null); }}
+                className="w-full text-left px-3 py-2 text-sm text-stone-800 hover:bg-stone-100 truncate"
+              >
+                {u.nombre}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       {reviewUt && (
         <UtReviewPanel
           ut={reviewUt}
@@ -3973,6 +4013,62 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
   const [aliasValue, setAliasValue] = useState(post.alias || '');
   const [editingNum, setEditingNum] = useState(false);
   const [numValue, setNumValue] = useState(post.numPoste ?? '');
+  const [editingIps, setEditingIps] = useState(false);
+  const [ipsDraft, setIpsDraft] = useState({});
+  const [savingIps, setSavingIps] = useState(false);
+  const [ipsError, setIpsError] = useState(null);
+  const [confirmingDeleteIps, setConfirmingDeleteIps] = useState(false);
+  const [deletingIps, setDeletingIps] = useState(false);
+  const handleStartEditIps = async () => {
+    setIpsError(null);
+    try {
+      const { getEquiposForPost } = await import('./lib/data.js');
+      const fresh = await getEquiposForPost(post.id);
+      const draft = {};
+      ['antena_5ac', 'antena_ap', 'camara_ptz', 'camara_bullet_1', 'camara_bullet_2', 'boton_panico'].forEach(k => {
+        draft[k] = fresh[k] ? { ...fresh[k] } : { ip: null, no_instalado: false, motivo: null };
+      });
+      setIpsDraft(draft);
+      setEditingIps(true);
+    } catch (err) {
+      setIpsError('No se pudo cargar IPs: ' + (err?.message || err));
+    }
+  };
+  const handleDeleteIps = async () => {
+    setDeletingIps(true); setIpsError(null);
+    try {
+      const { unassignIpsFromPost } = await import('./lib/data.js');
+      await unassignIpsFromPost(post.id);
+      const cp = { ...(post.stages.conexion_poste || {}) };
+      const cpAttrs = { ...(cp.attrs || {}) };
+      delete cpAttrs.modem_origen; delete cpAttrs.equipos; delete cpAttrs.asignado_por_user_id; delete cpAttrs.asignado_at;
+      const e5 = { ...(post.stages.internet || {}) };
+      const e5Attrs = { ...(e5.attrs || {}) };
+      delete e5Attrs.no_aplica; delete e5Attrs.recibe_internet_de;
+      onUpdate({ ...post, stages: { ...post.stages, conexion_poste: { ...cp, done: false, attrs: cpAttrs }, internet: { ...e5, done: false, attrs: e5Attrs } } });
+      setConfirmingDeleteIps(false);
+      setEditingIps(false);
+    } catch (err) {
+      setIpsError('No se pudo eliminar: ' + (err?.message || err));
+    } finally {
+      setDeletingIps(false);
+    }
+  };
+  const handleSaveIps = async () => {
+    setSavingIps(true); setIpsError(null);
+    try {
+      const mod = post.stages.conexion_poste.attrs.modem_origen;
+      const { assignIpsToPost } = await import('./lib/data.js');
+      await assignIpsToPost(post.id, mod, ipsDraft);
+      const cp = post.stages.conexion_poste;
+      onUpdate({ ...post, stages: { ...post.stages, conexion_poste: { ...cp, done: true, attrs: { ...cp.attrs, equipos: ipsDraft } } } });
+      setEditingIps(false);
+    } catch (err) {
+      setIpsError(err?.message || String(err));
+    } finally {
+      setSavingIps(false);
+    }
+  };
 
   const loadHistory = async () => {
     setLoadingHistory(true);
@@ -4513,6 +4609,32 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
               </div>
             </div>
 
+            {post.stages?.conexion_poste?.attrs?.modem_origen && (
+              <div className="border border-stone-300 rounded-md p-3 mb-2 bg-stone-50/40">
+                <div className="text-[12px] font-mono uppercase tracking-widest text-stone-500 mb-3">IPs asignadas</div>
+                <div className="text-[12px] font-mono text-stone-600 mb-2">Módem origen: <span className="text-stone-900 font-semibold">{post.stages.conexion_poste.attrs.modem_origen}</span></div>
+                <div className="space-y-1.5">
+                  {[
+                    { key: 'antena_5ac', label: 'Antena 5AC' },
+                    { key: 'antena_ap', label: 'Antena AP' },
+                    { key: 'camara_ptz', label: 'Cámara PTZ' },
+                    { key: 'camara_bullet_1', label: 'Cámara Bullet 1' },
+                    { key: 'camara_bullet_2', label: 'Cámara Bullet 2' },
+                    { key: 'boton_panico', label: 'Botón de Pánico' },
+                  ].map(eq => {
+                    const e = post.stages.conexion_poste.attrs.equipos?.[eq.key] || {};
+                    return (
+                      <div key={eq.key} className="flex items-center justify-between gap-2 p-2 bg-white border border-stone-200">
+                        <span className="font-mono text-xs text-stone-700 flex-shrink-0">{eq.label}</span>
+                        {e.no_instalado
+                          ? <span className="font-mono text-xs text-stone-400 italic">No instalado</span>
+                          : <span className="font-mono text-xs text-emerald-700">{e.ip || '-'}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {/* Incidents */}
             {postIncidents.length > 0 && (
               <div>
@@ -7449,6 +7571,7 @@ export default function FieldCoordApp() {
     try {
       const { posts: p, incidents: i, unidadesTerritoriales: uts } = await loadAllData();
       setPosts(p);
+      setSelectedPost(prev => prev ? (p.find(x => x.id === prev.id) || prev) : prev);
       setIncidents(i);
       setUnidadesTerritoriales(uts || []);
       setLastRefresh(Date.now());

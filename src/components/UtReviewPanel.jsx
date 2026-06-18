@@ -32,6 +32,14 @@ export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostCli
   const [utPolygonGeom, setUtPolygonGeom] = useState(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(null);
   const [pendientesWarning, setPendientesWarning] = useState(null);
+  const [editingIpsId, setEditingIpsId] = useState(null);
+  const [ipsDraft, setIpsDraft] = useState({});
+  const [confirmingSaveId, setConfirmingSaveId] = useState(null);
+  const [confirmingDeleteIpsId, setConfirmingDeleteIpsId] = useState(null);
+  const [ipsRowSaving, setIpsRowSaving] = useState(false);
+  const [ipsRowDeleting, setIpsRowDeleting] = useState(false);
+  const [ipsRowError, setIpsRowError] = useState(null);
+  const [ipsRowFeedback, setIpsRowFeedback] = useState(null);
 
   // Cargar poligono de la UT cuando entre a modo preview
   useEffect(() => {
@@ -304,6 +312,78 @@ export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostCli
     return !!(e6.attrs?.modem_origen);
   };
 
+  const handleStartEditIpsRow = async (post) => {
+    setEditingIpsId(post.id);
+    setConfirmingSaveId(null);
+    setConfirmingDeleteIpsId(null);
+    setIpsRowError(null);
+    setIpsRowFeedback(null);
+    try {
+      const { getEquiposForPost } = await import('../lib/data.js');
+      const fresh = (await getEquiposForPost(post.id)) || {};
+      const draft = {};
+      EQUIPOS.forEach(eq => {
+        const e = fresh[eq.key] || {};
+        draft[eq.key] = { ip: e.ip || '', no_instalado: !!e.no_instalado, motivo: e.motivo || '' };
+      });
+      setIpsDraft(draft);
+    } catch (err) {
+      setIpsRowError('No se pudieron cargar las IPs: ' + (err.message || err));
+    }
+  };
+
+  const handleCancelEditIpsRow = () => {
+    setEditingIpsId(null);
+    setConfirmingSaveId(null);
+    setIpsDraft({});
+    setIpsRowError(null);
+  };
+
+  const handleSaveIpsRow = async (post) => {
+    const modemOrigen = post.stages?.conexion_poste?.attrs?.modem_origen;
+    if (!modemOrigen) { setIpsRowError('Este poste no tiene modem origen'); setConfirmingSaveId(null); return; }
+    const bad = EQUIPOS.some(eq => { const d = ipsDraft[eq.key] || {}; return !d.no_instalado && d.ip && d.ip.trim() && !isValidIpFormat(d.ip); });
+    if (bad) { setIpsRowError('Hay IPs con formato invalido (usa X.X.X.X)'); setConfirmingSaveId(null); return; }
+    setIpsRowSaving(true); setIpsRowError(null);
+    try {
+      const payload = {};
+      EQUIPOS.forEach(eq => {
+        const d = ipsDraft[eq.key] || {};
+        if (d.no_instalado) {
+          payload[eq.key] = { ip: null, no_instalado: true, motivo: d.motivo || null };
+        } else {
+          payload[eq.key] = { ip: (d.ip && d.ip.trim()) ? d.ip.trim() : null, no_instalado: false, motivo: null };
+        }
+      });
+      await assignIpsToPost(post.id, modemOrigen, payload);
+      if (onRefresh) await onRefresh();
+      setEditingIpsId(null);
+      setConfirmingSaveId(null);
+      setIpsDraft({});
+      setIpsRowFeedback({ id: post.id, msg: 'IPs actualizadas' });
+    } catch (err) {
+      setIpsRowError(err.message || 'Error al guardar');
+      setConfirmingSaveId(null);
+    } finally {
+      setIpsRowSaving(false);
+    }
+  };
+
+  const handleDeleteIpsRow = async (post) => {
+    setIpsRowDeleting(true); setIpsRowError(null);
+    try {
+      const { unassignIpsFromPost } = await import('../lib/data.js');
+      await unassignIpsFromPost(post.id);
+      if (onRefresh) await onRefresh();
+      setConfirmingDeleteIpsId(null);
+      setEditingIpsId(null);
+      setIpsRowFeedback({ id: post.id, msg: 'Eliminado' });
+    } catch (err) {
+      setIpsRowError(err.message || 'Error al eliminar');
+    } finally {
+      setIpsRowDeleting(false);
+    }
+  };
   // Handler para cerrar el dialog de exito y limpiar todo
   const handleSuccessDialogClose = () => {
     setShowSuccessDialog(null);
@@ -1013,6 +1093,61 @@ export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostCli
                     <button type="button" onClick={(e) => { e.stopPropagation(); if (onIrAlPunto) onIrAlPunto(post); }}
                       className="ml-auto px-2 py-0.5 rounded border border-sky-300 text-sky-700 bg-sky-50 hover:bg-sky-100 text-xs font-medium transition-colors">Ir al punto</button>
                   </div>
+                  {ipAsignada && (
+                    <div className="mt-2 pt-2 border-t border-stone-100">
+                      {ipsRowFeedback?.id === post.id && (
+                        <div className="text-[11px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-1 mb-1.5">✓ {ipsRowFeedback.msg}</div>
+                      )}
+                      {editingIpsId !== post.id && confirmingDeleteIpsId !== post.id && (
+                        <div className="flex gap-1.5">
+                          <button onClick={() => handleStartEditIpsRow(post)} className="text-[11px] font-mono px-2 py-0.5 rounded border border-stone-300 text-stone-600 hover:border-stone-400 hover:bg-stone-50">Editar IPs</button>
+                          <button onClick={() => { setConfirmingDeleteIpsId(post.id); setEditingIpsId(null); setIpsRowError(null); setIpsRowFeedback(null); }} className="text-[11px] font-mono px-2 py-0.5 rounded border border-red-300 text-red-600 hover:border-red-400 hover:bg-red-50">Eliminar IPs</button>
+                        </div>
+                      )}
+                      {confirmingDeleteIpsId === post.id && (
+                        <div className="p-2 border border-red-300 bg-red-50 rounded">
+                          <div className="text-[11px] font-mono text-red-800 mb-1.5">Eliminar la asignación de {post.id}? Libera las IPs, lo desconecta del modem y revierte E5/E6.</div>
+                          {ipsRowError && <div className="text-[10px] font-mono text-red-600 mb-1.5 break-words">{ipsRowError}</div>}
+                          <div className="flex gap-1.5">
+                            <button onClick={() => handleDeleteIpsRow(post)} disabled={ipsRowDeleting} className="text-[11px] font-mono px-2.5 py-1 rounded bg-red-700 text-red-50 disabled:opacity-50">{ipsRowDeleting ? 'Eliminando...' : 'Sí, eliminar'}</button>
+                            <button onClick={() => { setConfirmingDeleteIpsId(null); setIpsRowError(null); }} disabled={ipsRowDeleting} className="text-[11px] font-mono px-2.5 py-1 rounded border border-stone-300 text-stone-600">Cancelar</button>
+                          </div>
+                        </div>
+                      )}
+                      {editingIpsId === post.id && (
+                        <div className="p-2 border border-stone-300 bg-stone-50/60 rounded">
+                          <div className="text-[10px] text-stone-500 mb-1.5">Editar IPs (modem <span className="font-mono">{modemOrigen}</span>). Marca <span className="font-semibold">N/I</span> si el equipo no tiene IP.</div>
+                          <div className="space-y-1">
+                            {EQUIPOS.map(eq => {
+                              const d = ipsDraft[eq.key] || {};
+                              return (
+                                <div key={eq.key} className="flex items-center justify-between gap-2 p-1.5 bg-white border border-stone-200 rounded">
+                                  <span className="text-[11px] text-stone-700 flex-shrink-0">{eq.icon} {eq.label}</span>
+                                  <span className="flex items-center gap-2">
+                                    <input value={d.no_instalado ? '' : (d.ip || '')} disabled={!!d.no_instalado} onChange={ev => setIpsDraft(prev => ({ ...prev, [eq.key]: { ...(prev[eq.key] || {}), ip: ev.target.value } }))} placeholder="0.0.0.0" className="w-28 bg-white border border-stone-300 px-1.5 py-0.5 text-[11px] font-mono text-stone-800 rounded disabled:bg-stone-100 disabled:text-stone-400" />
+                                    <label title="No instalado" className="flex items-center gap-1 text-[10px] text-stone-500 cursor-help"><input type="checkbox" checked={!!d.no_instalado} onChange={ev => setIpsDraft(prev => ({ ...prev, [eq.key]: { ...(prev[eq.key] || {}), no_instalado: ev.target.checked, ip: ev.target.checked ? '' : (prev[eq.key] || {}).ip } }))} /> N/I</label>
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {ipsRowError && <div className="text-[10px] font-mono text-red-600 mt-1.5 break-words">{ipsRowError}</div>}
+                          {confirmingSaveId === post.id ? (
+                            <div className="mt-2 flex items-center gap-1.5">
+                              <span className="text-[11px] text-stone-700">Guardar cambios?</span>
+                              <button onClick={() => handleSaveIpsRow(post)} disabled={ipsRowSaving} className="text-[11px] font-mono px-2.5 py-1 rounded bg-emerald-700 text-emerald-50 disabled:opacity-50">{ipsRowSaving ? 'Guardando...' : 'Sí, guardar'}</button>
+                              <button onClick={() => setConfirmingSaveId(null)} disabled={ipsRowSaving} className="text-[11px] font-mono px-2.5 py-1 rounded border border-stone-300 text-stone-600">No</button>
+                            </div>
+                          ) : (
+                            <div className="mt-2 flex gap-1.5">
+                              <button onClick={() => { setConfirmingSaveId(post.id); setIpsRowError(null); }} className="text-[11px] font-mono px-2.5 py-1 rounded bg-emerald-700 text-emerald-50">Guardar</button>
+                              <button onClick={handleCancelEditIpsRow} className="text-[11px] font-mono px-2.5 py-1 rounded border border-stone-300 text-stone-600">Cancelar</button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </li>
               );
             })}

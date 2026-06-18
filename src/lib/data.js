@@ -1563,3 +1563,16 @@ export async function registrarAvanceConPendientes(postId, etapasPendientes, eta
   if (error) throw error;
   return data;
 }
+
+/** Lee los equipos (IPs) actuales de un poste directo de la BD = fuente de verdad, evita estado viejo del navegador. */
+export async function getEquiposForPost(postId) {
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from('post_stages')
+    .select('attrs')
+    .eq('post_id', postId)
+    .eq('stage_id', 'conexion_poste')
+    .single();
+  if (error) throw error;
+  return (data && data.attrs && data.attrs.equipos) || {};
+}

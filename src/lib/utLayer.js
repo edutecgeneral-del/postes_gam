@@ -42,7 +42,7 @@ export function createUtLayer({ baseUrl = '/' } = {}) {
     const filter = layer.get('utFilter');
     if (!filter) return baseStyle;
     const name = feature.get('nombre_uat');
-    return filter.has(name) ? baseStyle : invisibleStyle;
+    return filter.has(name) ? baseStyle : undefined;
   });
   return layer;
 }

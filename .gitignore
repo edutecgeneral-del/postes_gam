@@ -31,3 +31,5 @@ apply_*.py
 .env.v3
 # Las plantillas .example SI se suben (no tienen credenciales reales)
 !.env.*.example
+# backups locales de parches
+*.bak_*
