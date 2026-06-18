@@ -1940,6 +1940,7 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
       {reviewUt && (
         <UtReviewPanel
           ut={reviewUt}
+          onRefresh={onRefresh}
           stageDefs={STAGE_DEFS}
           posts={(posts || []).filter(p => p.unidad_territorial === reviewUt.id)}
           onClose={() => setReviewUt(null)}
