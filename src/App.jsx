@@ -664,6 +664,7 @@ function colorOfPost(p) {
 // relleno, así NO choca con los colores de etapa del punto. Cambia el tono aquí.
 const REVISADO_RING_COLOR = '#FFFFFF';
 const SELECTED_COLOR = '#39FF14'; // verde fluorescente: punto seleccionado o encontrado en busqueda
+const HALO_MODE = 'C'; // PRUEBA halos: A=poligono seleccionado, B=filtro UT, C=ambos. Sin disparador => 0 halos
 const __POST_STYLE_CACHE = new Map();
 function cachedPostStyle(color, state /* 'normal' | 'sel' | 'editing' */, revisado = false) {
   const key = (state === 'editing' ? 'editing' : `${color}|${state}`) + (revisado ? '|R' : '');
@@ -1319,10 +1320,14 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
     src.clear();
     const utsFilter = (filters && filters.uts) || [];
     const hayFiltroUt = utsFilter.length > 0;
+    const utSel = reviewUt ? reviewUt.id : null;
     (posts || []).forEach(p => {
       if (typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
       // Si hay filtro UT activo, ocultar halos de postes que no esten en esas UTs
-      if (hayFiltroUt && !utsFilter.includes(p.unidad_territorial)) return;
+      const enFiltro = hayFiltroUt && utsFilter.includes(p.unidad_territorial);
+      const enSeleccion = !!utSel && p.unidad_territorial === utSel;
+      const mostrarHalo = HALO_MODE === 'A' ? enSeleccion : HALO_MODE === 'B' ? enFiltro : (enSeleccion || enFiltro);
+      if (!mostrarHalo) return;
       const f = new OLFeature({
         geometry: new OLPoint(olFromLonLat([p.lng, p.lat])),
       });
@@ -1330,7 +1335,7 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
       f.set('postId', p.id);
       src.addFeature(f);
     });
-  }, [posts, filters?.uts]);
+  }, [posts, filters?.uts, reviewUt]);
 
   // Animacion del halo: solo afecta verificado/no_existe; no_definido queda estatico.
   useEffect(() => {
