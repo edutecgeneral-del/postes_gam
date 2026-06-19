@@ -679,7 +679,7 @@ export function FilterBar({
     const sections = (
       <>
         {/* Grupo: Progreso — etapa en el pipeline de captura */}
-        <MenuSection icon={ListChecks} title="Progreso" count={cntProgreso} defaultOpen={cntProgreso > 0}>
+        <MenuSection icon={ListChecks} title="Etapas" count={cntProgreso} defaultOpen={cntProgreso > 0}>
           <CheckList
             options={stageOptions}
             selectedValues={filters.stages}
@@ -720,7 +720,7 @@ export function FilterBar({
         )}
 
         {/* Grupo: Territorio — unidad territorial / colonia */}
-        <MenuSection icon={MapPin} title="Territorio" count={cntTerritorio} defaultOpen={cntTerritorio > 0}>
+        <MenuSection icon={MapPin} title="Unidad Territorial" count={cntTerritorio} defaultOpen={cntTerritorio > 0}>
           <CheckList
             options={utOptions}
             selectedValues={filters.uts}
