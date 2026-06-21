@@ -2033,21 +2033,36 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
       {/* Attribution */}
       <div className="absolute bottom-1 right-1 text-[9px] text-stone-400 font-mono z-10">© OSM · CARTO</div>
 
-      {/* Leyenda — oculta en móvil (el buscador ocupa la fila superior); visible en sm+ */}
-      <div className="hidden sm:block absolute top-4 right-4 bg-white/90 border border-stone-300 p-3 font-mono text-[12px] z-10 backdrop-blur-sm">
-        <div className="text-stone-500 uppercase tracking-widest mb-2">Leyenda</div>
+      {/* Leyenda - colapsable (click en el titulo para abrir/cerrar), oculta en movil */}
+      <details open className="hidden sm:block absolute top-4 right-4 bg-white/90 border border-stone-300 px-3 py-2 font-mono text-[12px] z-10 backdrop-blur-sm max-h-[80vh] overflow-auto">
+        <summary className="text-stone-500 uppercase tracking-widest cursor-pointer select-none">Leyenda</summary>
+
+        <div className="text-stone-400 text-[10px] uppercase mt-2 mb-1">Etapa (relleno del punto)</div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1">
           {STAGE_DEFS.map(s => (
             <div key={s.id} className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
-              <span className="text-stone-600">{s.short}</span>
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
+              <span className="text-stone-600">E{s.num} {s.short}</span>
             </div>
           ))}
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-stone-600">Completado</span></div>
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" /><span className="text-stone-600">Bloqueado</span></div>
-          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500" /><span className="text-blue-400">Yo</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" /><span className="text-stone-600">Completado</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500 shrink-0" /><span className="text-stone-600">Bloqueado</span></div>
         </div>
-      </div>
+
+        <div className="text-stone-400 text-[10px] uppercase mt-2 mb-1">Verificacion (halo del punto)</div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: 'rgba(85,88,90,0.25)', border: '1.5px solid rgba(85,88,90,0.45)' }} /><span className="text-stone-600">Sin verificar</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: 'rgba(188,149,92,0.5)', border: '1.5px solid #BC955C' }} /><span className="text-stone-600">Verificado</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: 'rgba(159,34,65,0.5)', border: '1.5px solid #9F2241' }} /><span className="text-stone-600">No existe</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full border-2 border-dashed border-stone-500 shrink-0" /><span className="text-stone-600">Revisado</span></div>
+        </div>
+
+        <div className="text-stone-400 text-[10px] uppercase mt-2 mb-1">Otros</div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: 'rgba(57,255,20,0.22)', border: '2px solid #39FF14' }} /><span className="text-stone-600">Seleccionado</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" /><span className="text-blue-400">Yo (ubicacion)</span></div>
+        </div>
+      </details>
 
       {/* Panel de rutas de scouting */}
       {showScout && (
