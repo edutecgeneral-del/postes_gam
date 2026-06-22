@@ -1047,13 +1047,21 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
           const b = parseInt(color.slice(5, 7), 16);
           const rgbaFill = `rgba(${r}, ${g}, ${b}, ${opacity})`;
           const rgbaStroke = `rgba(${r}, ${g}, ${b}, ${Math.min(opacity + 0.2, 1)})`;
-          return new OLStyle({
-            image: new OLCircle({
-              radius,
-              fill: new OLFill({ color: rgbaFill }),
-              stroke: new OLStroke({ color: rgbaStroke, width: 1.5 }),
-            }),
-          });
+          const haloStyle = new OLStyle({
+              image: new OLCircle({
+                radius,
+                fill: new OLFill({ color: rgbaFill }),
+                stroke: new OLStroke({ color: rgbaStroke, width: 1.5 }),
+              }),
+            });
+            if (!feature.get('verificadoCampo')) return haloStyle;
+            return [haloStyle, new OLStyle({
+              image: new OLCircle({
+                radius: 19,
+                fill: null,
+                stroke: new OLStroke({ color: '#D946EF', width: 2.5 }),
+              }),
+            })];
         },
       });
       haloSourceRef.current = haloSource;
@@ -1332,6 +1340,7 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
         geometry: new OLPoint(olFromLonLat([p.lng, p.lat])),
       });
       f.set('estado', p.estado_verificacion || 'no_definido');
+        f.set('verificadoCampo', p.verificado_campo === true);
       f.set('postId', p.id);
       src.addFeature(f);
     });
@@ -1961,6 +1970,22 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
             // Abrir el panel de detalles del poste
             if (typeof setSelectedPost === 'function') {
               setSelectedPost(post);
+            }
+          }}
+          onToggleVerificadoCampo={async (postId, value) => {
+            const prevPosts = posts;
+            setPosts(prev => prev.map(p =>
+              p.id === postId
+                ? { ...p, verificado_campo: value, verificado_campo_at: value ? new Date().toISOString() : null }
+                : p
+            ));
+            try {
+              const { updatePostVerificadoCampo } = await import('./lib/data.js');
+              await updatePostVerificadoCampo(postId, value);
+            } catch (err) {
+              console.error('Error actualizando verificado_campo:', err);
+              setPosts(prevPosts);
+              alert('Error al actualizar la verificacion en campo. Intenta de nuevo.');
             }
           }}
           onChangeEstado={async (postId, nuevoEstado) => {

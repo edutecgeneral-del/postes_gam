@@ -1576,3 +1576,24 @@ export async function getEquiposForPost(postId) {
   if (error) throw error;
   return (data && data.attrs && data.attrs.equipos) || {};
 }
+
+/**
+ * Marca o desmarca la verificacion en campo de un poste.
+ * Llama al RPC set_post_verificado_campo en Supabase.
+ *
+ * @param {string} postId
+ * @param {boolean} value - true = verificado en campo, false = desmarcar
+ * @returns {Promise<object>} El poste actualizado
+ */
+export async function updatePostVerificadoCampo(postId, value) {
+  if (!hasSupabase()) {
+    throw new Error('Supabase no configurado');
+  }
+  const sb = getSupabase();
+  const { data, error } = await sb.rpc('set_post_verificado_campo', {
+    p_post_id: postId,
+    p_value: value,
+  });
+  if (error) throw error;
+  return data;
+}

@@ -19,7 +19,7 @@ const FASE_FISICA = ['marca', 'dado', 'parado', 'camaras'];
 const etapasFisicasPendientes = (post) =>
   FASE_FISICA.filter(s => !post?.stages?.[s]?.done);
 
-export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostClick, onChangeEstado, onIrAlPunto, onRefresh }) {
+export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostClick, onChangeEstado, onToggleVerificadoCampo, onIrAlPunto, onRefresh }) {
   const [savingId, setSavingId] = useState(null);
   const [viewMode, setViewMode] = useState('review');
   const [selectedModem, setSelectedModem] = useState(null);
@@ -62,6 +62,7 @@ export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostCli
   const verificados = posts.filter(p => p.estado_verificacion === 'verificado').length;
   const noExiste = posts.filter(p => p.estado_verificacion === 'no_existe').length;
   const noDefinido = total - verificados - noExiste;
+  const verificadosCampo = posts.filter(p => p.verificado_campo === true).length;
 
   const meta = ut.liberados;
   const porLiberar = ut.porLiberarPorUt;
@@ -146,6 +147,27 @@ export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostCli
     if (post.estado_verificacion === nuevoEstado) return;
     setSavingId(post.id);
     try { await onChangeEstado(post.id, nuevoEstado); } finally { setSavingId(null); }
+  };
+
+  const handleToggleCampo = async (post) => {
+    if (!onToggleVerificadoCampo) return;
+    setSavingId(post.id);
+    try { await onToggleVerificadoCampo(post.id, !post.verificado_campo); } finally { setSavingId(null); }
+  };
+
+  const renderCampoBtn = (post) => {
+    const isActive = post.verificado_campo === true;
+    const baseStyle = 'px-2 py-0.5 rounded border text-xs font-medium transition-colors';
+    const activeStyle = 'bg-sky-100 text-sky-700 border-sky-400';
+    const inactiveStyle = 'bg-white text-stone-400 border-stone-300 hover:bg-stone-100';
+    const isSaving = savingId === post.id;
+    return (
+      <button type="button" onClick={(e) => { e.stopPropagation(); handleToggleCampo(post); }} disabled={isSaving}
+        className={`${baseStyle} ${isActive ? activeStyle : inactiveStyle} ${isSaving ? 'opacity-50 cursor-wait' : ''}`}
+        title="Verificado en campo (doble chequeo)">
+        Campo
+      </button>
+    );
   };
 
   const renderEstadoBtn = (post, valor, label, activeStyle) => {
@@ -1041,6 +1063,7 @@ export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostCli
           <span className="text-emerald-600 font-medium">{verificados} verif.</span>
           <span className="text-red-600 font-medium">{noExiste} no exist.</span>
           <span className="text-stone-500 font-medium">{noDefinido} pend.</span>
+          <span className="text-sky-600 font-medium">{verificadosCampo} en campo</span>
         </div>
 
         {postesConModem.length > 0 && (
@@ -1090,6 +1113,8 @@ export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostCli
                     {renderEstadoBtn(post, 'verificado', 'Verif.', 'bg-emerald-100 text-emerald-700 border-emerald-400')}
                     {renderEstadoBtn(post, 'no_definido', 'Pend.', 'bg-stone-200 text-stone-700 border-stone-400')}
                     {renderEstadoBtn(post, 'no_existe', 'No exist.', 'bg-red-100 text-red-700 border-red-400')}
+                    <span className="w-px h-4 bg-stone-200 self-center" />
+                    {renderCampoBtn(post)}
                     <button type="button" onClick={(e) => { e.stopPropagation(); if (onIrAlPunto) onIrAlPunto(post); }}
                       className="ml-auto px-2 py-0.5 rounded border border-sky-300 text-sky-700 bg-sky-50 hover:bg-sky-100 text-xs font-medium transition-colors">Ir al punto</button>
                   </div>
