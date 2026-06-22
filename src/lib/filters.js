@@ -127,7 +127,7 @@ if (filters.maint === 'antena_recuperada') {
   // Tipo de incidencia — mostrar solo postes con al menos una incidencia abierta de ese tipo
   if (filters.incType) {
     const hasMatch = incidents.some(i =>
-      i.postId === post.id && i.status === 'abierta' && i.type === filters.incType
+      i.postId === post.id && i.status === 'abierta' && (filters.incType === 'Sin clasificar' ? !i.categoryId : i.categoryName === filters.incType)
     );
     if (!hasMatch) return false;
   }
@@ -252,8 +252,10 @@ export function computeCounts(posts, filters, stageDefs, mode = 'map', incidents
 
   // incType — tipos únicos de incidencias abiertas, conteo de postes afectados
   const incFiltersWithoutType = { ...filters, incType: null };
-  const openTypes = [...new Set(incidents.filter(i => i.status === 'abierta').map(i => i.type).filter(Boolean))];
-  for (const t of openTypes) {
+  const openCats = [...new Set(incidents.filter(i => i.status === 'abierta' && i.categoryId).map(i => i.categoryName).filter(Boolean))];
+  const hasUnclassified = incidents.some(i => i.status === 'abierta' && !i.categoryId);
+  const incOptions = hasUnclassified ? [...openCats, 'Sin clasificar'] : openCats;
+  for (const t of incOptions) {
     counts.incType[t] = posts.filter(p =>
       matchesFilters(p, { ...incFiltersWithoutType, incType: t }, stageDefs, mode, incidents)
     ).length;

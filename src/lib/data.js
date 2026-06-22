@@ -245,7 +245,7 @@ export async function loadAllData() {
   const [postsData, stagesData, incidentsData, utsData, postTagsData, tagsData] = await Promise.all([
     fetchAll('posts', 'id'),
     fetchAll('post_stages', 'post_id'),
-    fetchAll('incidents', 'created_at', false),
+    fetchAll('incidents_enriched', 'created_at', false),
     fetchAll('unidades_territoriales', 'id'),
     fetchAll('post_tags', 'post_id'),
     fetchAll('tags', 'id'),
@@ -358,6 +358,9 @@ export async function loadAllData() {
     attendedPhotoUrl: i.attended_photo_url || null,
     resolvedBy: i.resolved_by || null,
     resolvedByName: i.resolved_by_name || '',
+    categoryId: i.category_id || null,
+    categoryName: i.category_name || null,
+    categoryColor: i.category_color || null,
     createdAt: i.created_at ? new Date(i.created_at).getTime() : null,
     resolvedAt: i.resolved_at ? new Date(i.resolved_at).getTime() : null,
   }));
@@ -1347,6 +1350,35 @@ export async function reviewProposal(proposalId, approved, reviewNotes) {
   if (error) throw error;
 }
 
+let _incidentCategoriesCache = null;
+export async function fetchIncidentCategories() {
+  if (_incidentCategoriesCache && _incidentCategoriesCache.length) return _incidentCategoriesCache;
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from('incident_categories')
+    .select('id, name, color, bloquea')
+    .eq('active', true)
+    .order('name');
+  if (error) throw error;
+  _incidentCategoriesCache = (data || []).map(c => ({
+    id: c.id, name: c.name, color: c.color || null, bloquea: c.bloquea === true,
+  }));
+  return _incidentCategoriesCache;
+}
+
+export async function createIncidentsFromCatalog({ postId, categoryIds, severity, note, stageId, sourceNote }) {
+  const sb = requireSupabase();
+  const { data, error } = await withTimeout(sb.rpc('create_incidents_from_catalog', {
+    p_post_id: postId,
+    p_category_ids: categoryIds,
+    p_severity: severity,
+    p_note: note,
+    p_stage_id: stageId || null,
+    p_source_note: sourceNote || null,
+  }), 15000, 'createIncidentsFromCatalog');
+  if (error) throw error;
+  return data;
+}
 export default {
   loadAllData,
   savePost,
@@ -1355,6 +1387,8 @@ export default {
   updateStageAtomic,
   updatePostMetadata,
   createIncidentAtomic,
+  createIncidentsFromCatalog,
+  fetchIncidentCategories,
   resolveIncidentAtomic,
   createIncidentInDB,
   resolveIncidentInDB,

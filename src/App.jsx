@@ -31,6 +31,8 @@ import {
   updateStageAtomic,
   updatePostMetadata,
   createIncidentAtomic,
+  createIncidentsFromCatalog,
+  fetchIncidentCategories,
   resolveIncidentAtomic,
   deleteIncidentAtomic,
   attendIncidentAtomic,
@@ -3584,7 +3586,7 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
     setPhotoFiles(Array.isArray(files) ? files : []);
   };
   const [showEscalate, setShowEscalate] = useState(false);
-  const [incType, setIncType] = useState('');
+  const [incCats, setIncCats] = useState([]); const [incCatalog, setIncCatalog] = useState([]); const [incCatalogLoading, setIncCatalogLoading] = useState(false);
   const [incSev, setIncSev] = useState('media');
   const [incUserNote, setIncUserNote] = useState('');
   const [incSubmitting, setIncSubmitting] = useState(false);
@@ -3918,7 +3920,7 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
                       className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 font-mono focus:outline-none focus:border-rose-600/50 resize-none" />
 
             {!showEscalate && (
-              <button onClick={() => setShowEscalate(true)}
+              <button onClick={async () => { setShowEscalate(true); if (incCatalog.length === 0) { setIncCatalogLoading(true); try { setIncCatalog(await fetchIncidentCategories()); } catch (err) { console.error('fetch catalog failed', err); } finally { setIncCatalogLoading(false); } } }}
                       className="mt-4 w-full px-4 py-3 border-2 border-red-500 bg-red-100 text-red-700 hover:bg-red-100 hover:border-red-500 text-sm font-mono uppercase tracking-wider flex items-center justify-center gap-2 transition-colors rounded-lg font-bold">
                 <AlertTriangle className="w-5 h-5" strokeWidth={2}/>
                 Reportar incidencia
@@ -3929,9 +3931,20 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
                 <div className="text-[12px] font-mono uppercase tracking-widest text-red-400">
                   Nueva incidencia ligada a E{stage.num} · {stage.short}
                 </div>
-                <input type="text" value={incType} onChange={e => setIncType(e.target.value)}
-                       placeholder="Tipo de incidencia (ej: Sin electricidad)…"
-                       className="w-full bg-stone-50 border border-stone-300 px-2 py-1.5 text-xs text-stone-800 font-mono focus:outline-none focus:border-red-500/50" />
+                <div className="flex flex-wrap gap-1.5">
+                  {incCatalogLoading && <span className="text-[11px] text-stone-400 font-mono">Cargando catalogo...</span>}
+                  {!incCatalogLoading && incCatalog.length === 0 && <span className="text-[11px] text-stone-400 font-mono">Sin catalogo disponible</span>}
+                  {incCatalog.map(cat => {
+                    const sel = incCats.includes(cat.id);
+                    return (
+                      <button key={cat.id} type="button"
+                              onClick={() => setIncCats(prev => prev.includes(cat.id) ? prev.filter(x => x !== cat.id) : [...prev, cat.id])}
+                              className={'px-2 py-1 text-[11px] font-mono border transition-colors ' + (sel ? 'bg-red-500/20 border-red-500/60 text-red-300' : 'border-stone-300 text-stone-600 hover:border-stone-500')}>
+                        {cat.name}{cat.bloquea ? ' *' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
                 <div>
                   <label className="block text-[11px] text-red-400 font-mono mb-1">Nota explicativa *</label>
                   <textarea value={incUserNote} onChange={e => setIncUserNote(e.target.value)}
@@ -3956,7 +3969,7 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
                     Cancelar
                   </button>
                   <button onClick={async () => {
-                    if (!incUserNote.trim()) {
+                    if (incCats.length === 0) { alert('Selecciona al menos una categoria del catalogo.'); return; } if (!incUserNote.trim()) {
                       alert('La nota explicativa es obligatoria.');
                       return;
                     }
@@ -3964,17 +3977,17 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
                     try {
                     if (onCreateIncident) {
                       const created = await onCreateIncident({
-                        postId: post.id, type: incType || 'Incidencia general', description: incType || 'Sin descripción',
+                        postId: post.id, categoryIds: incCats, description: incUserNote.trim(),
                         severity: incSev,
                         stageId: stage.id, sourceNote: notes.trim() || '',
                         userNote: incUserNote.trim(),
                       });
-                      alert('Incidencia registrada' + (created?.id ? ': ' + created.id : ''));
+                      alert('Incidencia(s) registrada(s): ' + (created?.count || 1));
                     } else {
-                      alert('Incidencia registrada: ' + (incType || 'Incidencia general') + ' (' + incSev + ')');
+                      alert('Incidencia(s) registrada(s) (' + incSev + ')');
                     }
                     setShowEscalate(false);
-                    setIncType('');
+                    setIncCats([]);
                     setIncUserNote('');
                     } catch (e) {
                       console.error('create incident failed', e);
@@ -3982,7 +3995,7 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
                       setIncSubmitting(false);
                     }
                   }}
-                          disabled={incSubmitting || !incUserNote.trim()}
+                          disabled={incSubmitting || !incUserNote.trim() || incCats.length === 0}
                           className="flex-1 px-3 py-1.5 bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30 disabled:opacity-30 text-[12px] font-mono uppercase tracking-wider flex items-center justify-center gap-1.5">
                     <AlertTriangle className="w-3 h-3" strokeWidth={1.5}/> {incSubmitting ? 'Creando...' : 'Crear incidencia'}
                   </button>
@@ -7817,6 +7830,43 @@ export default function FieldCoordApp() {
       throw new Error('Se requiere una nota explicativa para levantar la incidencia.');
     }
     try {
+      // Rama catalogo: si llegan categoryIds, usar la RPC que crea N incidencias clasificadas
+      if (Array.isArray(data.categoryIds) && data.categoryIds.length > 0) {
+        const res = await createIncidentsFromCatalog({
+          postId: data.postId,
+          categoryIds: data.categoryIds,
+          severity: data.severity,
+          note: data.userNote || data.description || '',
+          stageId: data.stageId,
+          sourceNote: data.sourceNote,
+        });
+        const reporter = profile?.display_name || profile?.email || 'Sin nombre';
+        const nowMs = Date.now();
+        const created = (res?.incidents || []).map(it => ({
+          id: it.id,
+          postId: data.postId,
+          type: it.type,
+          description: data.userNote || data.description || '',
+          severity: data.severity,
+          status: 'abierta',
+          capturedBy: null,
+          stageId: data.stageId || null,
+          sourceNote: data.sourceNote || '',
+          userNote: data.userNote || data.description || '',
+          reportedByName: reporter,
+          attendedBy: null, attendedByName: '', attendedAt: null, attendedNote: '', attendedPhotoUrl: null,
+          resolvedBy: null, resolvedByName: '',
+          createdAt: nowMs, resolvedAt: null,
+          categoryId: it.category_id || null,
+          categoryName: it.type || null,
+          categoryColor: null,
+        }));
+        if (created.length > 0) setIncidents(prev => [...created, ...prev]);
+        if (res?.blocked) {
+          setPosts(prev => prev.map(p => p.id === data.postId ? { ...p, blocked: true, lastUpdate: Date.now() } : p));
+        }
+        return { id: created[0]?.id, count: res?.count || created.length };
+      }
       const newInc = await createIncidentAtomic({
         postId: data.postId,
         type: data.type,
