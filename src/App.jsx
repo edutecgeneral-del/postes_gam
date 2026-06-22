@@ -8392,7 +8392,7 @@ export default function FieldCoordApp() {
               onJumpToMap={(p) => { setMapFocusPost(p); setMapFocusKey(k => k + 1); setActiveTab('mapa'); }}
             />
           )}
-          {activeTab === 'scouting' && (isAdmin || isScout || isCapturador) && (
+          {activeTab === 'scouting' && (isAdmin || isScout || isCapturador || isCoordinador) && (
             <ScoutingView
               posts={posts}
               stageDefs={STAGE_DEFS}

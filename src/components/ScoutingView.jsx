@@ -109,6 +109,7 @@ function incBadge(type) {
 }
 
 export default function ScoutingView({ posts, stageDefs, profile, userNames, isAdmin, isCoordinador, onPostApproved, onCreateIncident, incidents, onSelectPost, onOpenPostDetail }) {
+  const isManager = isAdmin || isCoordinador;
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [allUsersMap, setAllUsersMap] = useState({}); // {userId: displayName} incluyendo admins
@@ -126,11 +127,11 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
     try {
       const data = await loadScoutingRoutes();
       // Scout solo ve las suyas
-      const filtered = isAdmin ? data : data.filter(r => r.scout_id === profile?.userId || (r.operator_ids || []).includes(profile?.userId));
+      const filtered = isManager ? data : data.filter(r => r.scout_id === profile?.userId || (r.operator_ids || []).includes(profile?.userId));
       setRoutes(filtered);
     } catch (e) { console.error('loadRoutes', e); }
     setLoading(false);
-  }, [isAdmin, profile]);
+  }, [isManager, profile]);
 
   useEffect(() => { loadRoutes(); }, [loadRoutes]);
 
@@ -176,6 +177,7 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
         posts={posts}
         profile={profile}
         isAdmin={isAdmin}
+        isManager={isManager}
         userNames={userNames}
         onBack={() => { setSelectedRoute(null); loadRoutes(); }}
         onSelectPost={(postId) => setSelectedPostForVisit(postId)}
@@ -198,7 +200,7 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
           <div className="min-w-0">
             <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-emerald-500/80">Scouting</div>
             <h1 className="text-xl font-light text-stone-950 mt-1">
-              {isAdmin ? 'Rutas de verificación' : 'Mis recorridos'}
+              {isManager ? 'Rutas de verificación' : 'Mis recorridos'}
             </h1>
             <p className="text-xs text-stone-500 mt-1">{routes.length} rutas</p>
           </div>
@@ -230,7 +232,7 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
         ) : routes.length === 0 ? (
           <div className="text-center py-12 text-stone-500">
             <Compass className="w-10 h-10 mx-auto mb-3 text-stone-400" />
-            <p className="text-sm">{isAdmin ? 'No hay rutas creadas. Crea la primera.' : 'No tienes rutas asignadas.'}</p>
+            <p className="text-sm">{isManager ? 'No hay rutas creadas. Crea la primera.' : 'No tienes rutas asignadas.'}</p>
           </div>
         ) : (
           <>
@@ -291,7 +293,7 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
 // =============================================================================
 // RouteDetail — postes de una ruta, scout puede seleccionar para verificar
 // =============================================================================
-function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSelectPost, onStartRoute, onCompleteRoute, onReassign }) {
+function RouteDetail({ route, posts, profile, isAdmin, isManager, userNames, onBack, onSelectPost, onStartRoute, onCompleteRoute, onReassign }) {
   const [postIds, setPostIds] = useState([]);
   const [visitedIds, setVisitedIds] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
@@ -355,7 +357,7 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
           <div className="text-sm font-bold text-stone-950">{route.name}</div>
           <div className="text-[12px] text-stone-500">{completados.length}/{routePosts.length} verificados · {route.status === 'completada' ? 'Scouting completado' : route.status}</div>
         </div>
-        {isAdmin && (
+        {isManager && (
           <select value={route.scout_id || ''} onChange={e => onReassign?.(e.target.value)}
             title="Responsable"
             className="text-xs bg-stone-100 border border-stone-300 rounded-lg px-2 py-1.5 text-stone-800 font-mono focus:outline-none focus:border-brand-500 max-w-[45%]">
@@ -373,7 +375,7 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
             Marcar completa
           </button>
         )}
-        {isAdmin && route.status === 'completada' && nextType && (
+        {isManager && route.status === 'completada' && nextType && (
           <button onClick={async () => {
             try {
               await createScoutingRoute({ name: `${MAINT_CHECKS[nextType].label} · ${route.name}`, scoutId: null, postIds, notes: '', routeType: nextType });
@@ -439,7 +441,7 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
               const stagesDone = Object.values(p.stages).filter(s => s.done).length;
               return (
                 <button key={p.id}
-                  onClick={() => (isScout || isAdmin) && onSelectPost(p.id)}
+                  onClick={() => (isScout || isManager) && onSelectPost(p.id)}
                   className="w-full px-4 py-3 flex items-center gap-3 hover:bg-stone-100 text-left">
                   {isAdmin && (
                     <input type="checkbox" checked={selectedForRemoval.has(p.id)}
@@ -489,7 +491,7 @@ function RouteDetail({ route, posts, profile, isAdmin, userNames, onBack, onSele
                   <>
                   <div className="divide-y divide-stone-200/60 opacity-70">
                     {pagedCompletados.map((p) => (
-                      <button key={p.id} onClick={() => (isScout || isAdmin) && onSelectPost(p.id)}
+                      <button key={p.id} onClick={() => (isScout || isManager) && onSelectPost(p.id)}
                         className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-stone-50 text-left">
                         <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-xs text-emerald-700 flex-shrink-0">✓</div>
                         <div className="flex-1 min-w-0">
