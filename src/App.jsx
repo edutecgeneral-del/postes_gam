@@ -2079,9 +2079,10 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
         <div className="text-stone-400 text-[10px] uppercase mt-2 mb-1">Verificacion (halo del punto)</div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1">
           <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: 'rgba(85,88,90,0.25)', border: '1.5px solid rgba(85,88,90,0.45)' }} /><span className="text-stone-600">Sin verificar</span></div>
-          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: 'rgba(188,149,92,0.5)', border: '1.5px solid #BC955C' }} /><span className="text-stone-600">Verificado</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: 'rgba(188,149,92,0.5)', border: '1.5px solid #BC955C' }} /><span className="text-stone-600">Verif. a distancia</span></div>
           <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: 'rgba(159,34,65,0.5)', border: '1.5px solid #9F2241' }} /><span className="text-stone-600">No existe</span></div>
           <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full border-2 border-dashed border-stone-500 shrink-0" /><span className="text-stone-600">Revisado</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full shrink-0" style={{ border: '2px solid #D946EF' }} /><span className="text-stone-600">Verif. en campo</span></div>
         </div>
 
         <div className="text-stone-400 text-[10px] uppercase mt-2 mb-1">Otros</div>
