@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
+
 import {
   Navigation, Camera, ArrowUpRight, Eye, EyeOff, Lock, Copy,
   CheckCircle2, Upload, X, Image as ImageIcon, AlertTriangle, AlertCircle, ListChecks
@@ -482,7 +483,7 @@ export function StageAttributeField({ attr, value, attrs, onChange, color, showP
 
 export function StageFormFields({ stage, attrs, setAttr, notes, setNotes, photoAdded, setPhotoAdded, showPwd, setShowPwd, onPhotoFiles, existingPhotos, onCreateIncident, postId, attrsUpdated }) {
   const [showEscalate, setShowEscalate] = useState(false);
-  const [incType, setIncType] = useState('');
+  const [incCats, setIncCats] = useState([]); const [incCatalog, setIncCatalog] = useState([]); const [incCatalogLoading, setIncCatalogLoading] = useState(false); const [incUserNote, setIncUserNote] = useState('');
   const [incSev, setIncSev] = useState('media');
   const [incSubmitting, setIncSubmitting] = useState(false);
   const fieldDates = attrsUpdated || {};
@@ -550,21 +551,38 @@ export function StageFormFields({ stage, attrs, setAttr, notes, setNotes, photoA
       </div>
 
       {/* REPORTAR INCIDENCIA — SIEMPRE visible */}
-      {!showEscalate && (
-        <button onClick={() => setShowEscalate(true)}
+      {onCreateIncident && !showEscalate && (
+        <button onClick={async () => { setShowEscalate(true); if (incCatalog.length === 0) { setIncCatalogLoading(true); try { setIncCatalog(await fetchIncidentCategories()); } catch (err) { console.error('fetch catalog failed', err); } finally { setIncCatalogLoading(false); } } }}
                 className="w-full px-4 py-3 border-2 border-red-500 bg-red-100 text-red-700 hover:bg-red-100 hover:border-red-500 text-sm font-mono uppercase tracking-wider flex items-center justify-center gap-2 transition-colors rounded-lg font-bold">
           <AlertCircle className="w-5 h-5" strokeWidth={2}/>
           Reportar incidencia
         </button>
       )}
-      {showEscalate && (
+      {onCreateIncident && showEscalate && (
         <div className="p-4 border-2 border-red-500 bg-red-100 rounded-lg space-y-3">
           <div className="text-xs font-mono uppercase tracking-widest text-red-600 font-bold">
             Nueva incidencia — E{stage.num} {stage.short}
           </div>
-          <input type="text" value={incType} onChange={e => setIncType(e.target.value)}
-                 placeholder="Describe la incidencia…"
-                 className="w-full bg-stone-50 border-2 border-stone-300 px-3 py-2.5 text-sm text-stone-950 font-mono focus:outline-none focus:border-red-500 rounded" />
+          <div className="flex flex-wrap gap-1.5">
+            {incCatalogLoading && <span className="text-[11px] text-stone-500 font-mono">Cargando catalogo...</span>}
+            {!incCatalogLoading && incCatalog.length === 0 && <span className="text-[11px] text-stone-500 font-mono">Sin catalogo disponible</span>}
+            {incCatalog.map(cat => {
+              const sel = incCats.includes(cat.id);
+              return (
+                <button key={cat.id} type="button"
+                        onClick={() => setIncCats(prev => prev.includes(cat.id) ? prev.filter(x => x !== cat.id) : [...prev, cat.id])}
+                        className={'px-2 py-1 text-[11px] font-mono border-2 rounded transition-colors ' + (sel ? 'bg-red-200 border-red-500 text-red-700' : 'border-stone-300 text-stone-600 hover:border-stone-500')}>
+                  {cat.name}{cat.bloquea ? ' *' : ''}
+                </button>
+              );
+            })}
+          </div>
+          <div>
+            <label className="block text-[11px] text-red-600 font-mono mb-1 font-bold">Nota explicativa *</label>
+            <textarea value={incUserNote} onChange={e => setIncUserNote(e.target.value)}
+                      rows={2} placeholder="Describe que observas y por que es un problema..."
+                      className="w-full bg-stone-50 border-2 border-stone-300 px-3 py-2 text-sm text-stone-950 font-mono focus:outline-none focus:border-red-500 rounded resize-none" />
+          </div>
           <div className="flex gap-2">
             {['baja', 'media', 'alta'].map(sev => (
               <button key={sev} onClick={() => setIncSev(sev)}
@@ -578,21 +596,21 @@ export function StageFormFields({ stage, attrs, setAttr, notes, setNotes, photoA
             ))}
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { setShowEscalate(false); setIncType(''); }}
+            <button onClick={() => { setShowEscalate(false); setIncCats([]); setIncUserNote(''); }}
                     className="px-4 py-2.5 border-2 border-stone-300 text-stone-600 hover:border-stone-500 text-xs font-mono uppercase tracking-wider rounded font-bold">
               Cancelar
             </button>
-            <button onClick={async () => {
+            <button onClick={async () => { if (incCats.length === 0) { alert('Selecciona al menos una categoria del catalogo.'); return; } if (!incUserNote.trim()) { alert('La nota explicativa es obligatoria.'); return; }
               setIncSubmitting(true);
               try {
               if (onCreateIncident) {
-                const created = await onCreateIncident({ postId, type: incType || 'Incidencia general', description: incType || 'Sin descripción', severity: incSev, stageId: stage.id, sourceNote: notes?.trim() || '' });
-                alert('Incidencia registrada' + (created?.id ? ': ' + created.id : ''));
+                const created = await onCreateIncident({ postId, categoryIds: incCats, description: incUserNote.trim(), severity: incSev, stageId: stage.id, sourceNote: notes?.trim() || '', userNote: incUserNote.trim() });
+                alert('Incidencia(s) registrada(s): ' + (created?.count || 1));
               } else {
-                alert('Incidencia registrada: ' + (incType || 'Incidencia general') + ' (' + incSev + ')');
+                alert('Incidencia(s) registrada(s) (' + incSev + ')');
               }
               setShowEscalate(false);
-              setIncType('');
+              setIncCats([]); setIncUserNote('');
               } catch (e) {
                 console.error('create incident failed', e);
               } finally {
