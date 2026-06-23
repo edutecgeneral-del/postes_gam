@@ -4300,7 +4300,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                     {post.numPoste != null ? (
                       <span className="text-sm text-stone-700 font-mono font-bold">#{post.numPoste}</span>
                     ) : (
-                      <span className="text-xs text-stone-400 italic">Sin nÃºmero â€” toca para agregar</span>
+                      <span className="text-xs text-stone-400 italic">Sin número — toca para agregar</span>
                     )}
                     <Edit2 className="w-3 h-3 text-stone-400 opacity-50 group-hover:opacity-100" />
                   </div>
