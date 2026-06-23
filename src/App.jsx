@@ -3611,6 +3611,9 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
         const mergedChecks = {};
         let anyTouched = false;
         const allMaintPhotos = [];
+        // Categoria comodin del catalogo para checks en problema (resuelta una vez)
+        let _genCatId = null;
+        try { const _cats = await fetchIncidentCategories(); _genCatId = (_cats || []).find(x => x.code === 'incidencia_general' || x.name === 'Incidencia general')?.id || null; } catch (err) { console.error('maint catalog resolve failed', err); }
         for (const [id, label] of maintCfg.items) {
           const c = maintChecks[id] || {};
           const newFiles = maintPhotoFiles[id] || [];
@@ -3626,7 +3629,7 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
             mergedChecks[id] = { label, result: c.result || 'ok', notas: c.notas || '', photos };
             // crear incidencia si el check quedó en problema
             if (c.result === 'problema' && onCreateIncident) {
-              try { await onCreateIncident({ postId: post.id, type: label, description: c.notas || label, severity: 'alta', stageId: stage.id, sourceNote: c.notas || '' }); } catch {}
+              const _maintNote = maintCfg.title + ' - ' + label + (c.notas ? (': ' + c.notas) : ''); try { if (_genCatId) { await onCreateIncident({ postId: post.id, categoryIds: [_genCatId], description: _maintNote, severity: 'alta', stageId: stage.id, sourceNote: c.notas || '', userNote: _maintNote }); } else { await onCreateIncident({ postId: post.id, type: label, description: c.notas || label, severity: 'alta', stageId: stage.id, sourceNote: c.notas || '' }); } } catch {}
             }
           }
         }
