@@ -484,6 +484,9 @@ function EditUserModal({ user, onClose, onUpdated }) {
               <option value={ROLES.CAPTURADOR}>Capturador</option>
               <option value={ROLES.SCOUT}>Scout</option>
               <option value={ROLES.DIRECTOR}>Director</option>
+              <option value={ROLES.SERVICIOS_URBANOS}>Servicios Urbanos</option>
+              <option value={ROLES.PARTICIPACION_CIUDADANA}>Participación Ciudadana</option>
+              <option value={ROLES.RAAL}>RAAL</option>
             </select>
           </div>
 
