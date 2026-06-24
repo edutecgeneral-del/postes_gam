@@ -1366,7 +1366,7 @@ export async function fetchIncidentCategories() {
   return _incidentCategoriesCache;
 }
 
-export async function createIncidentsFromCatalog({ postId, categoryIds, severity, note, stageId, sourceNote }) {
+export async function createIncidentsFromCatalog({ postId, categoryIds, severity, note, stageId, sourceNote, forceBlock }) {
   const sb = requireSupabase();
   const { data, error } = await withTimeout(sb.rpc('create_incidents_from_catalog', {
     p_post_id: postId,
@@ -1375,6 +1375,7 @@ export async function createIncidentsFromCatalog({ postId, categoryIds, severity
     p_note: note,
     p_stage_id: stageId || null,
     p_source_note: sourceNote || null,
+    p_force_block: forceBlock || false,
   }), 15000, 'createIncidentsFromCatalog');
   if (error) throw error;
   return data;

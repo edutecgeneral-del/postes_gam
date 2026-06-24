@@ -4065,6 +4065,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
   const [blockDesc, setBlockDesc] = useState('');
   const [blockDetail, setBlockDetail] = useState('');
   const [blockUserNote, setBlockUserNote] = useState('');
+  const [blockCats, setBlockCats] = useState([]); const [blockCatalog, setBlockCatalog] = useState([]); const [blockCatalogLoading, setBlockCatalogLoading] = useState(false);
   const [showReubForm, setShowReubForm] = useState(false);
   const [reubLat, setReubLat] = useState('');
   const [reubLng, setReubLng] = useState('');
@@ -4160,29 +4161,23 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
   };
 
   const submitBlock = async () => {
-    if (!blockType) return;
+    if (blockCats.length === 0) { alert('Selecciona al menos una categoria del catalogo.'); return; }
     if (!blockUserNote.trim()) {
       alert('La nota explicativa es obligatoria.');
       return;
     }
-    const cat = INCIDENT_CATEGORIES.find(c => c.key === blockType);
-    const typeName = blockType === 'otro' ? (blockDesc.trim() || 'Otro') : (cat?.label || blockType);
-    const autoSev = ['no_hay_poste', 'poste_caido', 'vandalismo', 'sin_electricidad'].includes(blockType) ? 'alta'
-      : ['faltan_camaras', 'camara_rota', 'sin_internet', 'modem_danado', 'cable_cortado'].includes(blockType) ? 'media' : 'baja';
-    // Atomic: creates incident + blocks post in one RPC call
     try {
       await onCreateIncident({
         postId: post.id,
-        type: typeName,
-        description: blockDetail.trim() || typeName,
-        severity: autoSev,
-        blockPost: !post.blocked,  // no re-bloquear si ya está bloqueado
+        categoryIds: blockCats,
+        description: blockUserNote.trim(),
+        severity: 'alta',
+        forceBlock: true,
         userNote: blockUserNote.trim(),
       });
       onUpdate({ ...post, blocked: true, lastUpdate: Date.now() }, true);
       setShowBlockForm(false);
-      setBlockType('');
-      setBlockDesc('');
+      setBlockCats([]);
       setBlockDetail('');
       setBlockUserNote('');
     } catch (e) {
@@ -4730,7 +4725,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
 
             {/* Block/unblock */}
             {!showBlockForm && (
-              <button onClick={() => setShowBlockForm(true)}
+              <button onClick={async () => { setShowBlockForm(true); if (blockCatalog.length === 0) { setBlockCatalogLoading(true); try { setBlockCatalog(await fetchIncidentCategories()); } catch (err) { console.error('fetch catalog failed', err); } finally { setBlockCatalogLoading(false); } } }}
                       className="w-full px-4 py-2.5 border border-stone-300 text-stone-600 hover:border-red-500/50 hover:text-red-500 text-xs font-mono uppercase tracking-widest transition-colors">
                 {post.blocked ? 'Añadir incidencia' : 'Reportar bloqueo'}
               </button>
@@ -4738,27 +4733,23 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
             {showBlockForm && (
               <div className="border border-red-500/30 bg-red-500/5 p-4 space-y-3">
                 <div className="text-[12px] font-mono uppercase tracking-widest text-red-400">Reportar incidencia</div>
-                {/* Category selector */}
-                <div className="grid grid-cols-2 gap-1.5">
-                  {INCIDENT_CATEGORIES.map(cat => (
-                    <button key={cat.key} onClick={() => { setBlockType(cat.key); if (cat.key !== 'otro') setBlockDesc(prev => prev || ''); }}
-                      className={`px-2 py-2 text-[13px] font-medium rounded-lg border transition-all text-left flex items-center gap-1.5 ${
-                        blockType === cat.key ? `${cat.color} border-current shadow-sm` : 'border-stone-300 text-stone-600 hover:border-stone-400'
-                      }`}>
-                      <span>{cat.emoji}</span> {cat.label}
-                    </button>
-                  ))}
-                </div>
-                {/* Custom type input for "Otro" */}
-                {blockType === 'otro' && (
-                  <input type="text" value={blockDesc} onChange={e => setBlockDesc(e.target.value)}
-                         placeholder="Escribe el tipo de problema…"
-                         className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 rounded focus:outline-none focus:border-red-500/50" />
+                {/* Category selector (catalogo) */}
+                {blockCatalogLoading ? (
+                  <div className="text-xs text-stone-500 font-mono">Cargando catalogo...</div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {blockCatalog.map(cat => {
+                      const sel = blockCats.includes(cat.id);
+                      return (
+                        <button key={cat.id} type="button"
+                          onClick={() => setBlockCats(prev => prev.includes(cat.id) ? prev.filter(x => x !== cat.id) : [...prev, cat.id])}
+                          className={`px-2 py-2 text-[13px] font-medium rounded-lg border transition-all text-left flex items-center gap-1.5 ${sel ? 'bg-red-500/10 text-red-600 border-red-500/50 shadow-sm' : 'border-stone-300 text-stone-600 hover:border-stone-400'}`}>
+                          {sel ? '\u2713 ' : ''}{cat.name}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
-                {/* Description — works for all types */}
-                <textarea value={blockDetail} onChange={e => setBlockDetail(e.target.value)}
-                          rows={2} placeholder="Detalle adicional (opcional)…"
-                          className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 focus:outline-none focus:border-red-500/50 resize-none rounded" />
                 {/* Mandatory user note */}
                 <div>
                   <label className="block text-[11px] text-red-500 font-mono mb-1">Nota explicativa *</label>
@@ -4769,7 +4760,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                 <div className="flex gap-2">
                   <button onClick={() => setShowBlockForm(false)}
                           className="px-3 py-2 border border-stone-300 text-stone-600 hover:border-stone-500 text-xs font-mono uppercase tracking-wider rounded">Cancelar</button>
-                  <button onClick={submitBlock} disabled={!blockType || !blockUserNote.trim()}
+                  <button onClick={submitBlock} disabled={blockCats.length === 0 || !blockUserNote.trim()}
                           className="flex-1 px-4 py-2 bg-red-500/20 border border-red-500/50 text-red-500 hover:bg-red-500/30 disabled:opacity-30 text-xs font-mono uppercase tracking-wider rounded">
                     Reportar
                   </button>
@@ -7843,6 +7834,7 @@ export default function FieldCoordApp() {
           note: data.userNote || data.description || '',
           stageId: data.stageId,
           sourceNote: data.sourceNote,
+          forceBlock: data.forceBlock || false,
         });
         const reporter = profile?.display_name || profile?.email || 'Sin nombre';
         const nowMs = Date.now();
