@@ -1135,8 +1135,35 @@ export async function createScoutingRoute({ name, scoutId, operatorIds, postIds,
 }
 
 /** Cargar postes de una ruta */
-export async function loadRoutePostIds(routeId) {
+/** Añadir postes a una ruta existente (continúa el order_num, evita duplicados). Devuelve cuántos se insertaron. */
+export async function addPostsToRoute(routeId, postIds) {
   const sb = requireSupabase();
+  const ids = [...new Set((postIds || []).filter(Boolean))];
+  if (!routeId || ids.length === 0) return 0;
+  const { data: existing, error: exErr } = await sb.from('scouting_route_posts')
+    .select('post_id, order_num').eq('route_id', routeId);
+  if (exErr) throw exErr;
+  const have = new Set((existing || []).map(r => r.post_id));
+  const nuevos = ids.filter(pid => !have.has(pid));
+  if (nuevos.length === 0) return 0;
+  const startOrder = (existing || []).reduce((m, r) => Math.max(m, r.order_num || 0), 0) + 1;
+  const rows = nuevos.map((pid, i) => ({ route_id: routeId, post_id: pid, order_num: startOrder + i }));
+  const { error } = await sb.from('scouting_route_posts').insert(rows);
+  if (error) throw error;
+  return nuevos.length;
+}
+
+/** Quitar un poste de una ruta. */
+export async function removePostFromRoute(routeId, postId) {
+  const sb = requireSupabase();
+  if (!routeId || !postId) return;
+  const { error } = await sb.from('scouting_route_posts')
+    .delete().eq('route_id', routeId).eq('post_id', postId);
+  if (error) throw error;
+}
+
+/** Cargar postes de una ruta */
+export async function loadRoutePostIds(routeId) {  const sb = requireSupabase();
   const { data, error } = await sb.from('scouting_route_posts').select('post_id, order_num')
     .eq('route_id', routeId).order('order_num');
   if (error) throw error;

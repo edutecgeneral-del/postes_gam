@@ -13,7 +13,7 @@ import {
 import {
   loadScoutingRoutes, createScoutingRoute, loadRoutePostIds,
   startRoute, completeRoute, createScoutingVisit, loadPostScoutingVisits, loadRouteVisitedPostIds,
-  approvePost, unapprovePost, deleteScoutingRoute, removePostsFromRoute, updateScoutingRoute,
+  approvePost, unapprovePost, deleteScoutingRoute, removePostsFromRoute, addPostsToRoute, updateScoutingRoute,
   normalizePhotoUrls, uploadStagePhoto, updateStageAtomic, withStagePhotoUrls,
   setPostAntenaRecuperada,
 } from '../lib/data.js';
@@ -293,6 +293,81 @@ export default function ScoutingView({ posts, stageDefs, profile, userNames, isA
 // =============================================================================
 // RouteDetail — postes de una ruta, scout puede seleccionar para verificar
 // =============================================================================
+function AddPostsToRouteModal({ routeId, allPosts, existingIds, onClose, onAdded }) {
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState(() => new Set());
+  const [adding, setAdding] = useState(false);
+  const candidates = useMemo(() => {
+    const base = (allPosts || []).filter(p => !existingIds.has(p.id));
+    const q = search.trim().toLowerCase();
+    const list = q
+      ? base.filter(p =>
+          p.id.toLowerCase().includes(q) ||
+          (p.direccion || '').toLowerCase().includes(q) ||
+          (p.unidad_territorial || '').toLowerCase().includes(q))
+      : base;
+    return list.slice(0, 80);
+  }, [allPosts, existingIds, search]);
+  const toggle = (id) => setSelected(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const handleAdd = async () => {
+    if (selected.size === 0) return;
+    setAdding(true);
+    try {
+      await addPostsToRoute(routeId, [...selected]);
+      onAdded([...selected]);
+      onClose();
+    } catch (e) { alert('Error: ' + (e?.message || e)); }
+    setAdding(false);
+  };
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-stone-50 border border-stone-300 rounded-t-2xl sm:rounded-xl w-full sm:max-w-lg max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="px-4 py-3 border-b border-stone-300 flex items-center justify-between">
+          <span className="text-sm font-bold text-stone-950">Añadir puntos a la ruta</span>
+          <button onClick={onClose} className="text-stone-500 hover:text-stone-900"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="px-4 py-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
+            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por ID, dirección o UT..."
+              className="w-full bg-stone-100 border border-stone-300 rounded-lg pl-10 pr-3 py-2.5 text-sm text-stone-950 placeholder-stone-500 focus:outline-none focus:border-emerald-500" />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto divide-y divide-stone-300/50">
+          {candidates.length === 0 && (
+            <div className="px-4 py-6 text-center text-xs text-stone-400">
+              {search.trim() ? 'Sin postes que coincidan.' : 'No hay postes disponibles para añadir.'}
+            </div>
+          )}
+          {candidates.map(p => (
+            <label key={p.id} className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-stone-100 cursor-pointer">
+              <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)}
+                className="w-4 h-4 accent-emerald-500 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono font-bold text-stone-950">{p.id}</span>
+                  {p.alias && <span className="text-xs text-brand-600 font-medium">"{p.alias}"</span>}
+                </div>
+                <div className="text-xs text-stone-500 truncate">{[p.unidad_territorial, (p.direccion || '').slice(0, 30)].filter(Boolean).join(' - ')}</div>
+              </div>
+            </label>
+          ))}
+          {!search.trim() && candidates.length >= 80 && (
+            <div className="px-4 py-2 text-center text-[11px] text-stone-400">Mostrando 80 - usa la búsqueda para afinar.</div>
+          )}
+        </div>
+        <div className="px-4 py-3 border-t border-stone-300 flex gap-2">
+          <button onClick={onClose} className="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-800 text-sm rounded-lg py-3">Cancelar</button>
+          <button onClick={handleAdd} disabled={adding || selected.size === 0}
+            className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white text-sm font-medium rounded-lg py-3">
+            {adding ? 'Añadiendo...' : `Añadir (${selected.size})`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RouteDetail({ route, posts, profile, isAdmin, isManager, userNames, onBack, onSelectPost, onStartRoute, onCompleteRoute, onReassign }) {
   const [postIds, setPostIds] = useState([]);
   const [visitedIds, setVisitedIds] = useState(() => new Set());
@@ -301,6 +376,7 @@ function RouteDetail({ route, posts, profile, isAdmin, isManager, userNames, onB
   const [showDone, setShowDone] = useState(false);
   const [selectedForRemoval, setSelectedForRemoval] = useState(new Set());
   const [removing, setRemoving] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
   const [pendPage, setPendPage] = useState(0);
   const [donePage, setDonePage] = useState(0);
   const RD_PAGE_SIZE = 10;
@@ -411,6 +487,18 @@ function RouteDetail({ route, posts, profile, isAdmin, isManager, userNames, onB
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar poste…"
             className="w-full bg-stone-100 border border-stone-300 rounded-lg pl-10 pr-3 py-2.5 text-sm text-stone-950 placeholder-stone-500 focus:outline-none focus:border-emerald-500" />
         </div>
+        {isAdmin && (
+          <button onClick={() => setShowAdd(true)}
+            className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg px-3 py-2.5 flex-shrink-0 whitespace-nowrap">
+            + Añadir
+          </button>
+        )}
+        {showAdd && (
+          <AddPostsToRouteModal routeId={route.id} allPosts={posts}
+            existingIds={new Set(postIds)}
+            onClose={() => setShowAdd(false)}
+            onAdded={(ids) => setPostIds(prev => [...prev, ...ids.filter(id => !prev.includes(id))])} />
+        )}
         {isAdmin && selectedForRemoval.size > 0 && (
           <button onClick={async () => {
             if (!window.confirm(`¿Quitar ${selectedForRemoval.size} poste(s) de esta ruta?`)) return;
@@ -730,7 +818,7 @@ function ScoutVisitForm({ post, routeId, routeType, stageDefs, userNames, incide
             await updateStageAtomic(post.id, stageId, {
               attrs: withStagePhotoUrls(mergedAttrs, allPhotos),
               photoUrl: allPhotos[0] || undefined,
-              done: post.stages?.[stageId]?.done || undefined,
+              done: true,
             });
           }
         }
