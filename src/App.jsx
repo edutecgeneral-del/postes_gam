@@ -115,6 +115,7 @@ import ScoutingRoutePanel from './components/ScoutingRoutePanel.jsx';
 import EnvBanner from './components/EnvBanner.jsx';
 import { assignTagToPost, removeTagFromPost, invalidateTagCatalog } from './lib/tags.js';
 import AntenaForm from './components/AntenaForm.jsx';
+import IncidentForm from './components/IncidentForm.jsx';
 
 
 // ============================================================================
@@ -3587,7 +3588,7 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
     setPhotoFiles(Array.isArray(files) ? files : []);
   };
   const [showEscalate, setShowEscalate] = useState(false);
-  const [incCats, setIncCats] = useState([]); const [incCatalog, setIncCatalog] = useState([]); const [incCatalogLoading, setIncCatalogLoading] = useState(false);
+  const [incCats, setIncCats] = useState([]); const [incCatalog, setIncCatalog] = useState([]); const [incCatalogLoading, setIncCatalogLoading] = useState(false); const [incBlock, setIncBlock] = useState(false);
   const [incSev, setIncSev] = useState('media');
   const [incUserNote, setIncUserNote] = useState('');
   const [incSubmitting, setIncSubmitting] = useState(false);
@@ -3931,80 +3932,14 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
               </button>
             )}
             {showEscalate && (
-              <div className="mt-2 p-3 border border-red-500/30 bg-red-500/5 space-y-2">
-                <div className="text-[12px] font-mono uppercase tracking-widest text-red-400">
-                  Nueva incidencia ligada a E{stage.num} · {stage.short}
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {incCatalogLoading && <span className="text-[11px] text-stone-400 font-mono">Cargando catalogo...</span>}
-                  {!incCatalogLoading && incCatalog.length === 0 && <span className="text-[11px] text-stone-400 font-mono">Sin catalogo disponible</span>}
-                  {incCatalog.map(cat => {
-                    const sel = incCats.includes(cat.id);
-                    return (
-                      <button key={cat.id} type="button"
-                              onClick={() => setIncCats(prev => prev.includes(cat.id) ? prev.filter(x => x !== cat.id) : [...prev, cat.id])}
-                              className={'px-2 py-1 text-[11px] font-mono border transition-colors ' + (sel ? 'bg-red-500/20 border-red-500/60 text-red-300' : 'border-stone-300 text-stone-600 hover:border-stone-500')}>
-                        {cat.name}{cat.bloquea ? ' *' : ''}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div>
-                  <label className="block text-[11px] text-red-400 font-mono mb-1">Nota explicativa *</label>
-                  <textarea value={incUserNote} onChange={e => setIncUserNote(e.target.value)}
-                            rows={2} placeholder="Describe qué observas y por qué es un problema…"
-                            className="w-full bg-stone-50 border border-stone-300 px-2 py-1.5 text-xs text-stone-800 font-mono focus:outline-none focus:border-red-500/50 resize-none" />
-                </div>
-                <div className="flex gap-1.5">
-                  {['baja', 'media', 'alta'].map(sev => (
-                    <button key={sev} onClick={() => setIncSev(sev)}
-                            className={`flex-1 px-2 py-1.5 text-[12px] font-mono uppercase tracking-wider border transition-colors ${
-                              incSev === sev
-                                ? (sev === 'alta' ? 'bg-red-500/15 border-red-500/50 text-red-500'
-                                  : sev === 'media' ? 'bg-rose-500/15 border-rose-600/50 text-rose-500'
-                                  : 'bg-stone-200/30 border-stone-300 text-stone-700')
-                                : 'border-stone-300 text-stone-500 hover:border-stone-500'
-                            }`}>{sev}</button>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => { setShowEscalate(false); setIncUserNote(''); }}
-                          className="px-3 py-1.5 border border-stone-300 text-stone-600 hover:border-stone-500 text-[12px] font-mono uppercase tracking-wider">
-                    Cancelar
-                  </button>
-                  <button onClick={async () => {
-                    if (incCats.length === 0) { alert('Selecciona al menos una categoria del catalogo.'); return; } if (!incUserNote.trim()) {
-                      alert('La nota explicativa es obligatoria.');
-                      return;
-                    }
-                    setIncSubmitting(true);
-                    try {
-                    if (onCreateIncident) {
-                      const created = await onCreateIncident({
-                        postId: post.id, categoryIds: incCats, description: incUserNote.trim(),
-                        severity: incSev,
-                        stageId: stage.id, sourceNote: notes.trim() || '',
-                        userNote: incUserNote.trim(),
-                      });
-                      alert('Incidencia(s) registrada(s): ' + (created?.count || 1));
-                    } else {
-                      alert('Incidencia(s) registrada(s) (' + incSev + ')');
-                    }
-                    setShowEscalate(false);
-                    setIncCats([]);
-                    setIncUserNote('');
-                    } catch (e) {
-                      console.error('create incident failed', e);
-                    } finally {
-                      setIncSubmitting(false);
-                    }
-                  }}
-                          disabled={incSubmitting || !incUserNote.trim() || incCats.length === 0}
-                          className="flex-1 px-3 py-1.5 bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30 disabled:opacity-30 text-[12px] font-mono uppercase tracking-wider flex items-center justify-center gap-1.5">
-                    <AlertTriangle className="w-3 h-3" strokeWidth={1.5}/> {incSubmitting ? 'Creando...' : 'Crear incidencia'}
-                  </button>
-                </div>
-              </div>
+              <IncidentForm
+                post={post}
+                stageId={stage.id}
+                sourceNote={notes.trim() || ''}
+                title={'Nueva incidencia ligada a E' + stage.num + ' - ' + stage.short}
+                onCreateIncident={onCreateIncident}
+                onDone={function () { setShowEscalate(false); }}
+              />
             )}
           </div>
 
@@ -4758,45 +4693,16 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
             {!showBlockForm && (
               <button onClick={async () => { setShowBlockForm(true); if (blockCatalog.length === 0) { setBlockCatalogLoading(true); try { setBlockCatalog(await fetchIncidentCategories()); } catch (err) { console.error('fetch catalog failed', err); } finally { setBlockCatalogLoading(false); } } }}
                       className="w-full px-4 py-2.5 border border-stone-300 text-stone-600 hover:border-red-500/50 hover:text-red-500 text-xs font-mono uppercase tracking-widest transition-colors">
-                {post.blocked ? 'Añadir incidencia' : 'Reportar bloqueo'}
+                {post.blocked ? 'Añadir incidencia' : 'Reportar incidencia'}
               </button>
             )}
             {showBlockForm && (
-              <div className="border border-red-500/30 bg-red-500/5 p-4 space-y-3">
-                <div className="text-[12px] font-mono uppercase tracking-widest text-red-400">Reportar incidencia</div>
-                {/* Category selector (catalogo) */}
-                {blockCatalogLoading ? (
-                  <div className="text-xs text-stone-500 font-mono">Cargando catalogo...</div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {blockCatalog.map(cat => {
-                      const sel = blockCats.includes(cat.id);
-                      return (
-                        <button key={cat.id} type="button"
-                          onClick={() => setBlockCats(prev => prev.includes(cat.id) ? prev.filter(x => x !== cat.id) : [...prev, cat.id])}
-                          className={`px-2 py-2 text-[13px] font-medium rounded-lg border transition-all text-left flex items-center gap-1.5 ${sel ? 'bg-red-500/10 text-red-600 border-red-500/50 shadow-sm' : 'border-stone-300 text-stone-600 hover:border-stone-400'}`}>
-                          {sel ? '\u2713 ' : ''}{cat.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                {/* Mandatory user note */}
-                <div>
-                  <label className="block text-[11px] text-red-500 font-mono mb-1">Nota explicativa *</label>
-                  <textarea value={blockUserNote} onChange={e => setBlockUserNote(e.target.value)}
-                            rows={2} placeholder="Describe qué observas y por qué levantas esta incidencia…"
-                            className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 focus:outline-none focus:border-red-500/50 resize-none rounded" />
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setShowBlockForm(false)}
-                          className="px-3 py-2 border border-stone-300 text-stone-600 hover:border-stone-500 text-xs font-mono uppercase tracking-wider rounded">Cancelar</button>
-                  <button onClick={submitBlock} disabled={blockCats.length === 0 || !blockUserNote.trim()}
-                          className="flex-1 px-4 py-2 bg-red-500/20 border border-red-500/50 text-red-500 hover:bg-red-500/30 disabled:opacity-30 text-xs font-mono uppercase tracking-wider rounded">
-                    Reportar
-                  </button>
-                </div>
-              </div>
+              <IncidentForm
+                post={post}
+                title="Reportar incidencia"
+                onCreateIncident={onCreateIncident}
+                onDone={function () { setShowBlockForm(false); }}
+              />
             )}
           </div>
 
