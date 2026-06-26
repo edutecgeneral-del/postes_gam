@@ -5624,6 +5624,12 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                   ) : (
                     <div className="flex items-center gap-2">
                       <span className="w-4 h-4 rounded-full shrink-0" style={{ background: c.color || '#6B7280' }} />
+                        {c.severity_default && (
+                          <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                                style={{ background: (c.severity_default === 'alta' ? '#DC2626' : c.severity_default === 'media' ? '#F59E0B' : '#3B82F6') + '1A', color: c.severity_default === 'alta' ? '#DC2626' : c.severity_default === 'media' ? '#F59E0B' : '#3B82F6' }}>
+                            {c.severity_default}
+                          </span>
+                        )}
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium text-stone-800 truncate">{c.name}</div>
                         {c.description && <div className="text-[11px] text-stone-500 truncate">{c.description}</div>}

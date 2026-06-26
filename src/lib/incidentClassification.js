@@ -19,7 +19,7 @@ export async function loadIncidentCategories() {
   try {
     const { data, error } = await sb()
       .from('incident_categories')
-      .select('id, name, description, color, active, created_at')
+      .select('id, name, description, color, severity_default, active, created_at')
       .eq('active', true)
       .order('name');
     if (error) {
