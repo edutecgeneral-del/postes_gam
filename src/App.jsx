@@ -5245,7 +5245,15 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
   }, [canSeeClassification]);
 
   const filtered = incidents.filter(i => {
-    if (filter !== 'todas' && i.status !== filter) return false;
+    // Filtro principal: estado, severidad (sin resolver) o postes bloqueados
+    if (filter === 'alta' || filter === 'media' || filter === 'baja') {
+      if (i.severity !== filter || i.status === 'resuelta') return false;
+    } else if (filter === 'bloqueados') {
+      const _fp = posts.find(p => p.id === i.postId);
+      if (!_fp || !_fp.blocked) return false;
+    } else if (filter !== 'todas') {
+      if (i.status !== filter) return false;
+    }
     if (search) {
       const q = search.toLowerCase();
       const matchPost = i.postId?.toLowerCase().includes(q);
@@ -5286,6 +5294,10 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
     abiertas: incidents.filter(i => i.status === 'abierta').length,
     resueltas: incidents.filter(i => i.status === 'resuelta').length,
     criticas: incidents.filter(i => i.status === 'abierta' && i.severity === 'alta').length,
+    altas: incidents.filter(i => i.severity === 'alta' && i.status !== 'resuelta').length,
+    medias: incidents.filter(i => i.severity === 'media' && i.status !== 'resuelta').length,
+    bajas: incidents.filter(i => i.severity === 'baja' && i.status !== 'resuelta').length,
+    bloqueados: posts.filter(p => p.blocked).length,
     atendidas: incidents.filter(i => i.status === 'atendida').length,
     sinClasificar: canSeeClassification ? incidents.filter(i => !classifications[i.id]).length : 0,
   };
@@ -5557,12 +5569,13 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total" value={stats.total} accent="#6B7280" icon={FileText} />
-        <StatCard label="Abiertas" value={stats.abiertas} accent="#EF4444" icon={AlertTriangle} />
-        <StatCard label="Críticas" value={stats.criticas} accent="#F59E0B" icon={Zap} sub="alta severidad" />
-        <StatCard label="Atendidas" value={stats.atendidas} accent="#3B82F6" icon={Clock} sub="pendientes de verificar" />
-        <StatCard label="Resueltas" value={stats.resueltas} accent="#10B981" icon={CheckCircle2} />
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard label="Total" value={stats.total} accent="#6B7280" icon={FileText} onClick={() => setFilter('todas')} />
+        <StatCard label="Alta" value={stats.altas} sub="sin resolver" accent="#DC2626" icon={AlertTriangle} onClick={() => setFilter('alta')} />
+        <StatCard label="Media" value={stats.medias} sub="sin resolver" accent="#F59E0B" icon={Zap} onClick={() => setFilter('media')} />
+        <StatCard label="Baja" value={stats.bajas} sub="sin resolver" accent="#3B82F6" icon={AlertCircle} onClick={() => setFilter('baja')} />
+        <StatCard label="Postes bloqueados" value={stats.bloqueados} sub="bloqueo manual" accent="#1c1917" icon={Lock} onClick={() => setFilter('bloqueados')} />
+        <StatCard label="Resueltas" value={stats.resueltas} accent="#10B981" icon={CheckCircle2} onClick={() => setFilter('resuelta')} />
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
@@ -5571,12 +5584,21 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar poste, reportó, nota…"
                  className="w-full bg-stone-100/60 border border-stone-300 pl-9 pr-3 py-1.5 text-sm text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-rose-600/50" />
         </div>
-        <div className="flex border border-stone-300">
-          {['abierta', 'atendida', 'resuelta', 'todas'].map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-                    className={`px-4 py-2 text-xs font-mono uppercase tracking-widest ${
-                      filter === f ? 'bg-rose-700 text-rose-50' : 'text-stone-600 hover:bg-stone-50'
-                    }`}>{f}</button>
+        {/* FILTROS_SEVERIDAD: estado/severidad/bloqueados con colores */}
+        <div className="flex border border-stone-300 flex-wrap">
+          {[
+            { key: 'todas', label: 'Todas', color: '#6B7280' },
+            { key: 'alta', label: 'Alta', color: '#DC2626' },
+            { key: 'media', label: 'Media', color: '#F59E0B' },
+            { key: 'baja', label: 'Baja', color: '#3B82F6' },
+            { key: 'bloqueados', label: 'Bloqueados', color: '#1c1917' },
+            { key: 'resuelta', label: 'Resueltas', color: '#10B981' },
+          ].map(ff => (
+            <button key={ff.key} onClick={() => setFilter(ff.key)}
+                    className="px-4 py-2 text-xs font-mono uppercase tracking-widest border-r border-stone-300 last:border-r-0 transition-colors"
+                    style={filter === ff.key ? { background: ff.color, color: ff.color === '#F59E0B' ? '#1c1917' : '#ffffff' } : {}}>
+              {ff.label}
+            </button>
           ))}
         </div>
         {/* Category filter (admin/director) */}
