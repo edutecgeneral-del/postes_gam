@@ -4057,7 +4057,7 @@ function ZoomablePhoto({ src, alt = '', thumbClass = 'w-6 h-6', borderClass = 'b
   );
 }
 
-function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, onCreateIncident, viewMode, userNames = {}, isAdmin = false, onVerifyStage, onUnverifyStage, onDelete, initialStageId, onStartEditPosition, onRequestRelocate, canViewHistory = false, historyRefreshKey, onOpenAntena, onToggleRevisado }) {
+function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, onCreateIncident, onResolve, canResolve = false, viewMode, userNames = {}, isAdmin = false, onVerifyStage, onUnverifyStage, onDelete, initialStageId, onStartEditPosition, onRequestRelocate, canViewHistory = false, historyRefreshKey, onOpenAntena, onToggleRevisado }) {
   const [editingStage, setEditingStage] = useState(() => initialStageId ? (STAGE_DEFS.find(s => s.id === initialStageId) || null) : null);
   const [notes, setNotes] = useState('');
   const [showBlockForm, setShowBlockForm] = useState(false);
@@ -4698,27 +4698,58 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
               <div>
                 <div className="text-[12px] font-mono uppercase tracking-widest text-stone-500 mb-3">Incidencias</div>
                 <div className="space-y-2">
-                  {postIncidents.map(i => (
-                    <div key={i.id} className="p-3 bg-stone-100/40 border border-stone-300">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs text-rose-500">{i.id}</span>
-                        <span className={`text-[12px] font-mono uppercase ${
-                          i.status === 'abierta' ? 'text-red-500' : 'text-emerald-500'
-                        }`}>{i.status}</span>
+                    {postIncidents.map(i => { const sd = i.stageId ? STAGE_BY_ID[i.stageId] : null; return (
+                      <div key={i.id} className="p-3 bg-stone-100/40 border border-stone-300">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs text-stone-500">{i.id}</span>
+                          <span className={`text-[11px] font-mono uppercase tracking-widest px-2 py-0.5 ${
+                            i.severity === 'alta' ? 'bg-red-500/15 text-red-500' :
+                            i.severity === 'media' ? 'bg-rose-500/15 text-rose-500' :
+                            'bg-stone-200/40 text-stone-600'
+                          }`}>{i.severity}</span>
+                          <span className={`text-[11px] font-mono uppercase tracking-widest px-2 py-0.5 ${
+                            i.status === 'abierta' ? 'bg-red-500/15 text-red-500' :
+                            i.status === 'atendida' ? 'bg-blue-500/15 text-blue-600' :
+                            'bg-emerald-500/15 text-emerald-500'
+                          }`}>{i.status}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="text-sm text-stone-800">{i.type}</span>
+                          {sd && (
+                            <span className="text-[11px] font-mono uppercase tracking-wider px-1.5 py-0.5 flex items-center gap-1"
+                                  style={{ background: `${sd.color}15`, color: sd.color, border: `1px solid ${sd.color}40` }}>
+                              <sd.Icon className="w-2.5 h-2.5" strokeWidth={2}/> E{sd.num} {'\u00B7'} {sd.short}
+                            </span>
+                          )}
+                        </div>
+                        {i.userNote && (
+                          <div className="mt-1.5 text-sm text-stone-700 bg-stone-100/50 border-l-2 border-stone-400 pl-3 py-1.5 rounded-r">{i.userNote}</div>
+                        )}
+                        {!i.userNote && i.description && (
+                          <div className="text-xs text-stone-500 mt-1">{i.description}</div>
+                        )}
+                        {i.categoryName && (
+                          <div className="mt-2">
+                            <span className="inline-flex items-center gap-1.5 text-[12px] font-medium px-2.5 py-1 rounded-full"
+                                  style={{ background: `${i.categoryColor || '#6B7280'}20`, color: i.categoryColor || '#6B7280', border: `1px solid ${i.categoryColor || '#6B7280'}40` }}>
+                              <TagIcon className="w-3 h-3" /> {i.categoryName}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-3 mt-2 text-[11px] text-stone-400 font-mono">
+                          {i.reportedByName && <span>{i.reportedByName}</span>}
+                          <span>{new Date(i.createdAt).toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        {onResolve && canResolve && i.status !== 'resuelta' && (
+                          <div className="mt-2.5">
+                            <button onClick={() => onResolve(i.id)}
+                                    className="px-3 py-1.5 border border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 text-xs font-mono uppercase tracking-wider">
+                              Resolver
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-sm text-stone-700 mt-1">{i.type}</div>
-                      {i.userNote && (
-                        <div className="text-xs text-stone-600 mt-1 bg-stone-50 border-l-2 border-stone-300 pl-2 py-1">{i.userNote}</div>
-                      )}
-                      {!i.userNote && i.description && (
-                        <div className="text-xs text-stone-500 mt-1">{i.description}</div>
-                      )}
-                      <div className="flex items-center gap-2 mt-1.5 text-[11px] text-stone-400 font-mono">
-                        {i.reportedByName && <span>👤 {i.reportedByName}</span>}
-                        <span>{new Date(i.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}</span>
-                      </div>
-                    </div>
-                  ))}
+                      ); })}
                 </div>
               </div>
             )}
@@ -8463,7 +8494,8 @@ export default function FieldCoordApp() {
                           onUpdate={(readOnly || raalReadOnlyPostes) ? null : updatePost}
                           onUpdateMeta={(readOnly || raalReadOnlyPostes) ? null : updatePostMeta}
                           incidents={incidents}
-                          onCreateIncident={(readOnly || raalReadOnlyPostes) ? null : createIncident} viewMode={isAdmin ? 'supervisor' : 'campo'}
+                          onCreateIncident={(readOnly || raalReadOnlyPostes) ? null : createIncident}
+                          onResolve={readOnly ? null : resolveIncident} canResolve={canResolveIncidents(effectiveProfile)} viewMode={isAdmin ? 'supervisor' : 'campo'}
                           userNames={userNames} isAdmin={isAdmin}
                           onVerifyStage={handleVerifyStage} onUnverifyStage={handleUnverifyStage}
                           onStartEditPosition={isAdmin && !readOnly ? handleStartEditPosition : null}
