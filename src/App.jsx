@@ -5405,7 +5405,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
     }
   };
 
-  const CAT_COLORS = ['#EF4444', '#F59E0B', '#3B82F6', '#8B5CF6', '#10B981', '#06B6D4', '#EC4899', '#6B7280', '#DC2626', '#059669'];
+  const CAT_COLORS = ['#DC2626', '#F59E0B', '#3B82F6']; // solo severidad: rojo=alta, amarillo=media, azul=baja
 
   const exportIncidenciasCSV = () => {
     const fmt = (ts) => ts ? new Date(ts).toLocaleString('es-MX') : '';
