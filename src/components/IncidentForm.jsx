@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Lock, Loader2 } from 'lucide-react';
+import { AlertTriangle, Lock, Loader2, Camera, X } from 'lucide-react';
 import { fetchIncidentCategories } from '../lib/data.js';
 
 /**
@@ -8,6 +8,7 @@ import { fetchIncidentCategories } from '../lib/data.js';
  *  - el detalle del poste (sin etapa)
  * La severidad NO se elige: la hereda la categoria (derivada de su color).
  * El bloqueo del poste es manual y opcional (checkbox).
+ * Cada categoria seleccionada puede llevar SUS PROPIAS fotos (una incidencia por categoria).
  */
 export default function IncidentForm({ post, stageId = null, sourceNote = '', title, onCreateIncident, onDone }) {
   const [catalog, setCatalog] = useState([]);
@@ -15,6 +16,7 @@ export default function IncidentForm({ post, stageId = null, sourceNote = '', ti
   const [selectedCats, setSelectedCats] = useState([]);
   const [userNote, setUserNote] = useState('');
   const [block, setBlock] = useState(false);
+  const [photosByCat, setPhotosByCat] = useState({}); // { [catId]: [{ file, url }] }
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(function () {
@@ -27,10 +29,85 @@ export default function IncidentForm({ post, stageId = null, sourceNote = '', ti
     return function () { alive = false; };
   }, []);
 
+  // Revocar todas las object URLs al desmontar
+  useEffect(function () {
+    return function () {
+      setPhotosByCat(function (prev) {
+        Object.keys(prev).forEach(function (k) {
+          (prev[k] || []).forEach(function (p) { try { URL.revokeObjectURL(p.url); } catch (e) {} });
+        });
+        return prev;
+      });
+    };
+  }, []);
+
   function toggleCat(id) {
     setSelectedCats(function (prev) {
       return prev.includes(id) ? prev.filter(function (x) { return x !== id; }) : prev.concat([id]);
     });
+    // Si se deselecciona, limpiar sus fotos
+    setPhotosByCat(function (prev) {
+      if (!prev[id]) return prev;
+      // ojo: usamos el estado de selectedCats previo via closure no es fiable aqui;
+      // simplemente: si la categoria ya tenia fotos y se esta quitando, las soltamos.
+      // Detectamos quitar comparando con la presencia actual se hace en el otro setState;
+      // para mantener simple, no borramos aqui salvo que el toggle sea de quitar.
+      return prev;
+    });
+  }
+
+  // Limpia fotos de categorias que ya NO estan seleccionadas
+  useEffect(function () {
+    setPhotosByCat(function (prev) {
+      let changed = false;
+      const next = {};
+      Object.keys(prev).forEach(function (k) {
+        if (selectedCats.includes(k)) {
+          next[k] = prev[k];
+        } else {
+          changed = true;
+          (prev[k] || []).forEach(function (p) { try { URL.revokeObjectURL(p.url); } catch (e) {} });
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [selectedCats]);
+
+  function addPhotos(catId, fileList) {
+    const fs = Array.from(fileList || []);
+    if (fs.length === 0) return;
+    const nuevos = fs.map(function (f) { return { file: f, url: URL.createObjectURL(f) }; });
+    setPhotosByCat(function (prev) {
+      const cur = prev[catId] || [];
+      const copy = Object.assign({}, prev);
+      copy[catId] = cur.concat(nuevos);
+      return copy;
+    });
+  }
+
+  function removePhoto(catId, idx) {
+    setPhotosByCat(function (prev) {
+      const cur = prev[catId] || [];
+      const p = cur[idx];
+      if (p) { try { URL.revokeObjectURL(p.url); } catch (e) {} }
+      const copy = Object.assign({}, prev);
+      copy[catId] = cur.filter(function (_, i) { return i !== idx; });
+      return copy;
+    });
+  }
+
+  function clearAllPhotos() {
+    setPhotosByCat(function (prev) {
+      Object.keys(prev).forEach(function (k) {
+        (prev[k] || []).forEach(function (p) { try { URL.revokeObjectURL(p.url); } catch (e) {} });
+      });
+      return {};
+    });
+  }
+
+  function catById(id) {
+    for (let i = 0; i < catalog.length; i++) { if (catalog[i].id === id) return catalog[i]; }
+    return null;
   }
 
   async function handleSubmit() {
@@ -39,6 +116,11 @@ export default function IncidentForm({ post, stageId = null, sourceNote = '', ti
     setSubmitting(true);
     try {
       if (onCreateIncident) {
+        // Mapa catId -> [File] para que el handler suba las fotos a cada incidencia
+        const filesByCat = {};
+        selectedCats.forEach(function (cid) {
+          filesByCat[cid] = (photosByCat[cid] || []).map(function (p) { return p.file; });
+        });
         const created = await onCreateIncident({
           postId: post.id,
           categoryIds: selectedCats,
@@ -47,12 +129,14 @@ export default function IncidentForm({ post, stageId = null, sourceNote = '', ti
           stageId: stageId,
           sourceNote: sourceNote || '',
           forceBlock: block,
+          photosByCat: filesByCat,
         });
         alert('Incidencia(s) registrada(s): ' + ((created && created.count) || 1));
       }
       setSelectedCats([]);
       setUserNote('');
       setBlock(false);
+      clearAllPhotos();
       if (onDone) onDone();
     } catch (e) {
       console.error('create incident failed', e);
@@ -95,6 +179,47 @@ export default function IncidentForm({ post, stageId = null, sourceNote = '', ti
           rows={2} placeholder="Describe que observas y por que levantas esta incidencia..."
           className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-500 focus:outline-none focus:border-red-500/50 resize-none rounded" />
       </div>
+
+      {selectedCats.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-[11px] text-stone-500 font-mono uppercase tracking-wider">Fotos por incidencia (opcional)</div>
+          {selectedCats.map(function (cid) {
+            const cat = catById(cid);
+            if (!cat) return null;
+            const col = cat.color || '#6B7280';
+            const fotos = photosByCat[cid] || [];
+            return (
+              <div key={cid} className="p-2 border border-stone-200 rounded bg-stone-50/50">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: col }} />
+                  <span className="text-[12px] font-medium text-stone-700">{cat.name}</span>
+                </div>
+                <label className="flex items-center gap-2 px-3 py-1.5 border border-dashed border-stone-400 rounded cursor-pointer hover:bg-stone-100 transition-colors">
+                  <Camera className="w-4 h-4 text-stone-500" />
+                  <span className="text-xs text-stone-600">{fotos.length ? (fotos.length + ' foto(s) - agregar mas') : 'Agregar fotos'}</span>
+                  <input type="file" accept="image/*" capture="environment" multiple className="hidden"
+                    onChange={function (e) { addPhotos(cid, e.target.files); e.target.value = ''; }} />
+                </label>
+                {fotos.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {fotos.map(function (p, idx) {
+                      return (
+                        <div key={idx} className="relative">
+                          <img src={p.url} alt={'foto ' + (idx + 1)} className="w-14 h-14 object-cover rounded border border-stone-300" />
+                          <button type="button" onClick={function () { removePhoto(cid, idx); }}
+                            className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-700">
+                            <X className="w-3 h-3" strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <label className="flex items-center gap-2 cursor-pointer select-none px-2.5 py-2 border border-amber-400/60 bg-amber-50/40 rounded">
         <input type="checkbox" checked={block} onChange={function (e) { setBlock(e.target.checked); }} className="w-4 h-4 accent-amber-600" />

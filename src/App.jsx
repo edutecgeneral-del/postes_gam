@@ -37,6 +37,7 @@ import {
   deleteIncidentAtomic,
   attendIncidentAtomic,
   uploadIncidentPhoto,
+  setIncidentReportPhotos,
   revertIncidentToOpen,
   resetAllData as dbResetAll,
   deletePost as dbDeletePost,
@@ -4675,6 +4676,19 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                           {i.reportedByName && <span>{i.reportedByName}</span>}
                           <span>{new Date(i.createdAt).toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
+
+                        {/* Fotos del reporte (al levantar la incidencia) */}
+                        {Array.isArray(i.reportPhotoUrls) && i.reportPhotoUrls.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {i.reportPhotoUrls.map(function (url, idx) {
+                              return (
+                                <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
+                                  <img src={url} alt={"Foto " + (idx + 1)} className="w-16 h-16 object-cover rounded border border-red-300 hover:border-red-500 flex-shrink-0" />
+                                </a>
+                              );
+                            })}
+                          </div>
+                        )}
                         {onResolve && canResolve && i.status !== 'resuelta' && (
                           <div className="mt-2.5">
                             <button onClick={() => onResolve(i.id)}
@@ -5706,6 +5720,19 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                     )}
                     <span>{new Date(i.createdAt).toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
+
+                  {/* Fotos del reporte (al levantar la incidencia) */}
+                  {Array.isArray(i.reportPhotoUrls) && i.reportPhotoUrls.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {i.reportPhotoUrls.map(function (url, idx) {
+                        return (
+                          <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
+                            <img src={url} alt={"Foto " + (idx + 1)} className="w-16 h-16 object-cover rounded border border-red-300 hover:border-red-500 flex-shrink-0" />
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Row 5: Attended info (if status is atendida or resuelta) */}
                   {i.attendedByName && (
@@ -7808,7 +7835,7 @@ export default function FieldCoordApp() {
           postId: data.postId,
           type: it.type,
           description: data.userNote || data.description || '',
-          severity: data.severity,
+          severity: it.severity || data.severity || 'media',
           status: 'abierta',
           capturedBy: null,
           stageId: data.stageId || null,
@@ -7825,6 +7852,24 @@ export default function FieldCoordApp() {
         if (created.length > 0) setIncidents(prev => [...created, ...prev]);
         if (res?.blocked) {
           setPosts(prev => prev.map(p => p.id === data.postId ? { ...p, blocked: true, lastUpdate: Date.now() } : p));
+        }
+        // Subir fotos por categoria a cada incidencia recien creada
+        if (data.photosByCat && res && Array.isArray(res.incidents)) {
+          for (const it of res.incidents) {
+            const files = data.photosByCat[it.category_id] || [];
+            if (!files.length) continue;
+            const urls = [];
+            for (const f of files) {
+              try { urls.push(await uploadIncidentPhoto(it.id, f)); }
+              catch (upErr) { console.error('upload report photo failed', it.id, upErr); }
+            }
+            if (urls.length) {
+              try {
+                await setIncidentReportPhotos(it.id, urls);
+                setIncidents(prev => prev.map(x => x.id === it.id ? { ...x, reportPhotoUrls: urls } : x));
+              } catch (saveErr) { console.error('save report photos failed', it.id, saveErr); }
+            }
+          }
         }
         return { id: created[0]?.id, count: res?.count || created.length };
       }

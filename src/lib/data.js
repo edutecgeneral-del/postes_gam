@@ -356,6 +356,7 @@ export async function loadAllData() {
     attendedAt: i.attended_at ? new Date(i.attended_at).getTime() : null,
     attendedNote: i.attended_note || '',
     attendedPhotoUrl: i.attended_photo_url || null,
+    reportPhotoUrls: i.report_photo_urls || [],
     resolvedBy: i.resolved_by || null,
     resolvedByName: i.resolved_by_name || '',
     categoryId: i.category_id || null,
@@ -696,6 +697,16 @@ export async function uploadIncidentPhoto(incidentId, file) {
   } finally {
     endUpload();
   }
+}
+
+/** Guarda el arreglo de URLs de fotos de reporte (al levantar) de una incidencia. */
+export async function setIncidentReportPhotos(incidentId, urls) {
+  const sb = requireSupabase();
+  const { error } = await withTimeout(
+    sb.rpc('set_incident_report_photos', { p_incident_id: incidentId, p_urls: urls || [] }),
+    15000, 'setIncidentReportPhotos'
+  );
+  if (error) throw error;
 }
 
 
@@ -1425,6 +1436,7 @@ export default {
   deleteIncidentAtomic,
   attendIncidentAtomic,
   uploadIncidentPhoto,
+  setIncidentReportPhotos,
   revertIncidentToOpen,
   getPostHistory,
   uploadStagePhoto,
