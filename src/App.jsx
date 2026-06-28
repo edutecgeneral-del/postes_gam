@@ -5219,13 +5219,27 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
   const [search, setSearch] = useState(externalNav?.search || '');
   const [filterCategory, setFilterCategory] = useState('todas');
   const [filterPost, setFilterPost] = useState('todas'); // 'todas' | 'poste_13m' | 'falta_camaras' | 'falta_silicon'
+  const [filterSev, setFilterSev] = useState('todas'); // 'todas'|'alta'|'media'|'baja'
+  const [filterEstado, setFilterEstado] = useState('abierta'); // 'todos'|'abierta'|'atendida'|'resuelta'
+  const [soloBloqueados, setSoloBloqueados] = useState(false);
   const [page, setPage] = useState(0);
   const INC_PAGE_SIZE = 10;
 
   // Sync with external navigation (from Informe cards)
   useEffect(() => {
     if (externalNav?.ts) {
-      setFilter(externalNav.filter || 'abierta');
+      // Formato nuevo (navegacion cruzada): ejes directos
+      if (externalNav.sev !== undefined) setFilterSev(externalNav.sev);
+      if (externalNav.estado !== undefined) setFilterEstado(externalNav.estado);
+      if (externalNav.bloqueados !== undefined) setSoloBloqueados(externalNav.bloqueados);
+      // Formato viejo (Informe): mapear filter -> ejes
+      if (externalNav.filter !== undefined) {
+        const f = externalNav.filter;
+        if (f === 'alta' || f === 'media' || f === 'baja') { setFilterSev(f); setFilterEstado('todos'); setSoloBloqueados(false); }
+        else if (f === 'abierta' || f === 'atendida' || f === 'resuelta') { setFilterEstado(f); setFilterSev('todas'); setSoloBloqueados(false); }
+        else if (f === 'bloqueados') { setSoloBloqueados(true); setFilterSev('todas'); setFilterEstado('todos'); }
+        else { setFilterSev('todas'); setFilterEstado('todos'); setSoloBloqueados(false); }
+      }
       setSearch(externalNav.search || '');
       setFilterCategory('todas');
       setFilterPost('todas');
@@ -5233,7 +5247,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
   }, [externalNav?.ts]);
 
   // Reiniciar paginación al cambiar filtros/búsqueda (cliente, sin tocar la BD)
-  useEffect(() => { setPage(0); }, [filter, search, filterCategory, filterPost]);
+  useEffect(() => { setPage(0); }, [filterSev, filterEstado, soloBloqueados, search, filterCategory, filterPost]);
 
   // Attend flow state
   const [attendingId, setAttendingId] = useState(null);
@@ -5288,14 +5302,12 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
   }, [canSeeClassification]);
 
   const filtered = incidents.filter(i => {
-    // Filtro principal: estado, severidad (sin resolver) o postes bloqueados
-    if (filter === 'alta' || filter === 'media' || filter === 'baja') {
-      if (i.severity !== filter || i.status === 'resuelta') return false;
-    } else if (filter === 'bloqueados') {
+    // Filtros combinables: severidad Y estado Y bloqueados
+    if (filterSev !== 'todas' && i.severity !== filterSev) return false;
+    if (filterEstado !== 'todos' && i.status !== filterEstado) return false;
+    if (soloBloqueados) {
       const _fp = posts.find(p => p.id === i.postId);
       if (!_fp || !_fp.blocked) return false;
-    } else if (filter !== 'todas') {
-      if (i.status !== filter) return false;
     }
     if (search) {
       const q = search.toLowerCase();
@@ -5627,23 +5639,27 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar poste, reportó, nota…"
                  className="w-full bg-stone-100/60 border border-stone-300 pl-9 pr-3 py-1.5 text-sm text-stone-800 font-mono placeholder-stone-500 focus:outline-none focus:border-rose-600/50" />
         </div>
-        {/* FILTROS_SEVERIDAD: estado/severidad/bloqueados con colores */}
-        <div className="flex border border-stone-300 flex-wrap">
-          {[
-            { key: 'todas', label: 'Todas', color: '#6B7280' },
-            { key: 'alta', label: 'Alta', color: '#DC2626' },
-            { key: 'media', label: 'Media', color: '#F59E0B' },
-            { key: 'baja', label: 'Baja', color: '#3B82F6' },
-            { key: 'bloqueados', label: 'Bloqueados', color: '#1c1917' },
-            { key: 'resuelta', label: 'Resueltas', color: '#10B981' },
-          ].map(ff => (
-            <button key={ff.key} onClick={() => setFilter(ff.key)}
-                    className="px-4 py-2 text-xs font-mono uppercase tracking-widest border-r border-stone-300 last:border-r-0 transition-colors"
-                    style={filter === ff.key ? { background: ff.color, color: ff.color === '#F59E0B' ? '#1c1917' : '#ffffff' } : {}}>
-              {ff.label}
-            </button>
-          ))}
-        </div>
+        {/* FILTROS_DROPDOWN: severidad + estado combinables + solo bloqueados */}
+        <select value={filterSev} onChange={e => setFilterSev(e.target.value)}
+          className="bg-stone-100 border border-stone-300 px-3 py-2 text-xs font-mono text-stone-700 focus:outline-none focus:border-rose-500">
+          <option value="todas">Severidad: todas</option>
+          <option value="alta">Alta</option>
+          <option value="media">Media</option>
+          <option value="baja">Baja</option>
+        </select>
+        <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)}
+          className="bg-stone-100 border border-stone-300 px-3 py-2 text-xs font-mono text-stone-700 focus:outline-none focus:border-rose-500">
+          <option value="todos">Estado: todos</option>
+          <option value="abierta">Abierta</option>
+          <option value="atendida">Atendida</option>
+          <option value="resuelta">Resuelta</option>
+        </select>
+        <label className="flex items-center gap-1.5 px-3 py-2 border border-stone-300 cursor-pointer select-none text-xs font-mono uppercase tracking-wider"
+          style={soloBloqueados ? { background: '#1c1917', color: '#ffffff' } : { color: '#57534e' }}>
+          <input type="checkbox" checked={soloBloqueados} onChange={e => setSoloBloqueados(e.target.checked)} className="w-3.5 h-3.5 accent-stone-800" />
+          <Lock className="w-3 h-3" strokeWidth={2} />
+          Bloqueados
+        </label>
         {/* Category filter (admin/director) */}
         {canSeeClassification && classLoaded && categories.length > 0 && (
           <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
