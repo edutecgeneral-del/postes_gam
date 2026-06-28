@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'react';
 import {
-  MapPin, Users, AlertTriangle, Package, BarChart3, CheckCircle2,
+  MapPin, Circle, Users, AlertTriangle, Package, BarChart3, CheckCircle2,
   Clock, XCircle, Search, Camera, FileText, ChevronRight, Plus, X, Edit2,
   Eye, EyeOff, Radio, HardHat, Wrench, Activity, Compass, Download, RefreshCw,
   TrendingUp, Filter, ArrowUpRight, Zap, Shield, Navigation, Layers,
@@ -520,6 +520,40 @@ function StatusChip({ post }) {
           style={{ background: `${s.color}20`, color: s.color, border: `1px solid ${s.color}40` }}>
       <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }} />
       Sig: E{s.num}
+    </span>
+  );
+}
+
+// Badge de SEVERIDAD: pastilla rellena (rojo/amarillo/azul) -> que tan grave
+function SevBadge({ level }) {
+  const map = {
+    alta:  { bg: '#DC2626', label: 'Alta',  dark: false },
+    media: { bg: '#F59E0B', label: 'Media', dark: true  },
+    baja:  { bg: '#3B82F6', label: 'Baja',  dark: false }
+  };
+  const s = map[level] || { bg: '#6B7280', label: level || '-', dark: false };
+  return (
+    <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-sm font-mono font-semibold tracking-wide uppercase"
+          style={{ background: s.bg, color: s.dark ? '#1c1917' : '#ffffff' }}>
+      {s.label}
+    </span>
+  );
+}
+
+// Badge de ESTADO: contorno + icono (gris/purpura/verde) -> en que punto va la atencion
+function EstadoBadge({ status }) {
+  const map = {
+    abierta:  { color: '#64748B', label: 'Abierta',  Icon: Circle },
+    atendida: { color: '#8B5CF6', label: 'Atendida', Icon: Clock },
+    resuelta: { color: '#10B981', label: 'Resuelta', Icon: CheckCircle2 }
+  };
+  const s = map[status] || { color: '#64748B', label: status || '-', Icon: Circle };
+  const Ico = s.Icon;
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-sm font-mono font-medium tracking-wide uppercase"
+          style={{ background: 'transparent', color: s.color, border: '1px solid ' + s.color + '80' }}>
+      <Ico className="w-2.5 h-2.5" strokeWidth={2} />
+      {s.label}
     </span>
   );
 }
@@ -2279,9 +2313,10 @@ function Dashboard({ posts, incidents, inventoryTotals, setActiveTab, onNavigate
               <div key={i.id} className="px-5 py-3">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-xs text-rose-500">{i.postId}</span>
-                  <span className={`text-[12px] font-mono uppercase tracking-wider ${
-                    i.severity === 'alta' ? 'text-red-500' : i.severity === 'media' ? 'text-rose-500' : 'text-stone-500'
-                  }`}>{i.severity}</span>
+                  <span className="flex items-center gap-1.5">
+                    <SevBadge level={i.severity} />
+                    <EstadoBadge status={i.status} />
+                  </span>
                 </div>
                 <div className="text-sm text-stone-700 mt-0.5">{i.type}</div>
                 <div className="flex items-center gap-2 text-[12px] text-stone-500 font-mono mt-1">
@@ -2634,8 +2669,10 @@ function MiPanel({ posts, incidents, profile, userRole, stageDefs }) {
                   <span className="font-mono text-xs text-rose-500">{inc.postId}</span>
                   <span className="text-xs text-stone-600 ml-2">{inc.type}</span>
                 </div>
-                <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 rounded ${inc.status === 'abierta' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                  {inc.status}
+                {/* badges A4 */}
+                <span className="flex items-center gap-1.5">
+                  <SevBadge level={inc.severity} />
+                  <EstadoBadge status={inc.status} />
                 </span>
               </div>
             ))}
@@ -4638,16 +4675,8 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                       <div key={i.id} className="p-3 bg-stone-100/40 border border-stone-300">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-mono text-xs text-stone-500">{i.id}</span>
-                          <span className={`text-[11px] font-mono uppercase tracking-widest px-2 py-0.5 ${
-                            i.severity === 'alta' ? 'bg-red-500/15 text-red-500' :
-                            i.severity === 'media' ? 'bg-rose-500/15 text-rose-500' :
-                            'bg-stone-200/40 text-stone-600'
-                          }`}>{i.severity}</span>
-                          <span className={`text-[11px] font-mono uppercase tracking-widest px-2 py-0.5 ${
-                            i.status === 'abierta' ? 'bg-red-500/15 text-red-500' :
-                            i.status === 'atendida' ? 'bg-blue-500/15 text-blue-600' :
-                            'bg-emerald-500/15 text-emerald-500'
-                          }`}>{i.status}</span>
+                          <SevBadge level={i.severity} />
+                          <EstadoBadge status={i.status} />
                         </div>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-sm text-stone-800">{i.type}</span>
@@ -5664,17 +5693,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                     <button onClick={() => post && onSelectPost(post)}
                             className="font-mono text-sm text-rose-500 hover:underline">{i.postId}</button>
                     {post && <span className="text-[13px] text-stone-500">{post.unidad_territorial}</span>}
-                    <span className={`text-[12px] font-mono uppercase tracking-widest px-2 py-0.5 ${
-                      i.severity === 'alta' ? 'bg-red-500/15 text-red-500' :
-                      i.severity === 'media' ? 'bg-rose-500/15 text-rose-500' :
-                      'bg-stone-200/30 text-stone-600'
-                    }`}>{i.severity}</span>
-                    {i.status === 'atendida' && (
-                      <span className="text-[12px] font-mono uppercase tracking-widest px-2 py-0.5 bg-blue-500/15 text-blue-600">Atendida</span>
-                    )}
-                    {i.status === 'resuelta' && (
-                      <span className="text-[12px] font-mono uppercase tracking-widest px-2 py-0.5 bg-emerald-500/15 text-emerald-500">Resuelta</span>
-                    )}
+                    <SevBadge level={i.severity} /><EstadoBadge status={i.status} />
                   </div>
 
                   {/* Row 2: Type + stage badge */}
