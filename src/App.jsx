@@ -4030,7 +4030,7 @@ function ZoomablePhoto({ src, alt = '', thumbClass = 'w-6 h-6', borderClass = 'b
   );
 }
 
-function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, onCreateIncident, onResolve, canResolve = false, viewMode, userNames = {}, isAdmin = false, onVerifyStage, onUnverifyStage, onDelete, initialStageId, onStartEditPosition, onRequestRelocate, canViewHistory = false, historyRefreshKey, onOpenAntena, onToggleRevisado }) {
+function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, onCreateIncident, onResolve, canResolve = false, viewMode, userNames = {}, isAdmin = false, onVerifyStage, onUnverifyStage, onDelete, initialStageId, onStartEditPosition, onRequestRelocate, canViewHistory = false, historyRefreshKey, onOpenAntena, onToggleRevisado, onGoToIncident }) {
   const [editingStage, setEditingStage] = useState(() => initialStageId ? (STAGE_DEFS.find(s => s.id === initialStageId) || null) : null);
   const [notes, setNotes] = useState('');
   const [showBlockForm, setShowBlockForm] = useState(false);
@@ -4674,7 +4674,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                     {postIncidents.map(i => { const sd = i.stageId ? STAGE_BY_ID[i.stageId] : null; return (
                       <div key={i.id} className="p-3 bg-stone-100/40 border border-stone-300">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-xs text-stone-500">{i.id}</span>
+                          <button onClick={() => onGoToIncident && onGoToIncident(i.id)} className="font-mono text-xs text-rose-500 hover:underline" title="Ver en panel de incidencias">{i.id}</button>
                           <SevBadge level={i.severity} />
                           <EstadoBadge status={i.status} />
                         </div>
@@ -5214,7 +5214,7 @@ function ProposalsView({ proposals, posts, userNames, isAdmin, isCoordinador, on
   );
 }
 
-function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isDirector, profile, onDelete, onAttend, canAttend, canResolve, onRevert, externalNav }) {
+function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isDirector, profile, onDelete, onAttend, canAttend, canResolve, onRevert, externalNav, onJumpToMap }) {
   const [filter, setFilter] = useState(externalNav?.filter || 'abierta');
   const [search, setSearch] = useState(externalNav?.search || '');
   const [filterCategory, setFilterCategory] = useState('todas');
@@ -5311,13 +5311,14 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
     }
     if (search) {
       const q = search.toLowerCase();
+      const matchId = (i.id || '').toLowerCase().includes(q);
       const matchPost = i.postId?.toLowerCase().includes(q);
       const matchReporter = (i.reportedByName || '').toLowerCase().includes(q);
       const matchNote = (i.userNote || '').toLowerCase().includes(q);
       const matchType = (i.type || '').toLowerCase().includes(q);
       const post = posts.find(p => p.id === i.postId);
       const matchUT = (post?.unidad_territorial || '').toLowerCase().includes(q);
-      if (!matchPost && !matchReporter && !matchNote && !matchType && !matchUT) return false;
+      if (!matchId && !matchPost && !matchReporter && !matchNote && !matchType && !matchUT) return false;
     }
     // Filter by category (admin/director only)
     if (filterCategory !== 'todas' && canSeeClassification) {
@@ -5706,11 +5707,23 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                   {/* Row 1: ID, post, UT, severity, status */}
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="font-mono text-xs text-stone-500">{i.id}</span>
-                    <button onClick={() => post && onSelectPost(post)}
-                            className="font-mono text-sm text-rose-500 hover:underline">{i.postId}</button>
+                    <span className="font-mono text-sm text-rose-500">{i.postId}</span>
                     {post && <span className="text-[13px] text-stone-500">{post.unidad_territorial}</span>}
                     <SevBadge level={i.severity} /><EstadoBadge status={i.status} />
                   </div>
+                  {/* Row 1b: acciones de navegacion (ir al punto / ver detalles) */}
+                  {post && (
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      <button onClick={() => onJumpToMap && onJumpToMap(post)}
+                              className="flex items-center gap-1 text-[11px] font-mono uppercase tracking-wider px-2 py-1 border border-stone-300 text-stone-600 hover:border-rose-500 hover:text-rose-500 transition-colors">
+                        <MapPin className="w-3 h-3" strokeWidth={2} /> Ir al punto
+                      </button>
+                      <button onClick={() => onSelectPost(post)}
+                              className="flex items-center gap-1 text-[11px] font-mono uppercase tracking-wider px-2 py-1 border border-stone-300 text-stone-600 hover:border-rose-500 hover:text-rose-500 transition-colors">
+                        <Eye className="w-3 h-3" strokeWidth={2} /> Ver detalles
+                      </button>
+                    </div>
+                  )}
 
                   {/* Row 2: Type + stage badge */}
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -8447,7 +8460,7 @@ export default function FieldCoordApp() {
               onOpenPostDetail={openPostDetail}
             />
           )}
-          {activeTab === 'incidencias' && <IncidentsView incidents={incidents} posts={posts} onResolve={readOnly ? null : resolveIncident} onSelectPost={setSelectedPost} isAdmin={isAdmin} isDirector={isDirector} profile={profile} onDelete={isAdmin ? deleteIncident : null} onAttend={attendIncident} canAttend={canAttendIncidents(effectiveProfile)} canResolve={canResolveIncidents(effectiveProfile)} onRevert={revertIncident} externalNav={incidenciasNav} />}
+          {activeTab === 'incidencias' && <IncidentsView incidents={incidents} posts={posts} onResolve={readOnly ? null : resolveIncident} onSelectPost={setSelectedPost} isAdmin={isAdmin} isDirector={isDirector} profile={profile} onDelete={isAdmin ? deleteIncident : null} onAttend={attendIncident} canAttend={canAttendIncidents(effectiveProfile)} canResolve={canResolveIncidents(effectiveProfile)} onRevert={revertIncident} onJumpToMap={(p) => { setMapFocusPost(p); setMapFocusKey(k => k + 1); setActiveTab('mapa'); }} externalNav={incidenciasNav} />}
           {activeTab === 'propuestas' && (isAdmin || isCoordinador) && (
             <ProposalsView
               proposals={proposals}
@@ -8485,6 +8498,11 @@ export default function FieldCoordApp() {
 
       {selectedPost && (
         <PostDetailDrawer post={selectedPost} onClose={closePostDetail}
+            onGoToIncident={(incId) => {
+              setIncidenciasNav({ search: incId, sev: 'todas', estado: 'todos', bloqueados: false, ts: Date.now() });
+              setSelectedPost(null);
+              setActiveTab('incidencias');
+            }}
             onToggleRevisado={async (p) => {
               if (!profile) return;
               try {
