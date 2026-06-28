@@ -218,7 +218,24 @@ function requireSupabase() {
 // =============================================================================
 // LOAD — lee todo el dataset en paralelo y lo reconstruye al formato de la app
 // =============================================================================
-export async function loadAllData() {
+export async function loadObrasGam() {
+  const sb = requireSupabase();
+  const all = [];
+  const pageSize = 1000;
+  let offset = 0;
+  while (true) {
+    const { data, error } = await sb
+      .from('obras_gam')
+      .select('id,lat,lng,name,clave,unidad_territorial,postes_por_instalar,postes_catalogo,empresa,numero_contrato,importe_contratado,tipo_obra,dt')
+      .order('id', { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    all.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+    offset += pageSize;
+  }
+  return all;
+}export async function loadAllData() {
   const sb = requireSupabase();
 
   // Paginate any table fully. PostgREST max-rows is 1000 per request,
@@ -1668,6 +1685,38 @@ export async function updatePostVerificadoCampo(postId, value) {
     p_post_id: postId,
     p_value: value,
   });
+  if (error) throw error;
+  return data;
+}
+// ---- DGSU: bitácora de capturas (reportes/demandas) por punto obras_gam ----
+export async function loadCapturasObra(obraId) {
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from('obras_gam_capturas')
+    .select('id,obra_id,tipo,distancia_luz,camaras,poste,brazos,luz,codo,tubo_mufa,notas,created_by,created_at')
+    .eq('obra_id', obraId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function crearCapturaObra({ obraId, tipo, distanciaLuz, camaras, poste, brazos, luz, codo, tuboMufa, notas }) {
+  const sb = requireSupabase();
+  const row = { obra_id: obraId, tipo, notas: (notas ?? null) || null };
+  if (tipo === 'reporte') {
+    row.distancia_luz = (distanciaLuz === '' || distanciaLuz == null) ? null : Number(distanciaLuz);
+    row.camaras   = (camaras   === '' || camaras   == null) ? null : parseInt(camaras, 10);
+    row.poste     = (poste     === '' || poste     == null) ? null : parseInt(poste, 10);
+    row.brazos    = (brazos    === '' || brazos    == null) ? null : parseInt(brazos, 10);
+    row.luz       = (luz       === '' || luz       == null) ? null : parseInt(luz, 10);
+    row.codo      = (codo      === '' || codo      == null) ? null : parseInt(codo, 10);
+    row.tubo_mufa = (tuboMufa  === '' || tuboMufa  == null) ? null : parseInt(tuboMufa, 10);
+  }
+  const { data, error } = await sb
+    .from('obras_gam_capturas')
+    .insert(row)
+    .select('id,obra_id,tipo,distancia_luz,camaras,poste,brazos,luz,codo,tubo_mufa,notas,created_by,created_at')
+    .single();
   if (error) throw error;
   return data;
 }

@@ -27,6 +27,9 @@ import { createUtLayer, setUtHover, getUtName, setUtFilter } from './lib/utLayer
 import UtReviewPanel from './components/UtReviewPanel.jsx';
 import {
   loadAllData,
+  loadObrasGam,
+  loadCapturasObra,
+  crearCapturaObra,
   savePost as dbSavePost,
   updateStageAtomic,
   updatePostMetadata,
@@ -809,7 +812,7 @@ function readStoredMapView() {
   return null;
 }
 
-function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetail, filters, onCapturePost, stageDefs, darkMode,
+function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetail, filters, onCapturePost, stageDefs, darkMode, obrasGam = [],
                    measureMode = false, setMeasureMode, measurePoints = [], setMeasurePoints,
                    editingPostId, onConfirmRelocate, onCancelRelocate,
                    addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, canMerge = false, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado }) {
@@ -835,6 +838,25 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
   const applyTileProviderRef = useRef(() => {});
   const [hover, setHover] = useState(null);
   const [showUts, setShowUts] = useState(false);
+  const [capaDGSU, setCapaDGSU] = useState(false); // false=CI (postes), true=DGSU (obras_gam)
+  const [obraSel, setObraSel] = useState(null); // obra DGSU seleccionada para el modal
+  const [capturasObra, setCapturasObra] = useState([]); // bitácora del punto seleccionado
+  const [formCaptura, setFormCaptura] = useState(null); // null | 'reporte' | 'demanda'
+  const [savingCaptura, setSavingCaptura] = useState(false);
+  const [capturaVals, setCapturaVals] = useState({});
+  const obrasSourceRef = useRef(null);
+  const obrasLayerRef = useRef(null);
+  const obrasClickRef = useRef(null);
+  const obraSelSourceRef = useRef(null);
+  const obraSelLayerRef = useRef(null);
+  const obraSelPhaseRef = useRef(0);
+  const obraSelIdRef = useRef(null);
+  const [obraMarcadaId, setObraMarcadaId] = useState(null);
+  const obraMarcadaIdRef = useRef(null);
+  useEffect(() => {
+    obraMarcadaIdRef.current = obraMarcadaId;
+    if (obrasLayerRef.current) obrasLayerRef.current.changed();
+  }, [obraMarcadaId]);
   const [utHoverName, setUtHoverName] = useState(null);
   const [reviewUt, setReviewUt] = useState(null);
   const [utPicker, setUtPicker] = useState(null);
@@ -1118,6 +1140,49 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
         baseLayer,
         utLayer,
         haloLayer,
+        (() => {
+          const obrasSource = new OLVectorSource();
+          obrasSourceRef.current = obrasSource;
+          const obrasLayer = new OLVectorLayer({
+            source: obrasSource,
+            zIndex: 9,
+            visible: false,
+            style: (feature) => {
+              const o = feature.get('obra');
+              const isSel = o && obraMarcadaIdRef.current != null && o.id === obraMarcadaIdRef.current;
+              return new OLStyle({
+                image: new OLCircle({
+                  radius: isSel ? 9 : 5,
+                  fill: new OLFill({ color: isSel ? '#F59E0B' : '#0066FF' }),
+                  stroke: new OLStroke({ color: '#FFFFFF', width: isSel ? 3 : 1 }),
+                }),
+              });
+            },
+          });
+          obrasLayerRef.current = obrasLayer;
+          return obrasLayer;
+        })(),
+        (() => {
+          const selSource = new OLVectorSource();
+          obraSelSourceRef.current = selSource;
+          const selLayer = new OLVectorLayer({
+            source: selSource,
+            zIndex: 11,
+            style: () => {
+              const phase = obraSelPhaseRef.current;
+              const r = 12 + Math.sin(phase) * 3;
+              return new OLStyle({
+                image: new OLCircle({
+                  radius: r,
+                  fill: new OLFill({ color: 'rgba(245, 158, 11, 0.25)' }),
+                  stroke: new OLStroke({ color: '#F59E0B', width: 3 }),
+                }),
+              });
+            },
+          });
+          obraSelLayerRef.current = selLayer;
+          return selLayer;
+        })(),
         new OLVectorLayer({ source: vectorSource, zIndex: 10 }),
         new OLVectorLayer({ source: userLocSource, zIndex: 20 }),
       ],
@@ -1383,7 +1448,78 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
       src.addFeature(f);
     });
   }, [posts, filters?.uts, reviewUt]);
+  // Cargar bitácora del punto DGSU al abrir su modal
+  useEffect(() => {
+    if (!obraSel) { setCapturasObra([]); setFormCaptura(null); return; }
+    let cancel = false;
+    (async () => {
+      try {
+        const rows = await loadCapturasObra(obraSel.id);
+        if (!cancel) setCapturasObra(rows);
+      } catch (e) { if (!cancel) { console.warn('capturas load:', e); setCapturasObra([]); } }
+    })();
+    return () => { cancel = true; };
+  }, [obraSel]);
+  // Reset de los campos del formulario al cambiar de tipo
+  useEffect(() => { setCapturaVals({}); }, [formCaptura]);
+  // Resaltado del punto DGSU seleccionado (anillo ámbar pulsante) + centrar
+  useEffect(() => {
+    const src = obraSelSourceRef.current;
+    if (!src) return;
+    src.clear();
+    if (obraSel && typeof obraSel.lat === 'number' && typeof obraSel.lng === 'number') {
+      const f = new OLFeature({ geometry: new OLPoint(olFromLonLat([obraSel.lng, obraSel.lat])) });
+      src.addFeature(f);
+      if (mapRef.current) {
+        mapRef.current.getView().animate({ center: olFromLonLat([obraSel.lng, obraSel.lat]), duration: 350 });
+      }
+    }
+  }, [obraSel]);
 
+  // Animación del anillo de resaltado
+  useEffect(() => {
+    const id = setInterval(() => {
+      obraSelPhaseRef.current = (obraSelPhaseRef.current + 0.18) % (2 * Math.PI);
+      if (obraSelLayerRef.current) obraSelLayerRef.current.changed();
+    }, 80);
+    return () => clearInterval(id);
+  }, []);
+// Capa DGSU (obras_gam): puntos azul electrico. Alterna con la capa CI (postes).
+  useEffect(() => {
+    const src = obrasSourceRef.current;
+    if (src) {
+      src.clear();
+      if (capaDGSU) {
+        (obrasGam || []).forEach(o => {
+          if (typeof o.lat !== 'number' || typeof o.lng !== 'number') return;
+          const f = new OLFeature({ geometry: new OLPoint(olFromLonLat([o.lng, o.lat])) });
+          f.set('obra', o);
+          src.addFeature(f);
+        });
+      }
+    }
+    const mapDG = mapRef.current;
+    if (mapDG) {
+      if (obrasClickRef.current) { mapDG.un('click', obrasClickRef.current); obrasClickRef.current = null; }
+      if (capaDGSU) {
+        const handler = (e) => {
+          const feat = mapDG.forEachFeatureAtPixel(e.pixel, f => (f.get('obra') ? f : null), { hitTolerance: 6 });
+          if (feat) { const ob = feat.get('obra'); setObraSel(ob); setObraMarcadaId(ob.id); }
+        };
+        mapDG.on('click', handler);
+        obrasClickRef.current = handler;
+      }
+    }
+    if (obrasLayerRef.current) obrasLayerRef.current.setVisible(capaDGSU);
+    // En DGSU ocultar postes + halos + UT; en CI restaurar.
+    if (vectorSourceRef.current) {
+      const v = mapRef.current?.getLayers?.().getArray?.().find(l => l.getSource && l.getSource() === vectorSourceRef.current);
+      if (v) v.setVisible(!capaDGSU);
+    }
+    if (haloLayerRef.current) haloLayerRef.current.setVisible(!capaDGSU);
+    if (utPolygonLayerRef.current && capaDGSU) utPolygonLayerRef.current.setVisible(false);
+    if (!capaDGSU) { setObraSel(null); setFormCaptura(null); setObraMarcadaId(null); }
+  }, [capaDGSU, obrasGam]);
   // Animacion del halo: solo afecta verificado/no_existe; no_definido queda estatico.
   useEffect(() => {
     if (!haloLayerRef.current) return;
@@ -1948,6 +2084,11 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
                 title="Mostrar Unidades Territoriales">
           UT
         </button>
+        <button onClick={() => setCapaDGSU(v => !v)}
+                className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 font-mono text-[10px] font-bold ${capaDGSU ? 'text-white bg-[#0066FF]' : 'text-stone-600 hover:bg-stone-50'}`}
+                title={capaDGSU ? 'Capa DGSU (obras). Cambiar a CI' : 'Capa CI (postes). Cambiar a DGSU'}>
+          {capaDGSU ? 'DGSU' : 'CI'}
+        </button>
         <button onClick={() => setShowScout(v => !v)}
                 className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 ${showScout ? 'text-rose-500 bg-rose-50' : 'text-stone-600 hover:text-rose-500 hover:bg-stone-50'}`}
                 title="Rutas de scouting">
@@ -1965,7 +2106,136 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
           <Navigation className="w-4 h-4" strokeWidth={1.5} />
         </button>
       </div>
-
+      {obraSel && (
+        <div onClick={() => setObraSel(null)} style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,0.45)' }} className="flex items-center justify-center p-4">
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200" style={{ background: '#0066FF' }}>
+              <div className="text-white font-bold text-sm">Detalles Punto DGSU</div>
+              <button onClick={() => setObraSel(null)} className="text-white/90 hover:text-white font-mono text-lg leading-none">×</button>
+            </div>
+            <div className="p-4 text-sm text-stone-700">
+              {[
+                ['Nombre', obraSel.name],
+                ['Clave', obraSel.clave],
+                ['Unidad Territorial', obraSel.unidad_territorial],
+                ['Tipo de obra', obraSel.tipo_obra],
+                ['Postes por instalar', obraSel.postes_por_instalar],
+                ['Postes catálogo', obraSel.postes_catalogo],
+                ['DT', obraSel.dt],
+              ].filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-4 py-1.5 border-b border-stone-100 last:border-0">
+                  <span className="text-stone-500">{k}</span>
+                  <span className="text-right font-medium break-words">{String(v)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-stone-200 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <button onClick={() => setFormCaptura('reporte')}
+                        className="flex-1 px-3 py-2 rounded text-sm font-semibold text-white"
+                        style={{ background: '#0066FF' }}>
+                  + Reporte
+                </button>
+                <button onClick={() => setFormCaptura('demanda')}
+                        className="flex-1 px-3 py-2 rounded text-sm font-semibold border border-stone-300 text-stone-700 hover:bg-stone-50">
+                  + Demanda
+                </button>
+              </div>
+              {formCaptura && (
+                <div className="mb-3 border border-stone-200 rounded p-3 bg-stone-50">
+                  <div className="text-xs font-bold text-stone-600 mb-2">
+                    {formCaptura === 'reporte' ? 'Nuevo Reporte' : 'Nueva Demanda'}
+                  </div>
+                  {formCaptura === 'reporte' && (
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <label className="text-xs text-stone-600 flex flex-col gap-1">Distancia de la luz
+                        <input type="number" step="0.01" inputMode="decimal" value={capturaVals.distanciaLuz ?? ''}
+                               onChange={e => setCapturaVals(v => ({ ...v, distanciaLuz: e.target.value }))}
+                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                      <label className="text-xs text-stone-600 flex flex-col gap-1">Cámaras
+                        <input type="number" step="1" inputMode="numeric" value={capturaVals.camaras ?? ''}
+                               onChange={e => setCapturaVals(v => ({ ...v, camaras: e.target.value }))}
+                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                      <label className="text-xs text-stone-600 flex flex-col gap-1">Poste
+                        <input type="number" step="1" inputMode="numeric" value={capturaVals.poste ?? ''}
+                               onChange={e => setCapturaVals(v => ({ ...v, poste: e.target.value }))}
+                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                      <label className="text-xs text-stone-600 flex flex-col gap-1">Brazos
+                        <input type="number" step="1" inputMode="numeric" value={capturaVals.brazos ?? ''}
+                               onChange={e => setCapturaVals(v => ({ ...v, brazos: e.target.value }))}
+                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                      <label className="text-xs text-stone-600 flex flex-col gap-1">Luz
+                        <input type="number" step="1" inputMode="numeric" value={capturaVals.luz ?? ''}
+                               onChange={e => setCapturaVals(v => ({ ...v, luz: e.target.value }))}
+                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                      <label className="text-xs text-stone-600 flex flex-col gap-1">Codo
+                        <input type="number" step="1" inputMode="numeric" value={capturaVals.codo ?? ''}
+                               onChange={e => setCapturaVals(v => ({ ...v, codo: e.target.value }))}
+                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                      <label className="text-xs text-stone-600 flex flex-col gap-1">Tubo con mufa
+                        <input type="number" step="1" inputMode="numeric" value={capturaVals.tuboMufa ?? ''}
+                               onChange={e => setCapturaVals(v => ({ ...v, tuboMufa: e.target.value }))}
+                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                    </div>
+                  )}
+                  <label className="text-xs text-stone-600 flex flex-col gap-1 mb-2">Notas
+                    <textarea rows={2} value={capturaVals.notas ?? ''}
+                              onChange={e => setCapturaVals(v => ({ ...v, notas: e.target.value }))}
+                              className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                  <div className="flex gap-2">
+                    <button disabled={savingCaptura} onClick={async () => {
+                      if (savingCaptura) return;
+                      if (formCaptura === 'demanda' && !(capturaVals.notas || '').trim()) { alert('Escribe una nota para la demanda.'); return; }
+                      setSavingCaptura(true);
+                      try {
+                        await crearCapturaObra({ obraId: obraSel.id, tipo: formCaptura, ...capturaVals });
+                        const rows = await loadCapturasObra(obraSel.id);
+                        setCapturasObra(rows);
+                        setFormCaptura(null);
+                        setCapturaVals({});
+                      } catch (e) { alert('No se pudo guardar: ' + (e?.message || e)); }
+                      finally { setSavingCaptura(false); }
+                    }} className="flex-1 px-3 py-1.5 rounded text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#0066FF' }}>
+                      {savingCaptura ? 'Guardando…' : 'Guardar'}
+                    </button>
+                    <button onClick={() => { setFormCaptura(null); setCapturaVals({}); }}
+                            className="px-3 py-1.5 rounded text-sm border border-stone-300 text-stone-600">Cancelar</button>
+                  </div>
+                </div>
+              )}
+              <div className="text-xs font-semibold text-stone-500 mb-1">Bitácora ({capturasObra.length})</div>
+              {capturasObra.length === 0 ? (
+                <div className="text-xs text-stone-400 py-2">Sin registros todavía.</div>
+              ) : (
+                <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+                  {capturasObra.map(c => (
+                    <div key={c.id} className="border border-stone-200 rounded p-2 text-xs">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`px-1.5 py-0.5 rounded text-white font-semibold ${c.tipo === 'reporte' ? 'bg-[#0066FF]' : 'bg-stone-500'}`}>
+                          {c.tipo === 'reporte' ? 'Reporte' : 'Demanda'}
+                        </span>
+                        <span className="text-stone-400">{new Date(c.created_at).toLocaleString('es-MX')}</span>
+                      </div>
+                      {c.tipo === 'reporte' && (
+                        <div className="text-stone-600 grid grid-cols-2 gap-x-3">
+                          {c.distancia_luz != null && <span>Distancia luz: {c.distancia_luz}</span>}
+                          {c.camaras != null && <span>Cámaras: {c.camaras}</span>}
+                          {c.poste != null && <span>Poste: {c.poste}</span>}
+                          {c.brazos != null && <span>Brazos: {c.brazos}</span>}
+                          {c.luz != null && <span>Luz: {c.luz}</span>}
+                          {c.codo != null && <span>Codo: {c.codo}</span>}
+                          {c.tubo_mufa != null && <span>Tubo con mufa: {c.tubo_mufa}</span>}
+                        </div>
+                      )}
+                      {c.notas && <div className="text-stone-600 mt-1">Notas: {c.notas}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Tooltip de UT al hover */}
       {utPicker && (
         <>
@@ -7495,6 +7765,7 @@ export default function FieldCoordApp() {
   const [mapFocusPost, setMapFocusPost] = useState(null);
   const [mapFocusKey, setMapFocusKey] = useState(0);
   const [unidadesTerritoriales, setUnidadesTerritoriales] = useState([]);
+  const [obrasGam, setObrasGam] = useState([]);
   // PR B Lote 3: state para el modal de recuperar antena (admin)
   const [antenaModalPost, setAntenaModalPost] = useState(null);
   const [userNames, setUserNames] = useState({}); // {userId: displayName}
@@ -7665,6 +7936,7 @@ export default function FieldCoordApp() {
     try {
       const { posts: p, incidents: i, unidadesTerritoriales: uts } = await loadAllData();
       setPosts(p);
+      try { setObrasGam(await loadObrasGam()); } catch (e) { console.warn('obras_gam load:', e); }
       setSelectedPost(prev => prev ? (p.find(x => x.id === prev.id) || prev) : prev);
       setIncidents(i);
       setUnidadesTerritoriales(uts || []);
@@ -8382,7 +8654,7 @@ export default function FieldCoordApp() {
                 </div>
               </div>
               <div className="flex-1 p-4">
-                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} openPostDetail={openPostDetail} filters={mapFilterCtx.filters} incidents={incidents} userNames={userNames}
+                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} openPostDetail={openPostDetail} filters={mapFilterCtx.filters} incidents={incidents} userNames={userNames} obrasGam={obrasGam}
                          stageDefs={STAGE_DEFS} darkMode={darkMode}
                          measureMode={measureMode} setMeasureMode={setMeasureMode}
                          measurePoints={measurePoints} setMeasurePoints={setMeasurePoints}
