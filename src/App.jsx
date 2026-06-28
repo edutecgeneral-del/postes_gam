@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'react';
 import {
-  MapPin, Circle, Users, AlertTriangle, Package, BarChart3, CheckCircle2,
+  MapPin, Circle, Bell, Users, AlertTriangle, Package, BarChart3, CheckCircle2,
   Clock, XCircle, Search, Camera, FileText, ChevronRight, Plus, X, Edit2,
   Eye, EyeOff, Radio, HardHat, Wrench, Activity, Compass, Download, RefreshCw,
   TrendingUp, Filter, ArrowUpRight, Zap, Shield, Navigation, Layers,
@@ -558,6 +558,134 @@ function EstadoBadge({ status }) {
       <Ico className="w-2.5 h-2.5" strokeWidth={2} />
       {s.label}
     </span>
+  );
+}
+
+// Campana de alertas: incidencias abiertas, bloqueados primero. (sonido/animacion se agregan luego)
+// Beep corto sintetizado para alertas (Web Audio API; sin archivo externo).
+// Envuelto en try/catch porque el navegador puede bloquear audio sin interaccion previa.
+function playAlertBeep() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880; // La (A5)
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.36);
+    osc.onended = function(){ try { ctx.close(); } catch (e) {} };
+  } catch (e) {
+    // Audio bloqueado o no disponible: ignorar en silencio.
+  }
+}
+
+function AlertBell({ incidents, posts, onGoIncident, onGoMap }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const [pulsing, setPulsing] = useState(false);
+  const prevCountRef = useRef(null);
+
+  // Cerrar al hacer click afuera
+  useEffect(() => {
+    function onDocClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    if (open) document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
+  // Set de ids de postes bloqueados (para destacar y ordenar)
+  const blockedIds = new Set((posts || []).filter(function(p){ return p.blocked; }).map(function(p){ return p.id; }));
+
+  // Solo incidencias abiertas; bloqueados primero, luego por fecha desc
+  const abiertas = (incidents || []).filter(function(i){ return i.status === 'abierta'; });
+  abiertas.sort(function(a, b){
+    const ab = blockedIds.has(a.postId) ? 1 : 0;
+    const bb = blockedIds.has(b.postId) ? 1 : 0;
+    if (ab !== bb) return bb - ab; // bloqueados arriba
+    const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return tb - ta; // mas recientes arriba
+  });
+
+  const count = abiertas.length;
+  
+  // Detectar incidencia nueva: si el conteo sube, pulsar 3s (no en el primer render)
+  useEffect(function(){
+    if (prevCountRef.current === null) { prevCountRef.current = count; return; }
+    if (count > prevCountRef.current) {
+      setPulsing(true);
+      playAlertBeep();
+      const t = setTimeout(function(){ setPulsing(false); }, 3000);
+      prevCountRef.current = count;
+      return function(){ clearTimeout(t); };
+    }
+    prevCountRef.current = count;
+  }, [count]);
+  const sevColor = { alta: '#DC2626', media: '#F59E0B', baja: '#3B82F6' };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button onClick={function(){ setOpen(function(o){ return !o; }); }}
+              className={"relative text-stone-600 hover:text-stone-950 h-7 w-7 flex items-center justify-center " + (pulsing ? "animate-bounce" : "")}
+              title="Alertas de incidencias abiertas">
+        <Bell className="w-5 h-5" strokeWidth={2} />
+        {count > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full text-[10px] font-mono font-bold text-white"
+                style={{ background: '#DC2626' }}>
+            {count > 99 ? '99+' : count}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-80 max-h-[28rem] overflow-y-auto bg-stone-50 border border-stone-300 shadow-2xl z-50">
+          <div className="px-4 py-3 border-b border-stone-300 flex items-center justify-between sticky top-0 bg-stone-50">
+            <span className="text-xs font-mono uppercase tracking-widest text-stone-600">Alertas</span>
+            <span className="text-[10px] font-mono text-stone-400">{count} abierta{count === 1 ? '' : 's'}</span>
+          </div>
+          {count === 0 && (
+            <div className="px-4 py-8 text-center text-stone-500 text-sm font-mono">Sin incidencias abiertas</div>
+          )}
+          <div className="divide-y divide-stone-200">
+            {abiertas.slice(0, 30).map(function(i){
+              const isBlocked = blockedIds.has(i.postId);
+              const post = (posts || []).find(function(p){ return p.id === i.postId; });
+              return (
+                <div key={i.id} className="px-4 py-2.5 hover:bg-rose-500/5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {isBlocked && <Lock className="w-3 h-3" strokeWidth={2.5} style={{ color: '#1c1917' }} />}
+                    <button onClick={function(){ setOpen(false); onGoIncident && onGoIncident(i.id); }}
+                            className="font-mono text-xs text-rose-500 hover:underline">{i.id}</button>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: sevColor[i.severity] || '#6B7280' }} />
+                    <span className="text-[11px] text-stone-500">{i.postId}</span>
+                  </div>
+                  <div className="text-sm text-stone-700 mt-0.5 truncate">{i.type}</div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <button onClick={function(){ setOpen(false); if (post && onGoMap) onGoMap(post); }}
+                            className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 border border-stone-300 text-stone-600 hover:border-rose-500 hover:text-rose-500"
+                            disabled={!post}>
+                      <MapPin className="w-2.5 h-2.5" strokeWidth={2} /> Ir al punto
+                    </button>
+                    {isBlocked && (
+                      <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5"
+                            style={{ background: '#1c1917', color: '#ffffff' }}>Bloqueado</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -8512,6 +8640,12 @@ export default function FieldCoordApp() {
           <DesktopNav groups={navGroups} activeTab={activeTab} setActiveTab={setActiveTab} />
 
           <div className="flex items-center gap-1.5 md:gap-2">
+            {/* Campana de alertas (admin/scout) */}
+            {(isAdmin || isScout) && (
+              <AlertBell incidents={incidents} posts={posts}
+                onGoIncident={(incId) => { setIncidenciasNav({ search: incId, sev: 'todas', estado: 'todos', bloqueados: false, ts: Date.now() }); setSelectedPost(null); setActiveTab('incidencias'); }}
+                onGoMap={(p) => { setMapFocusPost(p); setMapFocusKey(k => k + 1); setActiveTab('mapa'); }} />
+            )}
             {/* Admin: Ver como otro rol */}
             {realIsAdmin && (
               <select value={viewAsRole || ''} onChange={e => { setViewAsRole(e.target.value || null); setActiveTab('dashboard'); }}
