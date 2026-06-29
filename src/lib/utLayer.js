@@ -73,3 +73,27 @@ export function getUtName(feature) {
   const props = feature.getProperties() || {};
   return props.nombre_uat || props.NOMBRE || props.nombre || null;
 }
+// Capa gemela de UT para modo DGSU: mismo GeoJSON, borde azul tenue (distinguir de CI rojo).
+const BLUE_STROKE = 'rgba(0, 102, 255, 0.55)';
+const BLUE_FILL   = 'rgba(0, 102, 255, 0.05)';
+export function createUtLayerDGSU({ baseUrl = '/' } = {}) {
+  const normalized = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+  const source = new OLVectorSource({
+    format: new OLGeoJSON({ dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' }),
+    url: `${normalized}ut_boundaries.geojson`,
+    wrapX: false,
+  });
+  const dgsuStyle = new Style({
+    stroke: new Stroke({ color: BLUE_STROKE, width: 1.2 }),
+    fill:   new Fill({ color: BLUE_FILL }),
+  });
+  const layer = new OLVectorLayer({
+    source,
+    declutter: false,
+    zIndex: 1,
+    visible: false,
+    properties: { id: 'ut-boundaries-dgsu' },
+  });
+  layer.setStyle(() => dgsuStyle);
+  return layer;
+}

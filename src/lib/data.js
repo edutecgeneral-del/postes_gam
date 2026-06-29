@@ -1720,3 +1720,12 @@ export async function crearCapturaObra({ obraId, tipo, distanciaLuz, camaras, po
   if (error) throw error;
   return data;
 }
+// ---- DGSU: resumen de tipos de captura por obra (para filtros Reporte/Demanda) ----
+export async function loadCapturasResumen() {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc('obras_capturas_resumen');
+  if (error) throw error;
+  const map = {};
+  (data || []).forEach(r => { map[r.obra_id] = r.tipos || []; });
+  return map; // { obraId: ['reporte','demanda'] }
+}

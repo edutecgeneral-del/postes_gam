@@ -23,13 +23,14 @@ import { fromLonLat as olFromLonLat, toLonLat as olToLonLat } from 'ol/proj';
 import { Translate as OLTranslate } from 'ol/interaction';
 import OLCollection from 'ol/Collection';
 import { boundingExtent as olBoundingExtent } from 'ol/extent';
-import { createUtLayer, setUtHover, getUtName, setUtFilter } from './lib/utLayer.js';
+import { createUtLayer, createUtLayerDGSU, setUtHover, getUtName, setUtFilter } from './lib/utLayer.js';
 import UtReviewPanel from './components/UtReviewPanel.jsx';
 import {
   loadAllData,
   loadObrasGam,
   loadCapturasObra,
   crearCapturaObra,
+  loadCapturasResumen,
   savePost as dbSavePost,
   updateStageAtomic,
   updatePostMetadata,
@@ -974,6 +975,7 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
   const [capturaVals, setCapturaVals] = useState({});
   const obrasSourceRef = useRef(null);
   const obrasLayerRef = useRef(null);
+  const utLayerDGSURef = useRef(null);
   const obrasClickRef = useRef(null);
   const obraSelSourceRef = useRef(null);
   const obraSelLayerRef = useRef(null);
@@ -985,6 +987,19 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
     obraMarcadaIdRef.current = obraMarcadaId;
     if (obrasLayerRef.current) obrasLayerRef.current.changed();
   }, [obraMarcadaId]);
+  const [dgsuUt, setDgsuUt] = useState(null);            // UT seleccionada en modo DGSU
+  const [dgsuTipoFiltro, setDgsuTipoFiltro] = useState('todos'); // 'todos' | 'reporte' | 'demanda'
+  const [capturasResumen, setCapturasResumen] = useState({});    // { obraId: ['reporte','demanda'] }
+  const [showDgsuPanel, setShowDgsuPanel] = useState(false);     // panel lista de puntos de la UT
+  const dgsuUtRef = useRef(null);
+  useEffect(() => { dgsuUtRef.current = dgsuUt; if (obrasLayerRef.current) obrasLayerRef.current.changed(); }, [dgsuUt]);
+  const [dgsuUtQuery, setDgsuUtQuery] = useState('');
+  const dgsuUtsDisponibles = useMemo(() => {
+    const set = new Set();
+    (obrasGam || []).forEach(o => { if (o.unidad_territorial) set.add(o.unidad_territorial); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
+  }, [obrasGam]);
+const obrasEnUtIdsRef = useRef(new Set());
   const [utHoverName, setUtHoverName] = useState(null);
   const [reviewUt, setReviewUt] = useState(null);
   const [utPicker, setUtPicker] = useState(null);
@@ -1258,6 +1273,8 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
 
     // Capa de Unidades Territoriales (lazy: invisible hasta el toggle)
     const utLayer = createUtLayer({ baseUrl: import.meta.env.BASE_URL });
+    const utLayerDGSU = createUtLayerDGSU({ baseUrl: import.meta.env.BASE_URL });
+    utLayerDGSURef.current = utLayerDGSU;
     utPolygonLayerRef.current = utLayer;
     utPolygonSourceRef.current = utLayer.getSource();
 
@@ -1267,6 +1284,7 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
       layers: [
         baseLayer,
         utLayer,
+        utLayerDGSU,
         haloLayer,
         (() => {
           const obrasSource = new OLVectorSource();
@@ -1278,13 +1296,18 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
             style: (feature) => {
               const o = feature.get('obra');
               const isSel = o && obraMarcadaIdRef.current != null && o.id === obraMarcadaIdRef.current;
-              return new OLStyle({
-                image: new OLCircle({
-                  radius: isSel ? 9 : 5,
-                  fill: new OLFill({ color: isSel ? '#F59E0B' : '#0066FF' }),
-                  stroke: new OLStroke({ color: '#FFFFFF', width: isSel ? 3 : 1 }),
-                }),
-              });
+              const hayUt = !!dgsuUtRef.current;
+              const enUt = hayUt && o && obrasEnUtIdsRef.current.has(o.id);
+              if (isSel) {
+                return new OLStyle({ image: new OLCircle({ radius: 9, fill: new OLFill({ color: '#F59E0B' }), stroke: new OLStroke({ color: '#FFFFFF', width: 3 }) }) });
+              }
+              if (hayUt && enUt) {
+                return new OLStyle({ image: new OLCircle({ radius: 7, fill: new OLFill({ color: '#0066FF' }), stroke: new OLStroke({ color: '#FFFFFF', width: 2 }) }) });
+              }
+              if (hayUt && !enUt) {
+                return new OLStyle({ image: new OLCircle({ radius: 4, fill: new OLFill({ color: 'rgba(0,102,255,0.18)' }), stroke: new OLStroke({ color: 'rgba(255,255,255,0.4)', width: 1 }) }) });
+              }
+              return new OLStyle({ image: new OLCircle({ radius: 5, fill: new OLFill({ color: '#0066FF' }), stroke: new OLStroke({ color: '#FFFFFF', width: 1 }) }) });
             },
           });
           obrasLayerRef.current = obrasLayer;
@@ -1612,6 +1635,31 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
     }, 80);
     return () => clearInterval(id);
   }, []);
+  // Cargar resumen de capturas (tipos por obra) al entrar a DGSU
+  useEffect(() => {
+    if (!capaDGSU) return;
+    let cancel = false;
+    (async () => {
+      try { const m = await loadCapturasResumen(); if (!cancel) setCapturasResumen(m); }
+      catch (e) { if (!cancel) { console.warn('capturas resumen:', e); setCapturasResumen({}); } }
+    })();
+    return () => { cancel = true; };
+  }, [capaDGSU]);
+  // Puntos DGSU de la UT seleccionada, aplicando filtro por tipo de captura
+  const obrasEnUt = useMemo(() => {
+    if (!dgsuUt) return [];
+    return (obrasGam || []).filter(o => {
+      if (o.unidad_territorial !== dgsuUt) return false;
+      if (dgsuTipoFiltro === 'todos') return true;
+      const tipos = capturasResumen[o.id] || [];
+      return tipos.includes(dgsuTipoFiltro);
+    });
+  }, [dgsuUt, dgsuTipoFiltro, obrasGam, capturasResumen]);
+  // Sincroniza el set de IDs visibles de la UT con la capa (para resaltar/atenuar)
+  useEffect(() => {
+    obrasEnUtIdsRef.current = new Set((obrasEnUt || []).map(o => o.id));
+    if (obrasLayerRef.current) obrasLayerRef.current.changed();
+  }, [obrasEnUt]);
 // Capa DGSU (obras_gam): puntos azul electrico. Alterna con la capa CI (postes).
   useEffect(() => {
     const src = obrasSourceRef.current;
@@ -1632,7 +1680,13 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
       if (capaDGSU) {
         const handler = (e) => {
           const feat = mapDG.forEachFeatureAtPixel(e.pixel, f => (f.get('obra') ? f : null), { hitTolerance: 6 });
-          if (feat) { const ob = feat.get('obra'); setObraSel(ob); setObraMarcadaId(ob.id); }
+          if (feat) { const ob = feat.get('obra'); setObraSel(ob); setObraMarcadaId(ob.id); return; }
+          // Si no tocó un punto, ver si tocó un polígono de UT (capa DGSU)
+          const utFeat = mapDG.forEachFeatureAtPixel(e.pixel, (f, layer) => (layer === utLayerDGSURef.current ? f : null), { hitTolerance: 0 });
+          if (utFeat) {
+            const nombre = utFeat.get('nombre_uat') || utFeat.get('NOMBRE') || utFeat.get('nombre');
+            if (nombre) { setDgsuUt(nombre); setDgsuTipoFiltro('todos'); setShowDgsuPanel(true); }
+          }
         };
         mapDG.on('click', handler);
         obrasClickRef.current = handler;
@@ -1646,6 +1700,7 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
     }
     if (haloLayerRef.current) haloLayerRef.current.setVisible(!capaDGSU);
     if (utPolygonLayerRef.current && capaDGSU) utPolygonLayerRef.current.setVisible(false);
+    if (utLayerDGSURef.current) utLayerDGSURef.current.setVisible(capaDGSU);
     if (!capaDGSU) { setObraSel(null); setFormCaptura(null); setObraMarcadaId(null); }
   }, [capaDGSU, obrasGam]);
   // Animacion del halo: solo afecta verificado/no_existe; no_definido queda estatico.
@@ -2217,6 +2272,13 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
                 title={capaDGSU ? 'Capa DGSU (obras). Cambiar a CI' : 'Capa CI (postes). Cambiar a DGSU'}>
           {capaDGSU ? 'DGSU' : 'CI'}
         </button>
+        {capaDGSU && (
+          <button onClick={() => setShowDgsuPanel(v => !v)}
+                  className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 font-mono text-[10px] font-bold ${showDgsuPanel || dgsuUt ? 'text-white bg-[#0066FF]' : 'text-stone-600 hover:bg-stone-50'}`}
+                  title="Filtrar puntos DGSU por Unidad Territorial">
+            UTSU
+          </button>
+        )}
         <button onClick={() => setShowScout(v => !v)}
                 className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 ${showScout ? 'text-rose-500 bg-rose-50' : 'text-stone-600 hover:text-rose-500 hover:bg-stone-50'}`}
                 title="Rutas de scouting">
@@ -2234,6 +2296,61 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
           <Navigation className="w-4 h-4" strokeWidth={1.5} />
         </button>
       </div>
+      {capaDGSU && showDgsuPanel && (
+        <div className="absolute top-4 left-4 z-20 bg-white rounded-lg shadow-xl border border-stone-200 w-72 max-w-[85vw] max-h-[80vh] flex flex-col">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-stone-200" style={{ background: '#0066FF' }}>
+            <div className="text-white font-bold text-sm">Puntos por UT</div>
+            <button onClick={() => setShowDgsuPanel(false)} className="text-white/90 hover:text-white font-mono text-lg leading-none">×</button>
+          </div>
+          {!dgsuUt ? (
+            <div className="p-3 flex flex-col gap-2 overflow-hidden">
+              <div className="flex flex-col gap-1 overflow-y-auto" style={{ maxHeight: '50vh' }}>
+                {dgsuUtsDisponibles
+                  .map(ut => (
+                    <button key={ut} onClick={() => { setDgsuUt(ut); setDgsuTipoFiltro('todos'); }}
+                            className="text-left text-sm px-2 py-1.5 rounded hover:bg-stone-100 text-stone-700">
+                      {ut}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 flex flex-col gap-2 overflow-hidden">
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setDgsuUt(null); setDgsuUtQuery(''); }}
+                        className="text-xs text-[#0066FF] font-semibold">← UT</button>
+                <div className="text-sm font-bold text-stone-700 truncate">{dgsuUt}</div>
+              </div>
+              <div className="flex items-center gap-1">
+                {['todos', 'reporte', 'demanda'].map(t => (
+                  <button key={t} onClick={() => setDgsuTipoFiltro(t)}
+                          className={`flex-1 text-xs py-1 rounded font-semibold border ${dgsuTipoFiltro === t ? 'text-white bg-[#0066FF] border-[#0066FF]' : 'text-stone-600 border-stone-300 hover:bg-stone-50'}`}>
+                    {t === 'todos' ? 'Todos' : t === 'reporte' ? 'Reportes' : 'Demandas'}
+                  </button>
+                ))}
+              </div>
+              <div className="text-xs text-stone-500">{obrasEnUt.length} punto(s)</div>
+              <div className="flex flex-col gap-1 overflow-y-auto" style={{ maxHeight: '45vh' }}>
+                {obrasEnUt.length === 0 ? (
+                  <div className="text-xs text-stone-400 py-2">Sin puntos con ese filtro.</div>
+                ) : obrasEnUt.map(o => {
+                  const tipos = capturasResumen[o.id] || [];
+                  return (
+                    <button key={o.id} onClick={() => { setObraSel(o); setObraMarcadaId(o.id); }}
+                            className="text-left text-sm px-2 py-1.5 rounded hover:bg-stone-100 text-stone-700 flex items-center justify-between gap-2">
+                      <span className="truncate">{o.name || o.clave || ('Obra ' + o.id)}</span>
+                      <span className="flex gap-1 shrink-0">
+                        {tipos.includes('reporte') && <span className="w-2 h-2 rounded-full bg-[#0066FF]" title="Tiene reporte" />}
+                        {tipos.includes('demanda') && <span className="w-2 h-2 rounded-full bg-stone-500" title="Tiene demanda" />}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       {obraSel && (
         <div onClick={() => setObraSel(null)} style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,0.45)' }} className="flex items-center justify-center p-4">
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
