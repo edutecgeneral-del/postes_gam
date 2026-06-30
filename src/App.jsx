@@ -2507,6 +2507,7 @@ const obrasEnUtIdsRef = useRef(new Set());
       {reviewUt && (
         <UtReviewPanel
           ut={reviewUt}
+          canEditNotas={isAdmin}
           onRefresh={onRefresh}
           stageDefs={STAGE_DEFS}
           posts={(posts || []).filter(p => p.unidad_territorial === reviewUt.id)}

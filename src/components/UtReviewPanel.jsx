@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { assignIpsToPost, registrarAvanceConPendientes } from '../lib/data.js';
+import TerritorioNotas from './TerritorioNotas.jsx';
 
 const EQUIPOS = [
   { key: 'antena_5ac', label: 'Antena 5AC', icon: '📶' },
@@ -19,9 +20,10 @@ const FASE_FISICA = ['marca', 'dado', 'parado', 'camaras'];
 const etapasFisicasPendientes = (post) =>
   FASE_FISICA.filter(s => !post?.stages?.[s]?.done);
 
-export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostClick, onChangeEstado, onToggleVerificadoCampo, onIrAlPunto, onRefresh }) {
+export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostClick, onChangeEstado, onToggleVerificadoCampo, onIrAlPunto, onRefresh, canEditNotas, notasUserName }) {
   const [savingId, setSavingId] = useState(null);
   const [viewMode, setViewMode] = useState('review');
+  const [showNotasModal, setShowNotasModal] = useState(false);
   const [selectedModem, setSelectedModem] = useState(null);
   const [selectedE4Ids, setSelectedE4Ids] = useState(new Set());
   const [equiposByPost, setEquiposByPost] = useState({});
@@ -1029,6 +1031,20 @@ export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostCli
   return (
     <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-white backdrop-blur-sm border border-stone-300 rounded-lg shadow-2xl z-30 w-[480px] max-w-[92vw] flex flex-col"
       style={{ maxHeight: "calc(100vh - 140px)" }}>
+      {showNotasModal && (
+        <div className="absolute top-0 left-full ml-3 w-[420px] max-w-[92vw] bg-white border border-stone-300 rounded-lg shadow-2xl z-20 flex flex-col" style={{ maxHeight: "calc(100vh - 140px)" }}>
+          <div className="p-3 border-b border-stone-200 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-rose-600 font-mono font-bold text-base">{ut.id}</span>
+              <span className="text-stone-700 text-sm font-medium">Notas</span>
+            </div>
+            <button onClick={() => setShowNotasModal(false)} className="text-stone-400 hover:text-stone-700 text-2xl leading-none px-1">×</button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 min-h-0">
+            <TerritorioNotas utId={ut.id} posts={posts} canEdit={canEditNotas} userName={notasUserName} />
+          </div>
+        </div>
+      )}
       <div className="p-3 border-b border-stone-200 flex flex-col gap-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
@@ -1039,6 +1055,7 @@ export default function UtReviewPanel({ ut, posts, stageDefs, onClose, onPostCli
             <div className="text-stone-800 text-sm mt-0.5 truncate" title={ut.nombre}>{ut.nombre}</div>
           </div>
           <div className="flex items-start gap-1.5 shrink-0">
+            <button onClick={() => setShowNotasModal(true)} className="text-xs px-2 py-0.5 rounded border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 font-medium whitespace-nowrap">Notas</button>
             <span className={`text-xs px-2 py-0.5 rounded border font-semibold whitespace-nowrap ${badgeBg}`}>{badgeText}</span>
             <button onClick={onClose} className="text-stone-400 hover:text-stone-700 text-2xl leading-none px-1">×</button>
           </div>

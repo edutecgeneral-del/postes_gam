@@ -1729,3 +1729,32 @@ export async function loadCapturasResumen() {
   (data || []).forEach(r => { map[r.obra_id] = r.tipos || []; });
   return map; // { obraId: ['reporte','demanda'] }
 }
+
+/** Trae la nota de la UT + las notas de todos los puntos de esa UT (una sola llamada). */
+export async function getTerritorioNotas(utId) {
+  const sb = requireSupabase();
+  const { data, error } = await withTimeout(
+    sb.rpc('get_territorio_notas', { p_ut_id: utId }),
+    15000, 'getTerritorioNotas'
+  );
+  if (error) throw error;
+  return data || [];
+}
+
+/** Crea o actualiza una nota de territorio (tipo 'ut' o 'punto'). Solo admin (RLS). */
+export async function upsertTerritorioNota({ tipo, texto, utId = null, postId = null, postUtId = null, userName = null }) {
+  const sb = requireSupabase();
+  const { data, error } = await withTimeout(
+    sb.rpc('upsert_territorio_nota', {
+      p_tipo: tipo,
+      p_texto: texto || '',
+      p_ut_id: utId,
+      p_post_id: postId,
+      p_post_ut_id: postUtId,
+      p_user_name: userName
+    }),
+    15000, 'upsertTerritorioNota'
+  );
+  if (error) throw error;
+  return data;
+}
