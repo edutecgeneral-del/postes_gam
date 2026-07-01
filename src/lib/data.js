@@ -1729,7 +1729,6 @@ export async function loadCapturasResumen() {
   (data || []).forEach(r => { map[r.obra_id] = r.tipos || []; });
   return map; // { obraId: ['reporte','demanda'] }
 }
-
 /** Trae la nota de la UT + las notas de todos los puntos de esa UT (una sola llamada). */
 export async function getTerritorioNotas(utId) {
   const sb = requireSupabase();
@@ -1768,4 +1767,70 @@ export async function getFichaUt(utId) {
   );
   if (error) throw error;
   return data || [];
+}
+// ---- RAAL: incidencias filtradas a 2 categorías fijas (cascajo + instalación eléctrica) ----
+const RAAL_CATEGORY_IDS = [
+  '1324d434-6b2d-46ff-9281-a2e42022df84', // Cascajo presente
+  '98a342cf-76fb-4c0b-93c0-69d463820a99', // Instalación eléctrica
+];
+
+export async function loadIncidentsRAAL() {
+  const sb = requireSupabase();
+  // 1) clasificaciones de esas 2 categorías (incident_id -> categoria)
+  const { data: clasif, error: e1 } = await sb
+    .from('incident_classifications')
+    .select('incident_id, category_id, incident_categories(name, color)')
+    .in('category_id', RAAL_CATEGORY_IDS);
+  if (e1) throw e1;
+  const porIncidente = {};
+  (clasif || []).forEach(c => {
+    porIncidente[c.incident_id] = {
+      categoryId: c.category_id,
+      categoryName: c.incident_categories?.name || null,
+      categoryColor: c.incident_categories?.color || null,
+    };
+  });
+  const ids = Object.keys(porIncidente);
+  if (ids.length === 0) return [];
+
+  // 2) traer esas incidencias (paginando por si son muchas)
+  const all = [];
+  const pageSize = 200;
+  for (let i = 0; i < ids.length; i += pageSize) {
+    const slice = ids.slice(i, i + pageSize);
+    const { data, error } = await sb.from('incidents').select('*').in('id', slice);
+    if (error) throw error;
+    all.push(...(data || []));
+  }
+
+  // 3) mapear al mismo shape que usa IncidentsView, inyectando la categoría
+  return all.map(i => {
+    const cat = porIncidente[i.id] || {};
+    return {
+      id: i.id,
+      postId: i.post_id,
+      type: i.type,
+      description: i.description,
+      severity: i.severity,
+      status: i.status,
+      capturedBy: i.captured_by,
+      stageId: i.stage_id,
+      sourceNote: i.source_note,
+      userNote: i.user_note || '',
+      reportedByName: i.reported_by_name || '',
+      attendedBy: i.attended_by || null,
+      attendedByName: i.attended_by_name || '',
+      attendedAt: i.attended_at ? new Date(i.attended_at).getTime() : null,
+      attendedNote: i.attended_note || '',
+      attendedPhotoUrl: i.attended_photo_url || null,
+      reportPhotoUrls: i.report_photo_urls || [],
+      resolvedBy: i.resolved_by || null,
+      resolvedByName: i.resolved_by_name || '',
+      categoryId: cat.categoryId || null,
+      categoryName: cat.categoryName || null,
+      categoryColor: cat.categoryColor || null,
+      createdAt: i.created_at ? new Date(i.created_at).getTime() : null,
+      resolvedAt: i.resolved_at ? new Date(i.resolved_at).getTime() : null,
+    };
+  });
 }

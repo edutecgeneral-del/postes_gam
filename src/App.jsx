@@ -31,6 +31,7 @@ import {
   loadCapturasObra,
   crearCapturaObra,
   loadCapturasResumen,
+  loadIncidentsRAAL,
   savePost as dbSavePost,
   updateStageAtomic,
   updatePostMetadata,
@@ -941,7 +942,7 @@ function readStoredMapView() {
   return null;
 }
 
-function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetail, filters, onCapturePost, stageDefs, darkMode, obrasGam = [],
+function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetail, filters, onCapturePost, stageDefs, darkMode, obrasGam = [], canSeeDGSU = false,
                    measureMode = false, setMeasureMode, measurePoints = [], setMeasurePoints,
                    editingPostId, onConfirmRelocate, onCancelRelocate,
                    addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, canMerge = false, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado }) {
@@ -2262,16 +2263,20 @@ const obrasEnUtIdsRef = useRef(new Set());
         <button onClick={fitAll} className="w-11 h-11 flex items-center justify-center text-stone-600 hover:text-rose-500 hover:bg-stone-50 border-t border-stone-300" title="Ver todos los postes">
           <Home className="w-4 h-4" strokeWidth={1.5} />
         </button>
-        <button onClick={() => setShowUts(v => !v)}
-                className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 font-mono text-[10px] font-bold ${showUts ? 'text-rose-500 bg-rose-50' : 'text-stone-600 hover:text-rose-500 hover:bg-stone-50'}`}
-                title="Mostrar Unidades Territoriales">
-          UT
-        </button>
-        <button onClick={() => setCapaDGSU(v => !v)}
-                className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 font-mono text-[10px] font-bold ${capaDGSU ? 'text-white bg-[#0066FF]' : 'text-stone-600 hover:bg-stone-50'}`}
-                title={capaDGSU ? 'Capa DGSU (obras). Cambiar a CI' : 'Capa CI (postes). Cambiar a DGSU'}>
-          {capaDGSU ? 'DGSU' : 'CI'}
-        </button>
+        {!capaDGSU && (
+          <button onClick={() => setShowUts(v => !v)}
+                  className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 font-mono text-[10px] font-bold ${showUts ? 'text-rose-500 bg-rose-50' : 'text-stone-600 hover:text-rose-500 hover:bg-stone-50'}`}
+                  title="Mostrar Unidades Territoriales">
+            UT
+          </button>
+        )}
+        {canSeeDGSU && (
+          <button onClick={() => setCapaDGSU(v => !v)}
+                  className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 font-mono text-[10px] font-bold ${capaDGSU ? 'text-white bg-[#0066FF]' : 'text-stone-600 hover:bg-stone-50'}`}
+                  title={capaDGSU ? 'Capa DGSU (obras). Cambiar a CI' : 'Capa CI (postes). Cambiar a DGSU'}>
+            {capaDGSU ? 'DGSU' : 'CI'}
+          </button>
+        )}
         {capaDGSU && (
           <button onClick={() => setShowDgsuPanel(v => !v)}
                   className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 font-mono text-[10px] font-bold ${showDgsuPanel || dgsuUt ? 'text-white bg-[#0066FF]' : 'text-stone-600 hover:bg-stone-50'}`}
@@ -5730,7 +5735,7 @@ function ProposalsView({ proposals, posts, userNames, isAdmin, isCoordinador, on
   );
 }
 
-function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isDirector, profile, onDelete, onAttend, canAttend, canResolve, onRevert, externalNav, onJumpToMap }) {
+function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isDirector, profile, onDelete, onAttend, canAttend, canResolve, onRevert, externalNav, onJumpToMap, isRAAL = false }) {
   const [filter, setFilter] = useState(externalNav?.filter || 'abierta');
   const [search, setSearch] = useState(externalNav?.search || '');
   const [filterCategory, setFilterCategory] = useState('todas');
@@ -5845,8 +5850,13 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
         if (!cls || cls.categoryId !== filterCategory) return false;
       }
     }
+    // RAAL: filtro por categoría (cascajo / instalación eléctrica)
+    if (isRAAL) {
+      if (filterPost === 'cat_cascajo' && i.categoryId !== '1324d434-6b2d-46ff-9281-a2e42022df84') return false;
+      if (filterPost === 'cat_electrica' && i.categoryId !== '98a342cf-76fb-4c0b-93c0-69d463820a99') return false;
+    }
     // Filter by post characteristics (poste 13m / faltan cámaras / falta silicón)
-    if (filterPost !== 'todas') {
+    if (!isRAAL && filterPost !== 'todas') {
       const post = posts.find(p => p.id === i.postId);
       if (!post) return false;
       if (filterPost === 'poste_13m' && post.stages?.dado?.attrs?.poste_tipo !== '13m') return false;
@@ -5863,6 +5873,8 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
 
   const stats = {
     total: incidents.length,
+    cascajo: incidents.filter(i => i.categoryId === '1324d434-6b2d-46ff-9281-a2e42022df84').length,
+    electrica: incidents.filter(i => i.categoryId === '98a342cf-76fb-4c0b-93c0-69d463820a99').length,
     abiertas: incidents.filter(i => i.status === 'abierta').length,
     resueltas: incidents.filter(i => i.status === 'resuelta').length,
     criticas: incidents.filter(i => i.status === 'abierta' && i.severity === 'alta').length,
@@ -6143,10 +6155,19 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard label="Total" value={stats.total} accent="#6B7280" icon={FileText} onClick={() => setFilter('todas')} />
-        <StatCard label="Alta" value={stats.altas} sub="sin resolver" accent="#DC2626" icon={AlertTriangle} onClick={() => setFilter('alta')} />
-        <StatCard label="Media" value={stats.medias} sub="sin resolver" accent="#F59E0B" icon={Zap} onClick={() => setFilter('media')} />
-        <StatCard label="Baja" value={stats.bajas} sub="sin resolver" accent="#3B82F6" icon={AlertCircle} onClick={() => setFilter('baja')} />
-        <StatCard label="Postes bloqueados" value={stats.bloqueados} sub="bloqueo manual" accent="#1c1917" icon={Lock} onClick={() => setFilter('bloqueados')} />
+        {isRAAL ? (
+          <>
+            <StatCard label="Instalación eléctrica" value={stats.electrica} sub="incidencias" accent="#0EA5E9" icon={Zap} onClick={() => setFilterPost(prev => prev === 'cat_electrica' ? 'todas' : 'cat_electrica')} />
+            <StatCard label="Cascajo presente" value={stats.cascajo} sub="incidencias" accent="#F59E0B" icon={AlertTriangle} onClick={() => setFilterPost(prev => prev === 'cat_cascajo' ? 'todas' : 'cat_cascajo')} />
+          </>
+        ) : (
+          <>
+            <StatCard label="Alta" value={stats.altas} sub="sin resolver" accent="#DC2626" icon={AlertTriangle} onClick={() => setFilter('alta')} />
+            <StatCard label="Media" value={stats.medias} sub="sin resolver" accent="#F59E0B" icon={Zap} onClick={() => setFilter('media')} />
+            <StatCard label="Baja" value={stats.bajas} sub="sin resolver" accent="#3B82F6" icon={AlertCircle} onClick={() => setFilter('baja')} />
+            <StatCard label="Postes bloqueados" value={stats.bloqueados} sub="bloqueo manual" accent="#1c1917" icon={Lock} onClick={() => setFilter('bloqueados')} />
+          </>
+        )}
         <StatCard label="Resueltas" value={stats.resueltas} accent="#10B981" icon={CheckCircle2} onClick={() => setFilter('resuelta')} />
       </div>
 
@@ -6171,12 +6192,14 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
           <option value="atendida">Atendida</option>
           <option value="resuelta">Resuelta</option>
         </select>
+        {!isRAAL && (
         <label className="flex items-center gap-1.5 px-3 py-2 border border-stone-300 cursor-pointer select-none text-xs font-mono uppercase tracking-wider"
           style={soloBloqueados ? { background: '#1c1917', color: '#ffffff' } : { color: '#57534e' }}>
           <input type="checkbox" checked={soloBloqueados} onChange={e => setSoloBloqueados(e.target.checked)} className="w-3.5 h-3.5 accent-stone-800" />
           <Lock className="w-3 h-3" strokeWidth={2} />
           Bloqueados
         </label>
+        )}
         {/* Category filter (admin/director) */}
         {canSeeClassification && classLoaded && categories.length > 0 && (
           <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
@@ -6188,13 +6211,16 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
             ))}
           </select>
         )}
-        {/* Filtros por tipo de poste */}
-        {[
+        {/* Filtros por tipo de poste (o por categoría en modo RAAL) */}
+        {(isRAAL ? [
+          { key: 'cat_cascajo',   label: 'Cascajo presente',     activeClass: 'bg-amber-100 border-amber-400 text-amber-700' },
+          { key: 'cat_electrica', label: 'Instalación eléctrica', activeClass: 'bg-sky-100 border-sky-400 text-sky-700' },
+        ] : [
           { key: 'poste_13m',     label: '📏 13m',           activeClass: 'bg-violet-100 border-violet-400 text-violet-700' },
           { key: 'falta_camaras', label: '🎥 Sin cámaras',   activeClass: 'bg-amber-100 border-amber-400 text-amber-700' },
           { key: 'falta_silicon', label: '🔵 Sin silicón',   activeClass: 'bg-sky-100 border-sky-400 text-sky-700' },
           { key: 'avanzo_huecos', label: '⚠️ Avanzó con huecos', activeClass: 'bg-amber-200 border-amber-500 text-amber-900' },
-        ].map(({ key, label, activeClass }) => (
+        ]).map(({ key, label, activeClass }) => (
           <button key={key}
                   onClick={() => setFilterPost(prev => prev === key ? 'todas' : key)}
                   className={`px-3 py-2 text-xs font-mono border transition-colors ${
@@ -8012,6 +8038,7 @@ export default function FieldCoordApp() {
   const [mapFocusKey, setMapFocusKey] = useState(0);
   const [unidadesTerritoriales, setUnidadesTerritoriales] = useState([]);
   const [obrasGam, setObrasGam] = useState([]);
+  const [incidentsRAAL, setIncidentsRAAL] = useState([]);
   // PR B Lote 3: state para el modal de recuperar antena (admin)
   const [antenaModalPost, setAntenaModalPost] = useState(null);
   const [userNames, setUserNames] = useState({}); // {userId: displayName}
@@ -8025,6 +8052,7 @@ export default function FieldCoordApp() {
   const effectiveProfile = viewAsRole ? { ...profile, role: viewAsRole } : profile;
   const userRole = effectiveProfile?.role || null;
   const isAdmin = viewAsRole ? viewAsRole === 'admin' : (profile ? authIsAdmin(profile) : false);
+  const canSeeDGSU = userRole === 'admin' || userRole === 'servicios_urbanos';
   const isDirector = viewAsRole ? viewAsRole === 'director' : (profile ? authIsDirector(profile) : false);
   const isCapturador = viewAsRole ? viewAsRole === 'capturador' : (profile ? authIsCapturador(profile) : false);
   const isScout = viewAsRole ? viewAsRole === 'scout' : (profile ? authIsScout(profile) : false);
@@ -8032,6 +8060,15 @@ export default function FieldCoordApp() {
   const isCoordinador = viewAsRole ? (viewAsRole === 'servicios_urbanos' || viewAsRole === 'participacion_ciudadana') : (profile ? authIsCoordinador(profile) : false);
   const readOnly = isDirector || isCoordinador;
   const raalReadOnlyPostes = isRAAL; // RAAL can capture but not edit postes in drawer
+  useEffect(() => {
+    if (!isRAAL) { setIncidentsRAAL([]); return; }
+    let cancel = false;
+    (async () => {
+      try { const list = await loadIncidentsRAAL(); if (!cancel) setIncidentsRAAL(list); }
+      catch (e) { if (!cancel) { console.warn('incidencias RAAL:', e); setIncidentsRAAL([]); } }
+    })();
+    return () => { cancel = true; };
+  }, [isRAAL, lastRefresh]);
   const canDelete = isAdmin;
 
   const inventoryTotals = useMemo(() => {
@@ -8906,7 +8943,7 @@ export default function FieldCoordApp() {
                 </div>
               </div>
               <div className="flex-1 p-4">
-                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} openPostDetail={openPostDetail} filters={mapFilterCtx.filters} incidents={incidents} userNames={userNames} obrasGam={obrasGam}
+                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} openPostDetail={openPostDetail} filters={mapFilterCtx.filters} incidents={incidents} userNames={userNames} obrasGam={obrasGam} canSeeDGSU={canSeeDGSU}
                          stageDefs={STAGE_DEFS} darkMode={darkMode}
                          measureMode={measureMode} setMeasureMode={setMeasureMode}
                          measurePoints={measurePoints} setMeasurePoints={setMeasurePoints}
@@ -8984,7 +9021,7 @@ export default function FieldCoordApp() {
               onOpenPostDetail={openPostDetail}
             />
           )}
-          {activeTab === 'incidencias' && <IncidentsView incidents={incidents} posts={posts} onResolve={readOnly ? null : resolveIncident} onSelectPost={setSelectedPost} isAdmin={isAdmin} isDirector={isDirector} profile={profile} onDelete={isAdmin ? deleteIncident : null} onAttend={attendIncident} canAttend={canAttendIncidents(effectiveProfile)} canResolve={canResolveIncidents(effectiveProfile)} onRevert={revertIncident} onJumpToMap={(p) => { setMapFocusPost(p); setMapFocusKey(k => k + 1); setActiveTab('mapa'); }} externalNav={incidenciasNav} />}
+          {activeTab === 'incidencias' && <IncidentsView incidents={isRAAL ? incidentsRAAL : incidents} isRAAL={isRAAL} posts={posts} onResolve={readOnly ? null : resolveIncident} onSelectPost={setSelectedPost} isAdmin={isAdmin} isDirector={isDirector} profile={profile} onDelete={isAdmin ? deleteIncident : null} onAttend={attendIncident} canAttend={canAttendIncidents(effectiveProfile)} canResolve={canResolveIncidents(effectiveProfile)} onRevert={revertIncident} onJumpToMap={(p) => { setMapFocusPost(p); setMapFocusKey(k => k + 1); setActiveTab('mapa'); }} externalNav={incidenciasNav} />}
           {activeTab === 'propuestas' && (isAdmin || isCoordinador) && (
             <ProposalsView
               proposals={proposals}
