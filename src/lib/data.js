@@ -1758,3 +1758,14 @@ export async function upsertTerritorioNota({ tipo, texto, utId = null, postId = 
   if (error) throw error;
   return data;
 }
+
+/** Trae todos los postes de una UT con sus datos para la ficha tecnica (una sola llamada). */
+export async function getFichaUt(utId) {
+  const sb = requireSupabase();
+  const { data, error } = await withTimeout(
+    sb.rpc('get_ficha_ut', { p_ut_id: utId }),
+    20000, 'getFichaUt'
+  );
+  if (error) throw error;
+  return data || [];
+}
