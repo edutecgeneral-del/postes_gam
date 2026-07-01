@@ -98,7 +98,7 @@ function PosteCard(props) {
       </div>
       <div className="px-3 pb-3 flex items-end justify-between gap-2">
         <div className="text-[11px] text-stone-500 min-w-0">
-          <div className="truncate" title={p.direccion || ''}>{p.direccion || L.guion}</div>
+          <div className="truncate" title={p.direccion_final || ''}>{p.direccion_final || L.guion}</div>
           <div className="font-mono text-stone-400">{Number(p.lat).toFixed(5)}, {Number(p.lng).toFixed(5)}</div>
         </div>
         {props.onVerPunto
