@@ -62,7 +62,9 @@ function PosteCard(props) {
   const ptz = Number(cam.ptz || 0);
   const bullet = Number(cam.bullet || 0);
   const panico = cam.boton_panico === true || eqOk('boton_panico');
-  const foto = (cam.fotos && cam.fotos.length > 0) ? cam.fotos[0] : null;
+  const fotosE4 = (cam.fotos && cam.fotos.length > 0) ? cam.fotos : null;
+  const fotosE3 = (p.fotos_e3 && p.fotos_e3.length > 0) ? p.fotos_e3 : null;
+  const foto = fotosE4 ? fotosE4[0] : (fotosE3 ? fotosE3[0] : null);
   const numTxt = (p.num !== null && p.num !== undefined) ? ('#' + p.num) : L.guion;
   const [zoom, setZoom] = useState(false);
 
