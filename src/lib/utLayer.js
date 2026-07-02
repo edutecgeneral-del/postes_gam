@@ -87,6 +87,10 @@ export function createUtLayerDGSU({ baseUrl = '/' } = {}) {
     stroke: new Stroke({ color: BLUE_STROKE, width: 1.2 }),
     fill:   new Fill({ color: BLUE_FILL }),
   });
+  const dgsuHoverStyle = new Style({
+    stroke: new Stroke({ color: 'rgba(0,102,255,0.95)', width: 2.5 }),
+    fill:   new Fill({ color: 'rgba(0,102,255,0.22)' }),
+  });
   const layer = new OLVectorLayer({
     source,
     declutter: false,
@@ -94,6 +98,6 @@ export function createUtLayerDGSU({ baseUrl = '/' } = {}) {
     visible: false,
     properties: { id: 'ut-boundaries-dgsu' },
   });
-  layer.setStyle(() => dgsuStyle);
+  layer.setStyle((feature) => (feature.get('__hover') ? dgsuHoverStyle : dgsuStyle));
   return layer;
 }

@@ -32,6 +32,16 @@ import {
   crearCapturaObra,
   loadCapturasResumen,
   loadIncidentsRAAL,
+  loadFichaUT,
+  guardarFichaUT,
+  subirFotoFichaUT,
+  subirDocumentoFichaUT,
+  loadDenunciasUT,
+  agregarDenunciaUT,
+  eliminarDenunciaUT,
+  loadFichaReportesDemandas,
+  loadFotosPunto,
+  subirFotoPunto,
   savePost as dbSavePost,
   updateStageAtomic,
   updatePostMetadata,
@@ -974,6 +984,29 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
   const [formCaptura, setFormCaptura] = useState(null); // null | 'reporte' | 'demanda'
   const [savingCaptura, setSavingCaptura] = useState(false);
   const [capturaVals, setCapturaVals] = useState({});
+  const [fotosPunto, setFotosPunto] = useState(null);        // fotos antes/durante/después del punto
+  const [savingFotoPunto, setSavingFotoPunto] = useState(false);
+  const REPORTE_CONCEPTOS = [
+    { key: 'base_instalada',        label: 'Base instalada',            tipo: 'check', si: 'Instalada',          no: 'No instalada' },
+    { key: 'poste_instalado',       label: 'Poste instalado',           tipo: 'check', si: 'Instalado',          no: 'No instalado' },
+    { key: 'poste_energizado',      label: 'Poste energizado (mufa)',   tipo: 'check', si: 'Energizado, con mufa', no: 'No energizado' },
+    { key: 'longitud_canalizacion', label: 'Longitud de canalización',  tipo: 'num',   unidad: 'M.' },
+    { key: 'ancho_canalizacion',    label: 'Ancho de canalización',     tipo: 'num',   unidad: 'm.' },
+    { key: 'camara_ptz',            label: 'Cámara PTZ (360)',           tipo: 'check', si: 'Instalada',          no: 'No instalada' },
+    { key: 'camara_bullet1',        label: 'Cámara Bullet (1)',          tipo: 'check', si: 'Instalada',          no: 'No instalada' },
+    { key: 'camara_bullet2',        label: 'Cámara Bullet (2)',          tipo: 'check', si: 'Instalada',          no: 'No instalada' },
+    { key: 'boton_panico',          label: 'Botón de pánico',            tipo: 'check', si: 'Instalado',          no: 'Sin instalar' },
+    { key: 'poste_vinculado',       label: 'Poste vinculado (UCCAL)',    tipo: 'check', si: 'Vinculado a C2',     no: 'Sin vincular a C2' },
+  ];
+  const textoConcepto = (c, val) => {
+    const v = val || {};
+    if (c.tipo === 'num') {
+      const n = (v.valor === '' || v.valor == null) ? '' : `${v.valor} ${c.unidad}`;
+      return [n, v.obs].filter(Boolean).join(' ').trim() || '—';
+    }
+    const base = v.ok ? c.si : c.no;
+    return v.obs ? `${base} (${v.obs})` : base;
+  };
   const obrasSourceRef = useRef(null);
   const obrasLayerRef = useRef(null);
   const utLayerDGSURef = useRef(null);
@@ -992,6 +1025,13 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
   const [dgsuTipoFiltro, setDgsuTipoFiltro] = useState('todos'); // 'todos' | 'reporte' | 'demanda'
   const [capturasResumen, setCapturasResumen] = useState({});    // { obraId: ['reporte','demanda'] }
   const [showDgsuPanel, setShowDgsuPanel] = useState(false);     // panel lista de puntos de la UT
+  const [showFichaUT, setShowFichaUT] = useState(false);         // modal ficha técnica de la UT
+  const [fichaUT, setFichaUT] = useState(null);                  // datos de obras_gam_ut_ficha
+  const [fichaDenuncias, setFichaDenuncias] = useState([]);      // lista de denuncias de la UT
+  const [fichaLoading, setFichaLoading] = useState(false);
+  const [fichaSaving, setFichaSaving] = useState(false);
+  const [fichaEdit, setFichaEdit] = useState(null);              // borrador de campos editables (empresa/copaco)
+  const [fichaRD, setFichaRD] = useState({ reportes: 0, demandas: 0, lista_demandas: [] }); // reportes/demandas de la UT
   const dgsuUtRef = useRef(null);
   useEffect(() => { dgsuUtRef.current = dgsuUt; if (obrasLayerRef.current) obrasLayerRef.current.changed(); }, [dgsuUt]);
   const [dgsuUtQuery, setDgsuUtQuery] = useState('');
@@ -1085,6 +1125,25 @@ const obrasEnUtIdsRef = useRef(new Set());
     map.on('pointermove', onMove);
     return () => { map.un('pointermove', onMove); };
   }, [showUts]);
+
+  // Handler de hover sobre poligonos UT en modo DGSU (mismo tooltip que CI)
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+    const onMoveDGSU = (evt) => {
+      if (!capaDGSU || !utLayerDGSURef.current || !utLayerDGSURef.current.getVisible()) {
+        return;
+      }
+      let found = null;
+      map.forEachFeatureAtPixel(evt.pixel, (feature, layer) => {
+        if (layer === utLayerDGSURef.current) { found = feature; return true; }
+      }, { hitTolerance: 0 });
+      setUtHoverName(getUtName(found));
+      setUtHover(utLayerDGSURef.current, found);
+    };
+    map.on('pointermove', onMoveDGSU);
+    return () => { map.un('pointermove', onMoveDGSU); };
+  }, [capaDGSU]);
   const [mergeSel, setMergeSel] = useState([]); // postes marcados para fusion (max 2)
   const [mergeOpenMap, setMergeOpenMap] = useState(false);
   const [userLoc, setUserLoc] = useState(null);   // {lat, lng, accuracy}
@@ -1602,18 +1661,44 @@ const obrasEnUtIdsRef = useRef(new Set());
   }, [posts, filters?.uts, reviewUt]);
   // Cargar bitácora del punto DGSU al abrir su modal
   useEffect(() => {
-    if (!obraSel) { setCapturasObra([]); setFormCaptura(null); return; }
+    if (!obraSel) { setCapturasObra([]); setFormCaptura(null); setFotosPunto(null); return; }
     let cancel = false;
     (async () => {
       try {
         const rows = await loadCapturasObra(obraSel.id);
         if (!cancel) setCapturasObra(rows);
+        try { const fp = await loadFotosPunto(obraSel.id); if (!cancel) setFotosPunto(fp); } catch (e2) { if (!cancel) setFotosPunto(null); }
       } catch (e) { if (!cancel) { console.warn('capturas load:', e); setCapturasObra([]); } }
     })();
     return () => { cancel = true; };
   }, [obraSel]);
   // Reset de los campos del formulario al cambiar de tipo
   useEffect(() => { setCapturaVals({}); }, [formCaptura]);
+  // Cargar ficha técnica de la UT al abrir el modal
+  useEffect(() => {
+    if (!showFichaUT || !dgsuUt) return;
+    let cancel = false;
+    setFichaLoading(true);
+    (async () => {
+      try {
+        const [f, d, rd] = await Promise.all([loadFichaUT(dgsuUt), loadDenunciasUT(dgsuUt), loadFichaReportesDemandas(dgsuUt)]);
+        if (cancel) return;
+        setFichaUT(f);
+        setFichaDenuncias(d);
+        setFichaRD(rd);
+        setFichaEdit({
+          empresa: f?.empresa || '',
+          numero_contrato: f?.numero_contrato || '',
+          copaco_nombre: f?.copaco_nombre || '',
+          copaco_cargo: f?.copaco_cargo || '',
+          copaco_telefono: f?.copaco_telefono || '',
+          copaco_correo: f?.copaco_correo || '',
+        });
+      } catch (e) { if (!cancel) { console.warn('ficha UT load:', e); setFichaUT(null); setFichaDenuncias([]); } }
+      finally { if (!cancel) setFichaLoading(false); }
+    })();
+    return () => { cancel = true; };
+  }, [showFichaUT, dgsuUt]);
   // Resaltado del punto DGSU seleccionado (anillo ámbar pulsante) + centrar
   useEffect(() => {
     const src = obraSelSourceRef.current;
@@ -1702,7 +1787,7 @@ const obrasEnUtIdsRef = useRef(new Set());
     if (haloLayerRef.current) haloLayerRef.current.setVisible(!capaDGSU);
     if (utPolygonLayerRef.current && capaDGSU) utPolygonLayerRef.current.setVisible(false);
     if (utLayerDGSURef.current) utLayerDGSURef.current.setVisible(capaDGSU);
-    if (!capaDGSU) { setObraSel(null); setFormCaptura(null); setObraMarcadaId(null); }
+    if (!capaDGSU) { setObraSel(null); setFormCaptura(null); setObraMarcadaId(null); setUtHoverName(null); }
   }, [capaDGSU, obrasGam]);
   // Animacion del halo: solo afecta verificado/no_existe; no_definido queda estatico.
   useEffect(() => {
@@ -2335,6 +2420,10 @@ const obrasEnUtIdsRef = useRef(new Set());
                 ))}
               </div>
               <div className="text-xs text-stone-500">{obrasEnUt.length} punto(s)</div>
+              <button onClick={() => setShowFichaUT(true)}
+                      className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded text-white bg-[#0066FF] hover:bg-[#0052cc]">
+                Ficha técnica
+              </button>
               <div className="flex flex-col gap-1 overflow-y-auto" style={{ maxHeight: '45vh' }}>
                 {obrasEnUt.length === 0 ? (
                   <div className="text-xs text-stone-400 py-2">Sin puntos con ese filtro.</div>
@@ -2354,6 +2443,184 @@ const obrasEnUtIdsRef = useRef(new Set());
               </div>
             </div>
           )}
+        </div>
+      )}
+      {showFichaUT && dgsuUt && (
+        <div onClick={() => setShowFichaUT(false)} style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(0,0,0,0.5)' }} className="flex items-center justify-center p-4">
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-4 py-3 sticky top-0 z-10" style={{ background: '#0066FF' }}>
+              <div className="text-white font-bold text-sm flex items-center gap-2">Ficha técnica DGSU — {dgsuUt}</div>
+              <button onClick={() => setShowFichaUT(false)} className="text-white/90 hover:text-white font-mono text-lg leading-none">×</button>
+            </div>
+            {fichaLoading ? (
+              <div className="p-8 text-center text-stone-400 text-sm">Cargando ficha…</div>
+            ) : (
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                {/* Empresa (editable) */}
+                <div className="rounded-lg bg-stone-50 p-3">
+                  <div className="text-sm font-bold text-stone-700 mb-2">Empresa</div>
+                  {canSeeDGSU ? (
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-stone-600 flex flex-col gap-1">Empresa
+                        <input value={fichaEdit?.empresa ?? ''} onChange={e => setFichaEdit(v => ({ ...v, empresa: e.target.value }))}
+                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                      <label className="text-xs text-stone-600 flex flex-col gap-1">N.º de contrato
+                        <input value={fichaEdit?.numero_contrato ?? ''} onChange={e => setFichaEdit(v => ({ ...v, numero_contrato: e.target.value }))}
+                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-stone-700 flex flex-col gap-1">
+                      <div><span className="text-stone-500">Empresa: </span>{fichaUT?.empresa || '—'}</div>
+                      <div><span className="text-stone-500">N.º de contrato: </span>{fichaUT?.numero_contrato || '—'}</div>
+                    </div>
+                  )}
+                </div>
+                {/* Unidad Territorial (informativo, de obras_gam) */}
+                <div className="rounded-lg bg-stone-50 p-3">
+                  <div className="text-sm font-bold text-stone-700 mb-2">Unidad Territorial</div>
+                  <div className="text-sm text-stone-700 flex flex-col gap-1">
+                    {(() => {
+                      const oref = (obrasEnUt && obrasEnUt[0]) || (obrasGam || []).find(o => o.unidad_territorial === dgsuUt) || {};
+                      return (
+                        <>
+                          <div><span className="text-stone-500">UT: </span>{dgsuUt}</div>
+                          {oref.clave && <div><span className="text-stone-500">Clave: </span>{oref.clave}</div>}
+                          {oref.tipo_obra && <div><span className="text-stone-500">Tipo de obra: </span>{oref.tipo_obra}</div>}
+                          <div><span className="text-stone-500">Puntos en la UT: </span>{obrasEnUt.length}</div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+              {/* Documentos: actas de inicio/término (1 c/u) */}
+              <div className="mb-4">
+                <div className="text-xs font-semibold text-stone-500 mb-2">Documentos</div>
+                {[['inicio','Acta de inicio','acta_inicio_url'],['termino','Acta de término','acta_termino_url']].map(([tipo, label, col]) => (
+                  <div key={tipo} className="flex items-center justify-between border border-stone-200 rounded px-3 py-2 mb-1.5">
+                    <span className="text-sm text-stone-700">{label}</span>
+                    <span className="flex items-center gap-3">
+                      {fichaUT && fichaUT[col] && <a href={fichaUT[col]} target="_blank" rel="noreferrer" className="text-xs text-[#0066FF] font-semibold">Ver</a>}
+                      {canSeeDGSU && (
+                        <label className="text-xs text-[#0066FF] font-semibold cursor-pointer">
+                          {fichaUT && fichaUT[col] ? 'Reemplazar' : 'Subir'}
+                          <input type="file" accept="application/pdf,image/*" className="hidden" disabled={fichaSaving}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0]; if (!file) return;
+                              setFichaSaving(true);
+                              try { await subirDocumentoFichaUT(dgsuUt, tipo, file); const f = await loadFichaUT(dgsuUt); setFichaUT(f); }
+                              catch (err) { alert('No se pudo subir el documento: ' + (err?.message || err)); }
+                              finally { setFichaSaving(false); e.target.value = ''; }
+                            }} />
+                        </label>
+                      )}
+                    </span>
+                  </div>
+                ))}
+                {/* Denuncias: N documentos */}
+                <div className="flex items-center justify-between border border-stone-200 rounded px-3 py-2 mt-2">
+                  <span className="text-sm text-stone-700">Denuncias ({fichaDenuncias.length})</span>
+                  {canSeeDGSU && (
+                    <label className="text-xs text-[#0066FF] font-semibold cursor-pointer">
+                      Agregar
+                      <input type="file" accept="application/pdf,image/*" className="hidden" disabled={fichaSaving}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]; if (!file) return;
+                          setFichaSaving(true);
+                          try { await agregarDenunciaUT(dgsuUt, file); const d = await loadDenunciasUT(dgsuUt); setFichaDenuncias(d); }
+                          catch (err) { alert('No se pudo subir la denuncia: ' + (err?.message || err)); }
+                          finally { setFichaSaving(false); e.target.value = ''; }
+                        }} />
+                    </label>
+                  )}
+                </div>
+                {fichaDenuncias.length > 0 && (
+                  <div className="flex flex-col gap-1 mt-1">
+                    {fichaDenuncias.map(d => (
+                      <div key={d.id} className="flex items-center justify-between text-xs px-3 py-1.5 bg-stone-50 rounded">
+                        <a href={d.url} target="_blank" rel="noreferrer" className="text-[#0066FF] truncate">{d.nombre_archivo || ('Denuncia ' + d.id)}</a>
+                        {canSeeDGSU && (
+                          <button onClick={async () => {
+                            if (!window.confirm('¿Eliminar esta denuncia?')) return;
+                            try { await eliminarDenunciaUT(d.id); setFichaDenuncias(prev => prev.filter(x => x.id !== d.id)); }
+                            catch (err) { alert('No se pudo eliminar: ' + (err?.message || err)); }
+                          }} className="text-stone-400 hover:text-red-500 ml-2">Eliminar</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* COPACO (editable) */}
+              <div className="rounded-lg bg-stone-50 p-3 mb-4">
+                <div className="text-sm font-bold text-stone-700 mb-2">COPACO</div>
+                {canSeeDGSU ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <label className="text-xs text-stone-600 flex flex-col gap-1">Nombre
+                      <input value={fichaEdit?.copaco_nombre ?? ''} onChange={e => setFichaEdit(v => ({ ...v, copaco_nombre: e.target.value }))} className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                    <label className="text-xs text-stone-600 flex flex-col gap-1">Cargo
+                      <input value={fichaEdit?.copaco_cargo ?? ''} onChange={e => setFichaEdit(v => ({ ...v, copaco_cargo: e.target.value }))} className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                    <label className="text-xs text-stone-600 flex flex-col gap-1">Teléfono
+                      <input value={fichaEdit?.copaco_telefono ?? ''} onChange={e => setFichaEdit(v => ({ ...v, copaco_telefono: e.target.value }))} className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                    <label className="text-xs text-stone-600 flex flex-col gap-1">Correo
+                      <input value={fichaEdit?.copaco_correo ?? ''} onChange={e => setFichaEdit(v => ({ ...v, copaco_correo: e.target.value }))} className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                  </div>
+                ) : (
+                  <div className="text-sm text-stone-700 flex flex-col gap-1">
+                    <div><span className="text-stone-500">Nombre: </span>{fichaUT?.copaco_nombre || '—'}</div>
+                    <div><span className="text-stone-500">Cargo: </span>{fichaUT?.copaco_cargo || '—'}</div>
+                    <div><span className="text-stone-500">Teléfono: </span>{fichaUT?.copaco_telefono || '—'}</div>
+                    <div><span className="text-stone-500">Correo: </span>{fichaUT?.copaco_correo || '—'}</div>
+                  </div>
+                )}
+              </div>
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-bold text-stone-700">Reportes y demandas</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="rounded-lg bg-stone-50 p-3">
+                    <div className="text-xs text-stone-500">📋 Reportes</div>
+                    <div className="text-2xl font-bold text-stone-700">{fichaRD.reportes}</div>
+                  </div>
+                  <div className="rounded-lg bg-stone-50 p-3">
+                    <div className="text-xs text-stone-500">📣 Demandas</div>
+                    <div className="text-2xl font-bold text-stone-700">{fichaRD.demandas}</div>
+                  </div>
+                </div>
+                <div className="text-xs font-semibold text-stone-500 mb-2">Demandas registradas</div>
+                {(!fichaRD.lista_demandas || fichaRD.lista_demandas.length === 0) ? (
+                  <div className="text-xs text-stone-400 py-2">Sin demandas registradas en esta UT.</div>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {fichaRD.lista_demandas.map(d => (
+                      <div key={d.id} className="border border-stone-200 rounded px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-semibold text-stone-700 truncate">#{d.obra_id} — {d.nombre || 'Sin nombre'}</span>
+                          <span className="text-xs text-stone-400 shrink-0">{d.created_at ? new Date(d.created_at).toLocaleDateString('es-MX') : ''}</span>
+                        </div>
+                        {d.notas && <div className="text-sm text-stone-600 mt-1">{d.notas}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {canSeeDGSU && (
+                <div className="flex justify-end">
+                  <button disabled={fichaSaving} onClick={async () => {
+                    setFichaSaving(true);
+                    try { const f = await guardarFichaUT(dgsuUt, fichaEdit); setFichaUT(f); alert('Ficha guardada.'); }
+                    catch (err) { alert('No se pudo guardar: ' + (err?.message || err)); }
+                    finally { setFichaSaving(false); }
+                  }} className="px-4 py-2 rounded text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#0066FF' }}>
+                    {fichaSaving ? 'Guardando…' : 'Guardar ficha'}
+                  </button>
+                </div>
+              )}
+            </div>
+            )}
+          </div>
         </div>
       )}
       {obraSel && (
@@ -2380,6 +2647,34 @@ const obrasEnUtIdsRef = useRef(new Set());
               ))}
             </div>
             <div className="border-t border-stone-200 p-4">
+              <div className="text-xs font-semibold text-stone-500 mb-2">Registro fotográfico</div>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {[['antes','Antes','foto_antes_url'],['durante','Durante','foto_durante_url'],['despues','Después','foto_despues_url']].map(([tipo, label, col]) => (
+                  <div key={tipo} className="flex flex-col gap-1">
+                    <div className="relative rounded border border-stone-200 bg-stone-50 overflow-hidden flex items-center justify-center" style={{ aspectRatio: '4 / 3' }}>
+                      {fotosPunto && fotosPunto[col]
+                        ? <img src={fotosPunto[col]} alt={label} className="w-full h-full object-cover" />
+                        : <span className="text-stone-300 text-[11px]">Sin foto</span>}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-stone-600">{label}</span>
+                      {canSeeDGSU && (
+                        <label className="text-[11px] text-[#0066FF] font-semibold cursor-pointer">
+                          {fotosPunto && fotosPunto[col] ? 'Cambiar' : 'Subir'}
+                          <input type="file" accept="image/*" className="hidden" disabled={savingFotoPunto}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0]; if (!file) return;
+                              setSavingFotoPunto(true);
+                              try { await subirFotoPunto(obraSel.id, tipo, file); const fp = await loadFotosPunto(obraSel.id); setFotosPunto(fp); }
+                              catch (err) { alert('No se pudo subir la foto: ' + (err?.message || err)); }
+                              finally { setSavingFotoPunto(false); e.target.value = ''; }
+                            }} />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
               <div className="flex items-center gap-2 mb-3">
                 <button onClick={() => setFormCaptura('reporte')}
                         className="flex-1 px-3 py-2 rounded text-sm font-semibold text-white"
@@ -2397,35 +2692,35 @@ const obrasEnUtIdsRef = useRef(new Set());
                     {formCaptura === 'reporte' ? 'Nuevo Reporte' : 'Nueva Demanda'}
                   </div>
                   {formCaptura === 'reporte' && (
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      <label className="text-xs text-stone-600 flex flex-col gap-1">Distancia de la luz
-                        <input type="number" step="0.01" inputMode="decimal" value={capturaVals.distanciaLuz ?? ''}
-                               onChange={e => setCapturaVals(v => ({ ...v, distanciaLuz: e.target.value }))}
-                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
-                      <label className="text-xs text-stone-600 flex flex-col gap-1">Cámaras
-                        <input type="number" step="1" inputMode="numeric" value={capturaVals.camaras ?? ''}
-                               onChange={e => setCapturaVals(v => ({ ...v, camaras: e.target.value }))}
-                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
-                      <label className="text-xs text-stone-600 flex flex-col gap-1">Poste
-                        <input type="number" step="1" inputMode="numeric" value={capturaVals.poste ?? ''}
-                               onChange={e => setCapturaVals(v => ({ ...v, poste: e.target.value }))}
-                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
-                      <label className="text-xs text-stone-600 flex flex-col gap-1">Brazos
-                        <input type="number" step="1" inputMode="numeric" value={capturaVals.brazos ?? ''}
-                               onChange={e => setCapturaVals(v => ({ ...v, brazos: e.target.value }))}
-                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
-                      <label className="text-xs text-stone-600 flex flex-col gap-1">Luz
-                        <input type="number" step="1" inputMode="numeric" value={capturaVals.luz ?? ''}
-                               onChange={e => setCapturaVals(v => ({ ...v, luz: e.target.value }))}
-                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
-                      <label className="text-xs text-stone-600 flex flex-col gap-1">Codo
-                        <input type="number" step="1" inputMode="numeric" value={capturaVals.codo ?? ''}
-                               onChange={e => setCapturaVals(v => ({ ...v, codo: e.target.value }))}
-                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
-                      <label className="text-xs text-stone-600 flex flex-col gap-1">Tubo con mufa
-                        <input type="number" step="1" inputMode="numeric" value={capturaVals.tuboMufa ?? ''}
-                               onChange={e => setCapturaVals(v => ({ ...v, tuboMufa: e.target.value }))}
-                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                    <div className="flex flex-col gap-2 mb-2">
+                      {REPORTE_CONCEPTOS.map(c => {
+                        const val = capturaVals[c.key] || {};
+                        return (
+                          <div key={c.key} className="border border-stone-200 rounded p-2 bg-white">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1.5">
+                              <span className="text-xs font-semibold text-stone-700 sm:w-40 shrink-0">{c.label}</span>
+                              {c.tipo === 'check' ? (
+                                <label className="flex items-center gap-2 text-xs text-stone-600 cursor-pointer">
+                                  <input type="checkbox" checked={!!val.ok}
+                                         onChange={e => setCapturaVals(v => ({ ...v, [c.key]: { ...(v[c.key] || {}), ok: e.target.checked } }))}
+                                         className="w-4 h-4 accent-[#0066FF]" />
+                                  <span className={val.ok ? 'text-[#0066FF] font-semibold' : 'text-stone-400'}>{val.ok ? c.si : c.no}</span>
+                                </label>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <input type="number" step="0.01" inputMode="decimal" placeholder="0" value={val.valor ?? ''}
+                                         onChange={e => setCapturaVals(v => ({ ...v, [c.key]: { ...(v[c.key] || {}), valor: e.target.value } }))}
+                                         className="border border-stone-300 rounded px-2 py-1 text-sm w-24" />
+                                  <span className="text-xs text-stone-500">{c.unidad}</span>
+                                </div>
+                              )}
+                            </div>
+                            <input type="text" placeholder="+ Observación" value={val.obs ?? ''}
+                                   onChange={e => setCapturaVals(v => ({ ...v, [c.key]: { ...(v[c.key] || {}), obs: e.target.value } }))}
+                                   className="border border-stone-200 rounded px-2 py-1 text-xs w-full mt-1.5" />
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                   <label className="text-xs text-stone-600 flex flex-col gap-1 mb-2">Notas
@@ -2438,7 +2733,16 @@ const obrasEnUtIdsRef = useRef(new Set());
                       if (formCaptura === 'demanda' && !(capturaVals.notas || '').trim()) { alert('Escribe una nota para la demanda.'); return; }
                       setSavingCaptura(true);
                       try {
-                        await crearCapturaObra({ obraId: obraSel.id, tipo: formCaptura, ...capturaVals });
+                        let detalle = null;
+                        if (formCaptura === 'reporte') {
+                          detalle = {};
+                          REPORTE_CONCEPTOS.forEach(c => {
+                            const v = capturaVals[c.key] || {};
+                            if (c.tipo === 'num') detalle[c.key] = { valor: (v.valor === '' || v.valor == null) ? null : Number(v.valor), obs: (v.obs || '').trim() || null };
+                            else detalle[c.key] = { ok: !!v.ok, obs: (v.obs || '').trim() || null };
+                          });
+                        }
+                        await crearCapturaObra({ obraId: obraSel.id, tipo: formCaptura, detalle, notas: capturaVals.notas });
                         const rows = await loadCapturasObra(obraSel.id);
                         setCapturasObra(rows);
                         setFormCaptura(null);
@@ -2467,14 +2771,13 @@ const obrasEnUtIdsRef = useRef(new Set());
                         <span className="text-stone-400">{new Date(c.created_at).toLocaleString('es-MX')}</span>
                       </div>
                       {c.tipo === 'reporte' && (
-                        <div className="text-stone-600 grid grid-cols-2 gap-x-3">
-                          {c.distancia_luz != null && <span>Distancia luz: {c.distancia_luz}</span>}
-                          {c.camaras != null && <span>Cámaras: {c.camaras}</span>}
-                          {c.poste != null && <span>Poste: {c.poste}</span>}
-                          {c.brazos != null && <span>Brazos: {c.brazos}</span>}
-                          {c.luz != null && <span>Luz: {c.luz}</span>}
-                          {c.codo != null && <span>Codo: {c.codo}</span>}
-                          {c.tubo_mufa != null && <span>Tubo con mufa: {c.tubo_mufa}</span>}
+<div className="text-stone-600 flex flex-col gap-0.5">
+                          {REPORTE_CONCEPTOS.map(rc => (
+                            <div key={rc.key} className="flex justify-between gap-2">
+                              <span className="text-stone-400 shrink-0">{rc.label}</span>
+                              <span className="text-right font-medium">{textoConcepto(rc, (c.detalle || {})[rc.key])}</span>
+                            </div>
+                          ))}
                         </div>
                       )}
                       {c.notas && <div className="text-stone-600 mt-1">Notas: {c.notas}</div>}

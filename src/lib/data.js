@@ -1693,29 +1693,23 @@ export async function loadCapturasObra(obraId) {
   const sb = requireSupabase();
   const { data, error } = await sb
     .from('obras_gam_capturas')
-    .select('id,obra_id,tipo,distancia_luz,camaras,poste,brazos,luz,codo,tubo_mufa,notas,created_by,created_at')
+    .select('id,obra_id,tipo,detalle,notas,created_by,created_at')
     .eq('obra_id', obraId)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
 }
 
-export async function crearCapturaObra({ obraId, tipo, distanciaLuz, camaras, poste, brazos, luz, codo, tuboMufa, notas }) {
+export async function crearCapturaObra({ obraId, tipo, detalle, notas }) {
   const sb = requireSupabase();
   const row = { obra_id: obraId, tipo, notas: (notas ?? null) || null };
   if (tipo === 'reporte') {
-    row.distancia_luz = (distanciaLuz === '' || distanciaLuz == null) ? null : Number(distanciaLuz);
-    row.camaras   = (camaras   === '' || camaras   == null) ? null : parseInt(camaras, 10);
-    row.poste     = (poste     === '' || poste     == null) ? null : parseInt(poste, 10);
-    row.brazos    = (brazos    === '' || brazos    == null) ? null : parseInt(brazos, 10);
-    row.luz       = (luz       === '' || luz       == null) ? null : parseInt(luz, 10);
-    row.codo      = (codo      === '' || codo      == null) ? null : parseInt(codo, 10);
-    row.tubo_mufa = (tuboMufa  === '' || tuboMufa  == null) ? null : parseInt(tuboMufa, 10);
+    row.detalle = detalle || null;
   }
   const { data, error } = await sb
     .from('obras_gam_capturas')
     .insert(row)
-    .select('id,obra_id,tipo,distancia_luz,camaras,poste,brazos,luz,codo,tubo_mufa,notas,created_by,created_at')
+    .select('id,obra_id,tipo,detalle,notas,created_by,created_at')
     .single();
   if (error) throw error;
   return data;
@@ -1833,4 +1827,132 @@ export async function loadIncidentsRAAL() {
       resolvedAt: i.resolved_at ? new Date(i.resolved_at).getTime() : null,
     };
   });
+}
+// ---- DGSU: ficha técnica por UT (empresa, fotos, actas, denuncias, COPACO) ----
+function slugUT(ut) {
+  return ((ut || 'sin-ut')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()) || 'sin-ut';
+}
+
+export async function loadFichaUT(ut) {
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from('obras_gam_ut_ficha')
+    .select('*')
+    .eq('ut', ut)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+export async function guardarFichaUT(ut, campos) {
+  const sb = requireSupabase();
+  const row = { ut, updated_at: new Date().toISOString() };
+  ['empresa','numero_contrato','copaco_nombre','copaco_cargo','copaco_telefono','copaco_correo'].forEach(k => {
+    if (k in campos) row[k] = (campos[k] ?? '') || null;
+  });
+  const { data, error } = await sb
+    .from('obras_gam_ut_ficha')
+    .upsert(row, { onConflict: 'ut' })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function subirFotoFichaUT(ut, tipo, file) {
+  const sb = requireSupabase();
+  const uploadFile = await compressPhotoForUpload(file, 'fichaUT');
+  const ext = extensionForUpload(uploadFile);
+  const path = `dgsu-ficha/${slugUT(ut)}/foto-${tipo}-${uploadSuffix()}.${ext}`;
+  const { error } = await sb.storage.from(PHOTOS_BUCKET).upload(path, uploadFile, { cacheControl: '3600', upsert: false });
+  if (error) throw error;
+  const { data: pub } = sb.storage.from(PHOTOS_BUCKET).getPublicUrl(path);
+  const col = tipo === 'antes' ? 'foto_antes_url' : tipo === 'durante' ? 'foto_durante_url' : 'foto_despues_url';
+  const { error: e2 } = await sb.from('obras_gam_ut_ficha').upsert({ ut, [col]: pub.publicUrl, updated_at: new Date().toISOString() }, { onConflict: 'ut' });
+  if (e2) throw e2;
+  return pub.publicUrl;
+}
+
+export async function subirDocumentoFichaUT(ut, tipo, file) {
+  const sb = requireSupabase();
+  const ext = extensionForUpload(file);
+  const path = `dgsu-ficha/${slugUT(ut)}/acta-${tipo}-${uploadSuffix()}.${ext}`;
+  const { error } = await sb.storage.from(PHOTOS_BUCKET).upload(path, file, { cacheControl: '3600', upsert: false });
+  if (error) throw error;
+  const { data: pub } = sb.storage.from(PHOTOS_BUCKET).getPublicUrl(path);
+  const col = tipo === 'inicio' ? 'acta_inicio_url' : 'acta_termino_url';
+  const { error: e2 } = await sb.from('obras_gam_ut_ficha').upsert({ ut, [col]: pub.publicUrl, updated_at: new Date().toISOString() }, { onConflict: 'ut' });
+  if (e2) throw e2;
+  return pub.publicUrl;
+}
+
+export async function loadDenunciasUT(ut) {
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from('obras_gam_ut_denuncias')
+    .select('id, ut, url, nombre_archivo, created_by, created_at')
+    .eq('ut', ut)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function agregarDenunciaUT(ut, file) {
+  const sb = requireSupabase();
+  const ext = extensionForUpload(file);
+  const path = `dgsu-ficha/${slugUT(ut)}/denuncia-${uploadSuffix()}.${ext}`;
+  const { error } = await sb.storage.from(PHOTOS_BUCKET).upload(path, file, { cacheControl: '3600', upsert: false });
+  if (error) throw error;
+  const { data: pub } = sb.storage.from(PHOTOS_BUCKET).getPublicUrl(path);
+  const { data, error: e2 } = await sb
+    .from('obras_gam_ut_denuncias')
+    .insert({ ut, url: pub.publicUrl, nombre_archivo: file?.name || null })
+    .select('id, ut, url, nombre_archivo, created_by, created_at')
+    .single();
+  if (e2) throw e2;
+  return data;
+}
+
+export async function eliminarDenunciaUT(id) {
+  const sb = requireSupabase();
+  const { error } = await sb.from('obras_gam_ut_denuncias').delete().eq('id', id);
+  if (error) throw error;
+  return true;
+}
+
+// ---- DGSU: resumen de reportes/demandas por UT para la ficha técnica ----
+export async function loadFichaReportesDemandas(ut) {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc('ficha_ut_reportes_demandas', { p_ut: ut });
+  if (error) throw error;
+  return data || { reportes: 0, demandas: 0, lista_demandas: [] };
+}
+// ---- DGSU: fotos por punto (antes/durante/después por obra) ----
+export async function loadFotosPunto(obraId) {
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from('obras_gam_punto_fotos')
+    .select('obra_id, foto_antes_url, foto_durante_url, foto_despues_url')
+    .eq('obra_id', obraId)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+export async function subirFotoPunto(obraId, tipo, file) {
+  const sb = requireSupabase();
+  const uploadFile = await compressPhotoForUpload(file, 'fotoPunto');
+  const ext = extensionForUpload(uploadFile);
+  const path = `dgsu-punto/${obraId}/foto-${tipo}-${uploadSuffix()}.${ext}`;
+  const { error } = await sb.storage.from(PHOTOS_BUCKET).upload(path, uploadFile, { cacheControl: '3600', upsert: false });
+  if (error) throw error;
+  const { data: pub } = sb.storage.from(PHOTOS_BUCKET).getPublicUrl(path);
+  const col = tipo === 'antes' ? 'foto_antes_url' : tipo === 'durante' ? 'foto_durante_url' : 'foto_despues_url';
+  const { error: e2 } = await sb.from('obras_gam_punto_fotos').upsert({ obra_id: obraId, [col]: pub.publicUrl, updated_at: new Date().toISOString() }, { onConflict: 'obra_id' });
+  if (e2) throw e2;
+  return pub.publicUrl;
 }
