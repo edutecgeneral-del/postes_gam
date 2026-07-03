@@ -42,6 +42,7 @@ import {
   loadFichaReportesDemandas,
   loadFotosPunto,
   subirFotoPunto,
+  subirArchivoDemanda,
   savePost as dbSavePost,
   updateStageAtomic,
   updatePostMetadata,
@@ -986,6 +987,8 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
   const [capturaVals, setCapturaVals] = useState({});
   const [fotosPunto, setFotosPunto] = useState(null);        // fotos antes/durante/después del punto
   const [savingFotoPunto, setSavingFotoPunto] = useState(false);
+  const [demandaArchivos, setDemandaArchivos] = useState([]);   // archivos subidos de la demanda ciudadana (staging)
+  const [subiendoArchivo, setSubiendoArchivo] = useState(false);
   const REPORTE_CONCEPTOS = [
     { key: 'base_instalada',        label: 'Base instalada',            tipo: 'check', si: 'Instalada',          no: 'No instalada' },
     { key: 'poste_instalado',       label: 'Poste instalado',           tipo: 'check', si: 'Instalado',          no: 'No instalado' },
@@ -1004,6 +1007,7 @@ function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetai
       const n = (v.valor === '' || v.valor == null) ? '' : `${v.valor} ${c.unidad}`;
       return [n, v.obs].filter(Boolean).join(' ').trim() || '—';
     }
+    if (v.ok !== true && v.ok !== false) return v.obs ? `— (${v.obs})` : '—';
     const base = v.ok ? c.si : c.no;
     return v.obs ? `${base} (${v.obs})` : base;
   };
@@ -1362,12 +1366,12 @@ const obrasEnUtIdsRef = useRef(new Set());
                 return new OLStyle({ image: new OLCircle({ radius: 9, fill: new OLFill({ color: '#F59E0B' }), stroke: new OLStroke({ color: '#FFFFFF', width: 3 }) }) });
               }
               if (hayUt && enUt) {
-                return new OLStyle({ image: new OLCircle({ radius: 7, fill: new OLFill({ color: '#0066FF' }), stroke: new OLStroke({ color: '#FFFFFF', width: 2 }) }) });
+                return new OLStyle({ image: new OLCircle({ radius: 7, fill: new OLFill({ color: '#d72f89' }), stroke: new OLStroke({ color: '#FFFFFF', width: 2 }) }) });
               }
               if (hayUt && !enUt) {
-                return new OLStyle({ image: new OLCircle({ radius: 4, fill: new OLFill({ color: 'rgba(0,102,255,0.18)' }), stroke: new OLStroke({ color: 'rgba(255,255,255,0.4)', width: 1 }) }) });
+                return new OLStyle({ image: new OLCircle({ radius: 4, fill: new OLFill({ color: 'rgba(215,47,137,0.18)' }), stroke: new OLStroke({ color: 'rgba(255,255,255,0.4)', width: 1 }) }) });
               }
-              return new OLStyle({ image: new OLCircle({ radius: 5, fill: new OLFill({ color: '#0066FF' }), stroke: new OLStroke({ color: '#FFFFFF', width: 1 }) }) });
+              return new OLStyle({ image: new OLCircle({ radius: 5, fill: new OLFill({ color: '#d72f89' }), stroke: new OLStroke({ color: '#FFFFFF', width: 1 }) }) });
             },
           });
           obrasLayerRef.current = obrasLayer;
@@ -1673,7 +1677,7 @@ const obrasEnUtIdsRef = useRef(new Set());
     return () => { cancel = true; };
   }, [obraSel]);
   // Reset de los campos del formulario al cambiar de tipo
-  useEffect(() => { setCapturaVals({}); }, [formCaptura]);
+  useEffect(() => { setCapturaVals({}); setDemandaArchivos([]); }, [formCaptura]);
   // Cargar ficha técnica de la UT al abrir el modal
   useEffect(() => {
     if (!showFichaUT || !dgsuUt) return;
@@ -1778,7 +1782,7 @@ const obrasEnUtIdsRef = useRef(new Set());
         obrasClickRef.current = handler;
       }
     }
-    if (obrasLayerRef.current) obrasLayerRef.current.setVisible(capaDGSU);
+    if (obrasLayerRef.current) obrasLayerRef.current.setVisible(capaDGSU && !!dgsuUt);
     // En DGSU ocultar postes + halos + UT; en CI restaurar.
     if (vectorSourceRef.current) {
       const v = mapRef.current?.getLayers?.().getArray?.().find(l => l.getSource && l.getSource() === vectorSourceRef.current);
@@ -1788,7 +1792,7 @@ const obrasEnUtIdsRef = useRef(new Set());
     if (utPolygonLayerRef.current && capaDGSU) utPolygonLayerRef.current.setVisible(false);
     if (utLayerDGSURef.current) utLayerDGSURef.current.setVisible(capaDGSU);
     if (!capaDGSU) { setObraSel(null); setFormCaptura(null); setObraMarcadaId(null); setUtHoverName(null); }
-  }, [capaDGSU, obrasGam]);
+  }, [capaDGSU, obrasGam, dgsuUt]);
   // Animacion del halo: solo afecta verificado/no_existe; no_definido queda estatico.
   useEffect(() => {
     if (!haloLayerRef.current) return;
@@ -2357,14 +2361,14 @@ const obrasEnUtIdsRef = useRef(new Set());
         )}
         {canSeeDGSU && (
           <button onClick={() => setCapaDGSU(v => !v)}
-                  className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 font-mono text-[10px] font-bold ${capaDGSU ? 'text-white bg-[#0066FF]' : 'text-stone-600 hover:bg-stone-50'}`}
+                  className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 font-mono text-[10px] font-bold ${capaDGSU ? 'text-white bg-[#d72f89]' : 'text-stone-600 hover:bg-stone-50'}`}
                   title={capaDGSU ? 'Capa DGSU (obras). Cambiar a CI' : 'Capa CI (postes). Cambiar a DGSU'}>
             {capaDGSU ? 'DGSU' : 'CI'}
           </button>
         )}
         {capaDGSU && (
           <button onClick={() => setShowDgsuPanel(v => !v)}
-                  className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 font-mono text-[10px] font-bold ${showDgsuPanel || dgsuUt ? 'text-white bg-[#0066FF]' : 'text-stone-600 hover:bg-stone-50'}`}
+                  className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 font-mono text-[10px] font-bold ${showDgsuPanel || dgsuUt ? 'text-white bg-[#d72f89]' : 'text-stone-600 hover:bg-stone-50'}`}
                   title="Filtrar puntos DGSU por Unidad Territorial">
             UTSU
           </button>
@@ -2388,7 +2392,7 @@ const obrasEnUtIdsRef = useRef(new Set());
       </div>
       {capaDGSU && showDgsuPanel && (
         <div className="absolute top-4 left-4 z-20 bg-white rounded-lg shadow-xl border border-stone-200 w-72 max-w-[85vw] max-h-[80vh] flex flex-col">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-stone-200" style={{ background: '#0066FF' }}>
+          <div className="flex items-center justify-between px-3 py-2 border-b border-stone-200" style={{ background: '#d72f89' }}>
             <div className="text-white font-bold text-sm">Puntos por UT</div>
             <button onClick={() => setShowDgsuPanel(false)} className="text-white/90 hover:text-white font-mono text-lg leading-none">×</button>
           </div>
@@ -2408,20 +2412,20 @@ const obrasEnUtIdsRef = useRef(new Set());
             <div className="p-3 flex flex-col gap-2 overflow-hidden">
               <div className="flex items-center gap-2">
                 <button onClick={() => { setDgsuUt(null); setDgsuUtQuery(''); }}
-                        className="text-xs text-[#0066FF] font-semibold">← UT</button>
+                        className="text-xs text-[#d72f89] font-semibold">← UT</button>
                 <div className="text-sm font-bold text-stone-700 truncate">{dgsuUt}</div>
               </div>
               <div className="flex items-center gap-1">
                 {['todos', 'reporte', 'demanda'].map(t => (
                   <button key={t} onClick={() => setDgsuTipoFiltro(t)}
-                          className={`flex-1 text-xs py-1 rounded font-semibold border ${dgsuTipoFiltro === t ? 'text-white bg-[#0066FF] border-[#0066FF]' : 'text-stone-600 border-stone-300 hover:bg-stone-50'}`}>
+                          className={`flex-1 text-xs py-1 rounded font-semibold border ${dgsuTipoFiltro === t ? 'text-white bg-[#d72f89] border-[#d72f89]' : 'text-stone-600 border-stone-300 hover:bg-stone-50'}`}>
                     {t === 'todos' ? 'Todos' : t === 'reporte' ? 'Reportes' : 'Demandas'}
                   </button>
                 ))}
               </div>
               <div className="text-xs text-stone-500">{obrasEnUt.length} punto(s)</div>
               <button onClick={() => setShowFichaUT(true)}
-                      className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded text-white bg-[#0066FF] hover:bg-[#0052cc]">
+                      className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded text-white bg-[#d72f89] hover:bg-[#b02570]">
                 Ficha técnica
               </button>
               <div className="flex flex-col gap-1 overflow-y-auto" style={{ maxHeight: '45vh' }}>
@@ -2434,7 +2438,7 @@ const obrasEnUtIdsRef = useRef(new Set());
                             className="text-left text-sm px-2 py-1.5 rounded hover:bg-stone-100 text-stone-700 flex items-center justify-between gap-2">
                       <span className="truncate">{o.name || o.clave || ('Obra ' + o.id)}</span>
                       <span className="flex gap-1 shrink-0">
-                        {tipos.includes('reporte') && <span className="w-2 h-2 rounded-full bg-[#0066FF]" title="Tiene reporte" />}
+                        {tipos.includes('reporte') && <span className="w-2 h-2 rounded-full bg-[#d72f89]" title="Tiene reporte" />}
                         {tipos.includes('demanda') && <span className="w-2 h-2 rounded-full bg-stone-500" title="Tiene demanda" />}
                       </span>
                     </button>
@@ -2448,7 +2452,7 @@ const obrasEnUtIdsRef = useRef(new Set());
       {showFichaUT && dgsuUt && (
         <div onClick={() => setShowFichaUT(false)} style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(0,0,0,0.5)' }} className="flex items-center justify-center p-4">
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-4 py-3 sticky top-0 z-10" style={{ background: '#0066FF' }}>
+            <div className="flex items-center justify-between px-4 py-3 sticky top-0 z-10" style={{ background: '#d72f89' }}>
               <div className="text-white font-bold text-sm flex items-center gap-2">Ficha técnica DGSU — {dgsuUt}</div>
               <button onClick={() => setShowFichaUT(false)} className="text-white/90 hover:text-white font-mono text-lg leading-none">×</button>
             </div>
@@ -2501,9 +2505,9 @@ const obrasEnUtIdsRef = useRef(new Set());
                   <div key={tipo} className="flex items-center justify-between border border-stone-200 rounded px-3 py-2 mb-1.5">
                     <span className="text-sm text-stone-700">{label}</span>
                     <span className="flex items-center gap-3">
-                      {fichaUT && fichaUT[col] && <a href={fichaUT[col]} target="_blank" rel="noreferrer" className="text-xs text-[#0066FF] font-semibold">Ver</a>}
+                      {fichaUT && fichaUT[col] && <a href={fichaUT[col]} target="_blank" rel="noreferrer" className="text-xs text-[#d72f89] font-semibold">Ver</a>}
                       {canSeeDGSU && (
-                        <label className="text-xs text-[#0066FF] font-semibold cursor-pointer">
+                        <label className="text-xs text-[#d72f89] font-semibold cursor-pointer">
                           {fichaUT && fichaUT[col] ? 'Reemplazar' : 'Subir'}
                           <input type="file" accept="application/pdf,image/*" className="hidden" disabled={fichaSaving}
                             onChange={async (e) => {
@@ -2522,7 +2526,7 @@ const obrasEnUtIdsRef = useRef(new Set());
                 <div className="flex items-center justify-between border border-stone-200 rounded px-3 py-2 mt-2">
                   <span className="text-sm text-stone-700">Denuncias ({fichaDenuncias.length})</span>
                   {canSeeDGSU && (
-                    <label className="text-xs text-[#0066FF] font-semibold cursor-pointer">
+                    <label className="text-xs text-[#d72f89] font-semibold cursor-pointer">
                       Agregar
                       <input type="file" accept="application/pdf,image/*" className="hidden" disabled={fichaSaving}
                         onChange={async (e) => {
@@ -2539,7 +2543,7 @@ const obrasEnUtIdsRef = useRef(new Set());
                   <div className="flex flex-col gap-1 mt-1">
                     {fichaDenuncias.map(d => (
                       <div key={d.id} className="flex items-center justify-between text-xs px-3 py-1.5 bg-stone-50 rounded">
-                        <a href={d.url} target="_blank" rel="noreferrer" className="text-[#0066FF] truncate">{d.nombre_archivo || ('Denuncia ' + d.id)}</a>
+                        <a href={d.url} target="_blank" rel="noreferrer" className="text-[#d72f89] truncate">{d.nombre_archivo || ('Denuncia ' + d.id)}</a>
                         {canSeeDGSU && (
                           <button onClick={async () => {
                             if (!window.confirm('¿Eliminar esta denuncia?')) return;
@@ -2613,7 +2617,7 @@ const obrasEnUtIdsRef = useRef(new Set());
                     try { const f = await guardarFichaUT(dgsuUt, fichaEdit); setFichaUT(f); alert('Ficha guardada.'); }
                     catch (err) { alert('No se pudo guardar: ' + (err?.message || err)); }
                     finally { setFichaSaving(false); }
-                  }} className="px-4 py-2 rounded text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#0066FF' }}>
+                  }} className="px-4 py-2 rounded text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#d72f89' }}>
                     {fichaSaving ? 'Guardando…' : 'Guardar ficha'}
                   </button>
                 </div>
@@ -2626,25 +2630,34 @@ const obrasEnUtIdsRef = useRef(new Set());
       {obraSel && (
         <div onClick={() => setObraSel(null)} style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,0.45)' }} className="flex items-center justify-center p-4">
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200" style={{ background: '#0066FF' }}>
-              <div className="text-white font-bold text-sm">Detalles Punto DGSU</div>
-              <button onClick={() => setObraSel(null)} className="text-white/90 hover:text-white font-mono text-lg leading-none">×</button>
+<div className="relative overflow-hidden px-4 py-3 border-b border-stone-200" style={{ background: '#d72f89' }}>
+              <div className="absolute inset-0 opacity-15 bg-center bg-cover" style={{ backgroundImage: `url(${import.meta.env.BASE_URL}principal.webp)` }} aria-hidden="true" />
+              <div className="relative flex items-center gap-2.5">
+                <img src={`${import.meta.env.BASE_URL}gam-logo.png`} alt="GAM" className="w-8 h-8 rounded bg-white/95 p-0.5 object-contain shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-white font-bold text-sm leading-tight">Detalles Punto DGSU</div>
+                  <div className="text-white/80 text-[11px] leading-tight">Dirección General de Servicios Urbanos</div>
+                </div>
+                <button onClick={() => setObraSel(null)} className="text-white/90 hover:text-white font-mono text-lg leading-none shrink-0">×</button>
+              </div>
             </div>
             <div className="p-4 text-sm text-stone-700">
-              {[
-                ['Nombre', obraSel.name],
-                ['Clave', obraSel.clave],
-                ['Unidad Territorial', obraSel.unidad_territorial],
-                ['Tipo de obra', obraSel.tipo_obra],
-                ['Postes por instalar', obraSel.postes_por_instalar],
-                ['Postes catálogo', obraSel.postes_catalogo],
-                ['DT', obraSel.dt],
-              ].filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, v]) => (
-                <div key={k} className="flex justify-between gap-4 py-1.5 border-b border-stone-100 last:border-0">
-                  <span className="text-stone-500">{k}</span>
-                  <span className="text-right font-medium break-words">{String(v)}</span>
-                </div>
-              ))}
+              <div className="mb-3">
+                <div className="text-base font-bold text-stone-800 leading-tight break-words">{obraSel.name || 'Punto DGSU'}</div>
+                {obraSel.clave && <span className="inline-block mt-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(215,47,137,0.12)', color: '#d72f89' }}>Clave {obraSel.clave}</span>}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  ['Unidad Territorial', obraSel.unidad_territorial],
+                  ['Tipo de obra', obraSel.tipo_obra],
+                  ['DT', obraSel.dt],
+                ].filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, v]) => (
+                  <div key={k} className="bg-stone-50 rounded-lg px-2.5 py-2">
+                    <div className="text-[11px] text-stone-400">{k}</div>
+                    <div className="text-xs font-medium text-stone-700 break-words">{String(v)}</div>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="border-t border-stone-200 p-4">
               <div className="text-xs font-semibold text-stone-500 mb-2">Registro fotográfico</div>
@@ -2659,7 +2672,7 @@ const obrasEnUtIdsRef = useRef(new Set());
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] text-stone-600">{label}</span>
                       {canSeeDGSU && (
-                        <label className="text-[11px] text-[#0066FF] font-semibold cursor-pointer">
+                        <label className="text-[11px] text-[#d72f89] font-semibold cursor-pointer">
                           {fotosPunto && fotosPunto[col] ? 'Cambiar' : 'Subir'}
                           <input type="file" accept="image/*" className="hidden" disabled={savingFotoPunto}
                             onChange={async (e) => {
@@ -2678,18 +2691,18 @@ const obrasEnUtIdsRef = useRef(new Set());
               <div className="flex items-center gap-2 mb-3">
                 <button onClick={() => setFormCaptura('reporte')}
                         className="flex-1 px-3 py-2 rounded text-sm font-semibold text-white"
-                        style={{ background: '#0066FF' }}>
+                        style={{ background: '#d72f89' }}>
                   + Reporte
                 </button>
                 <button onClick={() => setFormCaptura('demanda')}
                         className="flex-1 px-3 py-2 rounded text-sm font-semibold border border-stone-300 text-stone-700 hover:bg-stone-50">
-                  + Demanda
+                  Demanda ciudadana
                 </button>
               </div>
               {formCaptura && (
                 <div className="mb-3 border border-stone-200 rounded p-3 bg-stone-50">
                   <div className="text-xs font-bold text-stone-600 mb-2">
-                    {formCaptura === 'reporte' ? 'Nuevo Reporte' : 'Nueva Demanda'}
+                    {formCaptura === 'reporte' ? 'Nuevo Reporte' : 'Nueva demanda ciudadana'}
                   </div>
                   {formCaptura === 'reporte' && (
                     <div className="flex flex-col gap-2 mb-2">
@@ -2700,12 +2713,14 @@ const obrasEnUtIdsRef = useRef(new Set());
                             <div className="flex flex-col sm:flex-row sm:items-center gap-1.5">
                               <span className="text-xs font-semibold text-stone-700 sm:w-40 shrink-0">{c.label}</span>
                               {c.tipo === 'check' ? (
-                                <label className="flex items-center gap-2 text-xs text-stone-600 cursor-pointer">
-                                  <input type="checkbox" checked={!!val.ok}
-                                         onChange={e => setCapturaVals(v => ({ ...v, [c.key]: { ...(v[c.key] || {}), ok: e.target.checked } }))}
-                                         className="w-4 h-4 accent-[#0066FF]" />
-                                  <span className={val.ok ? 'text-[#0066FF] font-semibold' : 'text-stone-400'}>{val.ok ? c.si : c.no}</span>
-                                </label>
+                                <select value={val.ok === true ? 'si' : val.ok === false ? 'no' : ''}
+                                        onChange={e => setCapturaVals(v => ({ ...v, [c.key]: { ...(v[c.key] || {}), ok: e.target.value === 'si' ? true : e.target.value === 'no' ? false : undefined } }))}
+                                        className="border border-stone-300 rounded px-2 py-1 text-sm w-full sm:w-52"
+                                        style={val.ok === true ? { color: '#d72f89', fontWeight: 600 } : val.ok === false ? { color: '#78716c' } : { color: '#a8a29e' }}>
+                                  <option value="">— Seleccionar —</option>
+                                  <option value="si">{c.si}</option>
+                                  <option value="no">{c.no}</option>
+                                </select>
                               ) : (
                                 <div className="flex items-center gap-1">
                                   <input type="number" step="0.01" inputMode="decimal" placeholder="0" value={val.valor ?? ''}
@@ -2727,19 +2742,48 @@ const obrasEnUtIdsRef = useRef(new Set());
                     <textarea rows={2} value={capturaVals.notas ?? ''}
                               onChange={e => setCapturaVals(v => ({ ...v, notas: e.target.value }))}
                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
+                  {formCaptura === 'demanda' && (
+                    <div className="mb-2">
+                      <div className="text-xs text-stone-600 mb-1">Archivos (PDF o imagen)</div>
+                      {demandaArchivos.length > 0 && (
+                        <div className="flex flex-col gap-1 mb-2">
+                          {demandaArchivos.map((a, i) => (
+                            <div key={i} className="flex items-center justify-between text-xs bg-stone-100 rounded px-2 py-1">
+                              <span className="truncate">{a.nombre}</span>
+                              <button onClick={() => setDemandaArchivos(prev => prev.filter((_, j) => j !== i))} className="text-stone-400 hover:text-red-500 ml-2 shrink-0">Quitar</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <label className="flex items-center justify-center gap-2 border border-dashed border-stone-300 rounded px-3 py-3 cursor-pointer text-xs font-semibold" style={{ color: '#d72f89' }}>
+                        {subiendoArchivo ? 'Subiendo…' : '+ Agregar archivo'}
+                        <input type="file" accept="application/pdf,image/*" className="hidden" disabled={subiendoArchivo}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]; if (!file) return;
+                            setSubiendoArchivo(true);
+                            try { const a = await subirArchivoDemanda(obraSel.id, file); setDemandaArchivos(prev => [...prev, a]); }
+                            catch (err) { alert('No se pudo subir el archivo: ' + (err?.message || err)); }
+                            finally { setSubiendoArchivo(false); e.target.value = ''; }
+                          }} />
+                      </label>
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <button disabled={savingCaptura} onClick={async () => {
                       if (savingCaptura) return;
-                      if (formCaptura === 'demanda' && !(capturaVals.notas || '').trim()) { alert('Escribe una nota para la demanda.'); return; }
+                      if (formCaptura === 'demanda' && !(capturaVals.notas || '').trim() && demandaArchivos.length === 0) { alert('Agrega una nota o al menos un archivo.'); return; }
                       setSavingCaptura(true);
                       try {
                         let detalle = null;
+                        if (formCaptura === 'demanda') {
+                          detalle = demandaArchivos.length > 0 ? { archivos: demandaArchivos } : null;
+                        }
                         if (formCaptura === 'reporte') {
                           detalle = {};
                           REPORTE_CONCEPTOS.forEach(c => {
                             const v = capturaVals[c.key] || {};
                             if (c.tipo === 'num') detalle[c.key] = { valor: (v.valor === '' || v.valor == null) ? null : Number(v.valor), obs: (v.obs || '').trim() || null };
-                            else detalle[c.key] = { ok: !!v.ok, obs: (v.obs || '').trim() || null };
+                            else detalle[c.key] = { ok: (v.ok === true || v.ok === false) ? v.ok : null, obs: (v.obs || '').trim() || null };
                           });
                         }
                         await crearCapturaObra({ obraId: obraSel.id, tipo: formCaptura, detalle, notas: capturaVals.notas });
@@ -2747,12 +2791,13 @@ const obrasEnUtIdsRef = useRef(new Set());
                         setCapturasObra(rows);
                         setFormCaptura(null);
                         setCapturaVals({});
+                        setDemandaArchivos([]);
                       } catch (e) { alert('No se pudo guardar: ' + (e?.message || e)); }
                       finally { setSavingCaptura(false); }
-                    }} className="flex-1 px-3 py-1.5 rounded text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#0066FF' }}>
+                    }} className="flex-1 px-3 py-1.5 rounded text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#d72f89' }}>
                       {savingCaptura ? 'Guardando…' : 'Guardar'}
                     </button>
-                    <button onClick={() => { setFormCaptura(null); setCapturaVals({}); }}
+                    <button onClick={() => { setFormCaptura(null); setCapturaVals({}); setDemandaArchivos([]); }}
                             className="px-3 py-1.5 rounded text-sm border border-stone-300 text-stone-600">Cancelar</button>
                   </div>
                 </div>
@@ -2765,7 +2810,7 @@ const obrasEnUtIdsRef = useRef(new Set());
                   {capturasObra.map(c => (
                     <div key={c.id} className="border border-stone-200 rounded p-2 text-xs">
                       <div className="flex items-center justify-between mb-1">
-                        <span className={`px-1.5 py-0.5 rounded text-white font-semibold ${c.tipo === 'reporte' ? 'bg-[#0066FF]' : 'bg-stone-500'}`}>
+                        <span className={`px-1.5 py-0.5 rounded text-white font-semibold ${c.tipo === 'reporte' ? 'bg-[#d72f89]' : 'bg-stone-500'}`}>
                           {c.tipo === 'reporte' ? 'Reporte' : 'Demanda'}
                         </span>
                         <span className="text-stone-400">{new Date(c.created_at).toLocaleString('es-MX')}</span>
@@ -2781,6 +2826,13 @@ const obrasEnUtIdsRef = useRef(new Set());
                         </div>
                       )}
                       {c.notas && <div className="text-stone-600 mt-1">Notas: {c.notas}</div>}
+                      {c.tipo === 'demanda' && Array.isArray(c.detalle?.archivos) && c.detalle.archivos.length > 0 && (
+                        <div className="mt-1 flex flex-col gap-0.5">
+                          {c.detalle.archivos.map((a, i) => (
+                            <a key={i} href={a.url} target="_blank" rel="noreferrer" className="truncate" style={{ color: '#d72f89' }}>📎 {a.nombre || ('Archivo ' + (i + 1))}</a>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

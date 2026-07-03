@@ -88,8 +88,8 @@ export function createUtLayerDGSU({ baseUrl = '/' } = {}) {
     fill:   new Fill({ color: BLUE_FILL }),
   });
   const dgsuHoverStyle = new Style({
-    stroke: new Stroke({ color: 'rgba(0,102,255,0.95)', width: 2.5 }),
-    fill:   new Fill({ color: 'rgba(0,102,255,0.22)' }),
+    stroke: new Stroke({ color: 'rgba(215,47,137,0.95)', width: 2.5 }),
+    fill:   new Fill({ color: 'rgba(215,47,137,0.22)' }),
   });
   const layer = new OLVectorLayer({
     source,

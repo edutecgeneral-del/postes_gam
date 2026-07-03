@@ -1703,7 +1703,7 @@ export async function loadCapturasObra(obraId) {
 export async function crearCapturaObra({ obraId, tipo, detalle, notas }) {
   const sb = requireSupabase();
   const row = { obra_id: obraId, tipo, notas: (notas ?? null) || null };
-  if (tipo === 'reporte') {
+  if (tipo === 'reporte' || tipo === 'demanda') {
     row.detalle = detalle || null;
   }
   const { data, error } = await sb
@@ -1955,4 +1955,14 @@ export async function subirFotoPunto(obraId, tipo, file) {
   const { error: e2 } = await sb.from('obras_gam_punto_fotos').upsert({ obra_id: obraId, [col]: pub.publicUrl, updated_at: new Date().toISOString() }, { onConflict: 'obra_id' });
   if (e2) throw e2;
   return pub.publicUrl;
+}
+// ---- DGSU: archivos de demanda ciudadana (PDF/imagen, varios por demanda) ----
+export async function subirArchivoDemanda(obraId, file) {
+  const sb = requireSupabase();
+  const ext = extensionForUpload(file);
+  const path = `dgsu-demanda/${obraId}/${uploadSuffix()}.${ext}`;
+  const { error } = await sb.storage.from(PHOTOS_BUCKET).upload(path, file, { cacheControl: '3600', upsert: false });
+  if (error) throw error;
+  const { data: pub } = sb.storage.from(PHOTOS_BUCKET).getPublicUrl(path);
+  return { url: pub.publicUrl, nombre: file?.name || 'archivo' };
 }
