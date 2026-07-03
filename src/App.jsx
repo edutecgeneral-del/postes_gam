@@ -2461,24 +2461,18 @@ const obrasEnUtIdsRef = useRef(new Set());
             ) : (
             <div className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                {/* Empresa (editable) */}
+{/* Empresa (solo lectura, desde obras_gam) */}
                 <div className="rounded-lg bg-stone-50 p-3">
                   <div className="text-sm font-bold text-stone-700 mb-2">Empresa</div>
-                  {canSeeDGSU ? (
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs text-stone-600 flex flex-col gap-1">Empresa
-                        <input value={fichaEdit?.empresa ?? ''} onChange={e => setFichaEdit(v => ({ ...v, empresa: e.target.value }))}
-                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
-                      <label className="text-xs text-stone-600 flex flex-col gap-1">N.º de contrato
-                        <input value={fichaEdit?.numero_contrato ?? ''} onChange={e => setFichaEdit(v => ({ ...v, numero_contrato: e.target.value }))}
-                               className="border border-stone-300 rounded px-2 py-1 text-sm" /></label>
-                    </div>
-                  ) : (
-                    <div className="text-sm text-stone-700 flex flex-col gap-1">
-                      <div><span className="text-stone-500">Empresa: </span>{fichaUT?.empresa || '—'}</div>
-                      <div><span className="text-stone-500">N.º de contrato: </span>{fichaUT?.numero_contrato || '—'}</div>
-                    </div>
-                  )}
+                  {(() => {
+                    const oref = (obrasEnUt && obrasEnUt[0]) || (obrasGam || []).find(o => o.unidad_territorial === dgsuUt) || {};
+                    return (
+                      <div className="text-sm text-stone-700 flex flex-col gap-1">
+                        <div><span className="text-stone-500">Empresa: </span>{oref.empresa || '—'}</div>
+                        <div><span className="text-stone-500">N.º de contrato: </span>{oref.numero_contrato || '—'}</div>
+                      </div>
+                    );
+                  })()}
                 </div>
                 {/* Unidad Territorial (informativo, de obras_gam) */}
                 <div className="rounded-lg bg-stone-50 p-3">
