@@ -6089,6 +6089,17 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
   const [search, setSearch] = useState(externalNav?.search || '');
   const [filterCategory, setFilterCategory] = useState('todas');
   const [filterPost, setFilterPost] = useState('todas'); // 'todas' | 'poste_13m' | 'falta_camaras' | 'falta_silicon'
+  const [filterUTRaal, setFilterUTRaal] = useState(''); // filtro por UT (clave o nombre) en modo RAAL
+  const utsRaalDisponibles = useMemo(() => {
+    if (!isRAAL) return [];
+    const map = new Map();
+    (incidents || []).forEach(i => {
+      const clave = i.utClave || '';
+      if (!clave) return;
+      if (!map.has(clave)) map.set(clave, true);
+    });
+    return [...map.keys()].sort((a, b) => a.localeCompare(b, 'es'));
+  }, [isRAAL, incidents]);
   const [filterSev, setFilterSev] = useState('todas'); // 'todas'|'alta'|'media'|'baja'
   const [filterEstado, setFilterEstado] = useState('abierta'); // 'todos'|'abierta'|'atendida'|'resuelta'
   const [soloBloqueados, setSoloBloqueados] = useState(false);
@@ -6199,10 +6210,16 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
         if (!cls || cls.categoryId !== filterCategory) return false;
       }
     }
-    // RAAL: filtro por categoría (cascajo / instalación eléctrica)
+    // RAAL: filtro por categorÃ­a (cascajo / instalaciÃ³n elÃ©ctrica)
     if (isRAAL) {
       if (filterPost === 'cat_cascajo' && i.categoryId !== '1324d434-6b2d-46ff-9281-a2e42022df84') return false;
       if (filterPost === 'cat_electrica' && i.categoryId !== '98a342cf-76fb-4c0b-93c0-69d463820a99') return false;
+      // Filtro por UT (clave o nombre), en conjunto con la categoría
+      if (filterUTRaal) {
+        const q = filterUTRaal.toLowerCase();
+        const clave = (i.utClave || '').toLowerCase();
+        if (!clave.includes(q)) return false;
+      }
     }
     // Filter by post characteristics (poste 13m / faltan cámaras / falta silicón)
     if (!isRAAL && filterPost !== 'todas') {
@@ -6578,8 +6595,22 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
             {label}
           </button>
         ))}
+        {isRAAL && (
+          <div className="flex items-center gap-1">
+            <input list="raal-uts-list" value={filterUTRaal}
+                   onChange={e => setFilterUTRaal(e.target.value)}
+                   placeholder="Filtrar por clave de UT"
+                   className="px-3 py-2 text-xs font-mono border border-stone-300 bg-stone-100 text-stone-700 focus:outline-none focus:border-[#d72f89] w-64" />
+            <datalist id="raal-uts-list">
+              {utsRaalDisponibles.map(u => <option key={u} value={u} />)}
+            </datalist>
+            {filterUTRaal && (
+              <button onClick={() => setFilterUTRaal('')}
+                      className="px-2 py-2 text-xs font-mono border border-stone-300 bg-stone-100 text-stone-500 hover:text-stone-700">✕</button>
+            )}
+          </div>
+        )}
       </div>
-
       <div className="border border-stone-300 divide-y divide-stone-300/60">
         {filtered.length === 0 && (
           <div className="px-6 py-12 text-center text-stone-500 font-mono text-sm">Sin incidencias en este filtro</div>

@@ -1797,9 +1797,29 @@ export async function loadIncidentsRAAL() {
     all.push(...(data || []));
   }
 
-  // 3) mapear al mismo shape que usa IncidentsView, inyectando la categoría
+// 3b) traer UT (clave + nombre) de los postes de esas incidencias
+  const postIds = [...new Set(all.map(i => i.post_id).filter(Boolean))];
+  const claveByPost = {};      // post_id -> clave UT (posts.unidad_territorial)
+  for (let i = 0; i < postIds.length; i += pageSize) {
+    const slice = postIds.slice(i, i + pageSize);
+    const { data, error } = await sb.from('posts').select('id, unidad_territorial').in('id', slice);
+    if (error) throw error;
+    (data || []).forEach(p => { claveByPost[p.id] = p.unidad_territorial || null; });
+  }
+  const claves = [...new Set(Object.values(claveByPost).filter(Boolean))];
+  const nombreByClave = {};    // clave -> nombre UT (obras_gam.unidad_territorial)
+  for (let i = 0; i < claves.length; i += pageSize) {
+    const slice = claves.slice(i, i + pageSize);
+    const { data, error } = await sb.from('obras_gam').select('clave, unidad_territorial').in('clave', slice);
+    if (error) throw error;
+    (data || []).forEach(o => { if (o.clave) nombreByClave[o.clave] = o.unidad_territorial || null; });
+  }
+
+  // 4) mapear al mismo shape que usa IncidentsView, inyectando la categoría y la UT
   return all.map(i => {
     const cat = porIncidente[i.id] || {};
+    const utClave = claveByPost[i.post_id] || null;
+    const utNombre = utClave ? (nombreByClave[utClave] || null) : null;
     return {
       id: i.id,
       postId: i.post_id,
@@ -1823,6 +1843,8 @@ export async function loadIncidentsRAAL() {
       categoryId: cat.categoryId || null,
       categoryName: cat.categoryName || null,
       categoryColor: cat.categoryColor || null,
+      utClave,
+      utNombre,
       createdAt: i.created_at ? new Date(i.created_at).getTime() : null,
       resolvedAt: i.resolved_at ? new Date(i.resolved_at).getTime() : null,
     };
