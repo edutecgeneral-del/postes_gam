@@ -1988,3 +1988,26 @@ export async function subirArchivoDemanda(obraId, file) {
   const { data: pub } = sb.storage.from(PHOTOS_BUCKET).getPublicUrl(path);
   return { url: pub.publicUrl, nombre: file?.name || 'archivo' };
 }
+// ---- Contrato 0037: claves de UT que pertenecen al contrato (para filtro en MapaGPS, solo admin) ----
+export async function loadClavesContrato0037() {
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from('ut_contratos')
+    .select('clave')
+    .eq('contrato_0037', 1);
+  if (error) throw error;
+  const claves = (data || []).map(r => r.clave);
+  if (claves.length === 0) return [];
+  // Traer el nombre de cada UT desde obras_gam (por clave)
+  const nombreByClave = {};
+  const pageSize = 200;
+  for (let i = 0; i < claves.length; i += pageSize) {
+    const slice = claves.slice(i, i + pageSize);
+    const { data: og, error: e2 } = await sb.from('obras_gam').select('clave, unidad_territorial').in('clave', slice);
+    if (e2) throw e2;
+    (og || []).forEach(o => { if (o.clave && o.unidad_territorial && !nombreByClave[o.clave]) nombreByClave[o.clave] = o.unidad_territorial; });
+  }
+  return claves
+    .map(c => ({ clave: c, nombre: nombreByClave[c] || '' }))
+    .sort((a, b) => a.clave.localeCompare(b.clave, 'es'));
+}

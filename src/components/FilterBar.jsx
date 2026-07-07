@@ -10,7 +10,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom';
 import {
   SlidersHorizontal, ChevronDown,
-  ListChecks, Wrench, MapPin, AlertTriangle, Tags, History,
+  ListChecks, Wrench, MapPin, AlertTriangle, Tags, History, FileText,
 } from 'lucide-react';
 import { computeCounts, VERIFIED_VALUES } from '../lib/filters';
 import { useTagCatalog } from '../hooks/useTagCatalog';
@@ -539,6 +539,9 @@ export function FilterBar({
   measureMode = false,
   setMeasureMode,
   unidadesTerritoriales = [],
+  isAdmin = false,
+  solo0037 = false,
+  setSolo0037,
 }) {
   const { catalog: tagCatalog } = useTagCatalog();
   const counts = useMemo(
@@ -730,8 +733,7 @@ export function FilterBar({
             emptyLabel="Sin unidades territoriales"
           />
         </MenuSection>
-
-        {/* Grupo: Incidencias — tipo de incidencia abierta */}
+        {/* Grupo: Incidencias â€” tipo de incidencia abierta */}
         {showIncidencias && (
           <MenuSection icon={AlertTriangle} title="Incidencias" count={cntIncidencias} defaultOpen={cntIncidencias > 0}>
             <select

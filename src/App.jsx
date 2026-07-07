@@ -28,6 +28,7 @@ import UtReviewPanel from './components/UtReviewPanel.jsx';
 import {
   loadAllData,
   loadObrasGam,
+  loadClavesContrato0037,
   loadCapturasObra,
   crearCapturaObra,
   loadCapturasResumen,
@@ -956,7 +957,7 @@ function readStoredMapView() {
 function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetail, filters, onCapturePost, stageDefs, darkMode, obrasGam = [], canSeeDGSU = false,
                    measureMode = false, setMeasureMode, measurePoints = [], setMeasurePoints,
                    editingPostId, onConfirmRelocate, onCancelRelocate,
-                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, canMerge = false, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado }) {
+                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, canMerge = false, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado, clavesContrato0037 = [], sel0037 = null }) {
   const containerRef = useRef(null);
   const isMobile = useIsMobile();
   const mapRef = useRef(null);
@@ -1168,6 +1169,11 @@ const obrasEnUtIdsRef = useRef(new Set());
 
   const filtered = useMemo(() => {
     let result = filterPosts(posts, filters, stageDefs, 'map', incidents || []);
+    // Filtro Contrato 0037 (solo admin): null=apagado; []=ningún punto; [claves]=solo esas UTs
+    if (sel0037 !== null) {
+      const set0037 = new Set(sel0037);
+      result = result.filter(p => set0037.has(p.unidad_territorial));
+    }
     // Filtro "cerca de mí"
     if (showNearby && userLoc) {
       result = result.map(p => ({
@@ -1176,7 +1182,7 @@ const obrasEnUtIdsRef = useRef(new Set());
       })).sort((a, b) => a._dist - b._dist).slice(0, nearbyCount);
     }
     return result;
-  }, [posts, filters, stageDefs, showNearby, userLoc, nearbyCount]);
+  }, [posts, filters, stageDefs, showNearby, userLoc, nearbyCount, sel0037]);
 
   // Track user location — solo cuando el usuario lo pide
   const [gpsError, setGpsError] = useState(null);
@@ -8418,6 +8424,8 @@ export default function FieldCoordApp() {
   const [mapFocusKey, setMapFocusKey] = useState(0);
   const [unidadesTerritoriales, setUnidadesTerritoriales] = useState([]);
   const [obrasGam, setObrasGam] = useState([]);
+  const [clavesContrato0037, setClavesContrato0037] = useState([]);
+  const [sel0037, setSel0037] = useState(null); // null=filtro apagado; []=activo sin UT; [...]=UTs marcadas (admin)
   const [incidentsRAAL, setIncidentsRAAL] = useState([]);
   // PR B Lote 3: state para el modal de recuperar antena (admin)
   const [antenaModalPost, setAntenaModalPost] = useState(null);
@@ -8600,6 +8608,7 @@ export default function FieldCoordApp() {
       const { posts: p, incidents: i, unidadesTerritoriales: uts } = await loadAllData();
       setPosts(p);
       try { setObrasGam(await loadObrasGam()); } catch (e) { console.warn('obras_gam load:', e); }
+      try { setClavesContrato0037(await loadClavesContrato0037()); } catch (e) { console.warn('contrato 0037 load:', e); }
       setSelectedPost(prev => prev ? (p.find(x => x.id === prev.id) || prev) : prev);
       setIncidents(i);
       setUnidadesTerritoriales(uts || []);
@@ -9316,6 +9325,10 @@ export default function FieldCoordApp() {
                     mode="map"
                     showVerified={false}
                     incidents={incidents}
+                    isAdmin={isAdmin}
+                    contrato0037UTs={clavesContrato0037}
+                    sel0037={sel0037}
+                    setSel0037={setSel0037}
                     measureMode={measureMode}
                     setMeasureMode={setMeasureMode}
                     unidadesTerritoriales={unidadesTerritoriales}
@@ -9323,7 +9336,7 @@ export default function FieldCoordApp() {
                 </div>
               </div>
               <div className="flex-1 p-4">
-                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} openPostDetail={openPostDetail} filters={mapFilterCtx.filters} incidents={incidents} userNames={userNames} obrasGam={obrasGam} canSeeDGSU={canSeeDGSU}
+                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} openPostDetail={openPostDetail} filters={mapFilterCtx.filters} incidents={incidents} userNames={userNames} obrasGam={obrasGam} canSeeDGSU={canSeeDGSU} clavesContrato0037={clavesContrato0037} sel0037={sel0037}
                          stageDefs={STAGE_DEFS} darkMode={darkMode}
                          measureMode={measureMode} setMeasureMode={setMeasureMode}
                          measurePoints={measurePoints} setMeasurePoints={setMeasurePoints}
