@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Lock, Loader2, Camera, X } from 'lucide-react';
+import { AlertTriangle, Lock, Loader2, Camera, X, Image as ImageIcon } from 'lucide-react';
 import { fetchIncidentCategories } from '../lib/data.js';
 
 /**
@@ -194,12 +194,23 @@ export default function IncidentForm({ post, stageId = null, sourceNote = '', ti
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: col }} />
                   <span className="text-[12px] font-medium text-stone-700">{cat.name}</span>
                 </div>
-                <label className="flex items-center gap-2 px-3 py-1.5 border border-dashed border-stone-400 rounded cursor-pointer hover:bg-stone-100 transition-colors">
-                  <Camera className="w-4 h-4 text-stone-500" />
-                  <span className="text-xs text-stone-600">{fotos.length ? (fotos.length + ' foto(s) - agregar mas') : 'Agregar fotos'}</span>
-                  <input type="file" accept="image/*" capture="environment" multiple className="hidden"
-                    onChange={function (e) { addPhotos(cid, e.target.files); e.target.value = ''; }} />
-                </label>
+                <div className="flex items-center gap-2">
+                  <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-stone-400 rounded cursor-pointer hover:bg-stone-100 transition-colors">
+                    <ImageIcon className="w-4 h-4 text-stone-500" />
+                    <span className="text-xs text-stone-600">Galeria</span>
+                    <input type="file" accept="image/*" multiple className="hidden"
+                      onChange={function (e) { addPhotos(cid, e.target.files); e.target.value = ''; }} />
+                  </label>
+                  <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-stone-400 rounded cursor-pointer hover:bg-stone-100 transition-colors">
+                    <Camera className="w-4 h-4 text-stone-500" />
+                    <span className="text-xs text-stone-600">Camara</span>
+                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                      onChange={function (e) { addPhotos(cid, e.target.files); e.target.value = ''; }} />
+                  </label>
+                </div>
+                {fotos.length > 0 && (
+                  <div className="text-[11px] text-stone-500 mt-1">{fotos.length + ' foto(s) agregada(s)'}</div>
+                )}
                 {fotos.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {fotos.map(function (p, idx) {
