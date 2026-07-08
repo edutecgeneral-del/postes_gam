@@ -8,6 +8,7 @@ import {
   ChevronLeft, ChevronDown, Menu, Home, LogOut, Briefcase, Target, Box, Flag,
   Cable, Server, Wifi, Lock, Copy, Share2, Send, Upload, ListChecks, Moon, Sun, Loader2, Tag as TagIcon, ClipboardList
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import OLMap from 'ol/Map';
 import OLView from 'ol/View';
 import OLTileLayer from 'ol/layer/Tile';
@@ -542,6 +543,24 @@ function StatusChip({ post }) {
 }
 
 // Badge de SEVERIDAD: pastilla rellena (rojo/amarillo/azul) -> que tan grave
+// Miniatura de foto de incidencia con zoom al pasar el cursor (PC) o tocar (movil). Mismo estilo que la ficha tecnica.
+function IncidentPhotoThumb({ url, idx }) {
+  const [zoom, setZoom] = useState(false);
+  return (
+    <>
+      <img src={url} alt={"Foto " + (idx + 1)}
+        onMouseEnter={function () { setZoom(true); }}
+        onMouseLeave={function () { setZoom(false); }}
+        onClick={function () { window.open(url, '_blank', 'noopener'); }}
+        className="w-16 h-16 object-cover rounded border border-red-300 hover:border-red-500 flex-shrink-0 cursor-zoom-in"
+        loading="lazy" />
+      {zoom ? createPortal(
+        <div style={{ position: 'fixed', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 100, pointerEvents: 'none' }}>
+          <img src={url} alt={"Foto " + (idx + 1)} style={{ maxWidth: '70vw', maxHeight: '80vh', borderRadius: 10, border: '3px solid #ffffff', boxShadow: '0 10px 40px rgba(0,0,0,0.45)' }} />
+        </div>, document.body) : null}
+    </>
+  );
+}
 function SevBadge({ level }) {
   const map = {
     alta:  { bg: '#DC2626', label: 'Alta',  dark: false },
@@ -4906,7 +4925,7 @@ function ZoomablePhoto({ src, alt = '', thumbClass = 'w-6 h-6', borderClass = 'b
   );
 }
 
-function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, onCreateIncident, onResolve, canResolve = false, viewMode, userNames = {}, isAdmin = false, onVerifyStage, onUnverifyStage, onDelete, initialStageId, onStartEditPosition, onRequestRelocate, canViewHistory = false, historyRefreshKey, onOpenAntena, onToggleRevisado, onGoToIncident }) {
+function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, onCreateIncident, onResolve, canResolve = false, viewMode, userNames = {}, isAdmin = false, onVerifyStage, onUnverifyStage, onDelete, initialStageId, onStartEditPosition, onRequestRelocate, canViewHistory = false, historyRefreshKey, onOpenAntena, onToggleRevisado, onGoToIncident, onAddPhotos }) {
   const [editingStage, setEditingStage] = useState(() => initialStageId ? (STAGE_DEFS.find(s => s.id === initialStageId) || null) : null);
   const [notes, setNotes] = useState('');
   const [showBlockForm, setShowBlockForm] = useState(false);
@@ -5587,11 +5606,24 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                           <div className="mt-2 flex flex-wrap gap-2">
                             {i.reportPhotoUrls.map(function (url, idx) {
                               return (
-                                <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
-                                  <img src={url} alt={"Foto " + (idx + 1)} className="w-16 h-16 object-cover rounded border border-red-300 hover:border-red-500 flex-shrink-0" />
-                                </a>
+                                <IncidentPhotoThumb key={idx} url={url} idx={idx} />
+
                               );
                             })}
+                          </div>
+                        )}
+                        {onAddPhotos && i.status !== 'resuelta' && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-dashed border-stone-400 rounded cursor-pointer hover:bg-stone-100 text-[11px] text-stone-600">
+                              <ImageIcon className="w-3.5 h-3.5" /> Galeria
+                              <input type="file" accept="image/*" multiple className="hidden"
+                                onChange={function (e) { onAddPhotos(i.id, e.target.files); e.target.value = ''; }} />
+                            </label>
+                            <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-dashed border-stone-400 rounded cursor-pointer hover:bg-stone-100 text-[11px] text-stone-600">
+                              <Camera className="w-3.5 h-3.5" /> Camara
+                              <input type="file" accept="image/*" capture="environment" className="hidden"
+                                onChange={function (e) { onAddPhotos(i.id, e.target.files); e.target.value = ''; }} />
+                            </label>
                           </div>
                         )}
                         {onResolve && canResolve && i.status !== 'resuelta' && (
@@ -6090,7 +6122,7 @@ function ProposalsView({ proposals, posts, userNames, isAdmin, isCoordinador, on
   );
 }
 
-function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isDirector, profile, onDelete, onAttend, canAttend, canResolve, onRevert, externalNav, onJumpToMap, isRAAL = false }) {
+function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isDirector, profile, onDelete, onAttend, canAttend, canResolve, onRevert, externalNav, onJumpToMap, isRAAL = false, onAddPhotos }) {
   const [filter, setFilter] = useState(externalNav?.filter || 'abierta');
   const [search, setSearch] = useState(externalNav?.search || '');
   const [filterCategory, setFilterCategory] = useState('todas');
@@ -6702,11 +6734,26 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                     <div className="mt-2 flex flex-wrap gap-2">
                       {i.reportPhotoUrls.map(function (url, idx) {
                         return (
-                          <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
-                            <img src={url} alt={"Foto " + (idx + 1)} className="w-16 h-16 object-cover rounded border border-red-300 hover:border-red-500 flex-shrink-0" />
-                          </a>
+                          <IncidentPhotoThumb key={idx} url={url} idx={idx} />
+
                         );
                       })}
+                    </div>
+                  )}
+
+                  {/* Agregar fotos (colaborativo) - solo si no esta resuelta */}
+                  {onAddPhotos && i.status !== 'resuelta' && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-dashed border-stone-400 rounded cursor-pointer hover:bg-stone-100 text-[11px] text-stone-600">
+                        <ImageIcon className="w-3.5 h-3.5" /> Galeria
+                        <input type="file" accept="image/*" multiple className="hidden"
+                          onChange={function (e) { onAddPhotos(i.id, e.target.files); e.target.value = ''; }} />
+                      </label>
+                      <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-dashed border-stone-400 rounded cursor-pointer hover:bg-stone-100 text-[11px] text-stone-600">
+                        <Camera className="w-3.5 h-3.5" /> Camara
+                        <input type="file" accept="image/*" capture="environment" className="hidden"
+                          onChange={function (e) { onAddPhotos(i.id, e.target.files); e.target.value = ''; }} />
+                      </label>
                     </div>
                   )}
 
@@ -8895,6 +8942,29 @@ export default function FieldCoordApp() {
     }
   }, [profile]);
 
+  // Agregar fotos a una incidencia YA existente (colaborativo: la BD acumula con dedup, no reemplaza)
+  const handleAddIncidentPhotos = async (incidentId, fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    const urls = [];
+    for (const f of files) {
+      try { urls.push(await uploadIncidentPhoto(incidentId, f)); }
+      catch (upErr) { console.error('upload incident photo failed', incidentId, upErr); }
+    }
+    if (!urls.length) { alert('No se pudieron subir las fotos. Intenta de nuevo.'); return; }
+    try {
+      await setIncidentReportPhotos(incidentId, urls);
+      setIncidents(prev => prev.map(x => {
+        if (x.id !== incidentId) return x;
+        const cur = x.reportPhotoUrls || [];
+        const add = urls.filter(u => !cur.includes(u));
+        return { ...x, reportPhotoUrls: [...cur, ...add] };
+      }));
+    } catch (saveErr) {
+      console.error('save incident photos failed', incidentId, saveErr);
+      alert('No se pudieron guardar las fotos: ' + (saveErr?.message || saveErr));
+    }
+  };
   const resolveIncident = useCallback(async (id) => {
     if (!canResolveIncidents(profile)) {
       alert('Solo admin o scout pueden verificar y resolver incidencias.'); return;
@@ -9414,7 +9484,7 @@ export default function FieldCoordApp() {
               onOpenPostDetail={openPostDetail}
             />
           )}
-          {activeTab === 'incidencias' && <IncidentsView incidents={isRAAL ? incidentsRAAL : incidents} isRAAL={isRAAL} posts={posts} onResolve={readOnly ? null : resolveIncident} onSelectPost={setSelectedPost} isAdmin={isAdmin} isDirector={isDirector} profile={profile} onDelete={isAdmin ? deleteIncident : null} onAttend={attendIncident} canAttend={canAttendIncidents(effectiveProfile)} canResolve={canResolveIncidents(effectiveProfile)} onRevert={revertIncident} onJumpToMap={(p) => { setMapFocusPost(p); setMapFocusKey(k => k + 1); setActiveTab('mapa'); }} externalNav={incidenciasNav} />}
+          {activeTab === 'incidencias' && <IncidentsView incidents={isRAAL ? incidentsRAAL : incidents} isRAAL={isRAAL} posts={posts} onResolve={readOnly ? null : resolveIncident} onSelectPost={setSelectedPost} isAdmin={isAdmin} isDirector={isDirector} profile={profile} onDelete={isAdmin ? deleteIncident : null} onAttend={attendIncident} canAttend={canAttendIncidents(effectiveProfile)} canResolve={canResolveIncidents(effectiveProfile)} onRevert={revertIncident} onJumpToMap={(p) => { setMapFocusPost(p); setMapFocusKey(k => k + 1); setActiveTab('mapa'); }} externalNav={incidenciasNav} onAddPhotos={handleAddIncidentPhotos} />}
           {activeTab === 'propuestas' && (isAdmin || isCoordinador) && (
             <ProposalsView
               proposals={proposals}
@@ -9452,6 +9522,7 @@ export default function FieldCoordApp() {
 
       {selectedPost && (
         <PostDetailDrawer post={selectedPost} onClose={closePostDetail}
+            onAddPhotos={handleAddIncidentPhotos}
             onGoToIncident={(incId) => {
               setIncidenciasNav({ search: incId, sev: 'todas', estado: 'todos', bloqueados: false, ts: Date.now() });
               setSelectedPost(null);
