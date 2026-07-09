@@ -1650,7 +1650,7 @@ const obrasEnUtIdsRef = useRef(new Set());
       utHits.sort((p, q) => p.area - q.area).forEach(h => {
         const nm = getUtName(h.feat);
         if (!nm) return;
-        const uo = (unidadesTerritoriales || []).find(u => u.nombre === nm);
+        const uo = (unidadesTerritoriales || []).find(u => __normUt(u.nombre) === __normUt(nm));
         if (!uo || seenUt.has(uo.id)) return;
         seenUt.add(uo.id);
         utOpts.push(uo);
