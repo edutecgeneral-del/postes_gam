@@ -29,7 +29,7 @@ import UtReviewPanel from './components/UtReviewPanel.jsx';
 import {
   loadAllData,
   loadObrasGam,
-  loadClavesContrato0037,
+  loadContratosUT,
   loadCapturasObra,
   crearCapturaObra,
   loadCapturasResumen,
@@ -977,7 +977,7 @@ function readStoredMapView() {
 function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetail, filters, onCapturePost, stageDefs, darkMode, obrasGam = [], canSeeDGSU = false,
                    measureMode = false, setMeasureMode, measurePoints = [], setMeasurePoints,
                    editingPostId, onConfirmRelocate, onCancelRelocate,
-                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, canMerge = false, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado, clavesContrato0037 = [], sel0037 = null }) {
+                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, canMerge = false, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado, sel0037 = null }) {
   const containerRef = useRef(null);
   const isMobile = useIsMobile();
   const mapRef = useRef(null);
@@ -8519,7 +8519,8 @@ export default function FieldCoordApp() {
   const [mapFocusKey, setMapFocusKey] = useState(0);
   const [unidadesTerritoriales, setUnidadesTerritoriales] = useState([]);
   const [obrasGam, setObrasGam] = useState([]);
-  const [clavesContrato0037, setClavesContrato0037] = useState([]);
+  const [contratosUT, setContratosUT] = useState([]);        // [{contrato, uts:[{clave,nombre}]}]
+  const [auditoriaSel, setAuditoriaSel] = useState(null);    // contrato elegido en el dropdown
   const [sel0037, setSel0037] = useState(null); // null=filtro apagado; []=activo sin UT; [...]=UTs marcadas (admin)
   const [incidentsRAAL, setIncidentsRAAL] = useState([]);
   // PR B Lote 3: state para el modal de recuperar antena (admin)
@@ -8703,7 +8704,7 @@ export default function FieldCoordApp() {
       const { posts: p, incidents: i, unidadesTerritoriales: uts } = await loadAllData();
       setPosts(p);
       try { setObrasGam(await loadObrasGam()); } catch (e) { console.warn('obras_gam load:', e); }
-      try { setClavesContrato0037(await loadClavesContrato0037()); } catch (e) { console.warn('contrato 0037 load:', e); }
+      try { setContratosUT(await loadContratosUT()); } catch (e) { console.warn('auditorias load:', e); }
       setSelectedPost(prev => prev ? (p.find(x => x.id === prev.id) || prev) : prev);
       setIncidents(i);
       setUnidadesTerritoriales(uts || []);
@@ -9444,7 +9445,9 @@ export default function FieldCoordApp() {
                     showVerified={false}
                     incidents={incidents}
                     isAdmin={isAdmin}
-                    contrato0037UTs={clavesContrato0037}
+                    contratosUT={contratosUT}
+                    auditoriaSel={auditoriaSel}
+                    setAuditoriaSel={setAuditoriaSel}
                     sel0037={sel0037}
                     setSel0037={setSel0037}
                     measureMode={measureMode}
@@ -9454,7 +9457,7 @@ export default function FieldCoordApp() {
                 </div>
               </div>
               <div className="flex-1 p-4">
-                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} openPostDetail={openPostDetail} filters={mapFilterCtx.filters} incidents={incidents} userNames={userNames} obrasGam={obrasGam} canSeeDGSU={canSeeDGSU} clavesContrato0037={clavesContrato0037} sel0037={sel0037}
+                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} openPostDetail={openPostDetail} filters={mapFilterCtx.filters} incidents={incidents} userNames={userNames} obrasGam={obrasGam} canSeeDGSU={canSeeDGSU} sel0037={sel0037}
                          stageDefs={STAGE_DEFS} darkMode={darkMode}
                          measureMode={measureMode} setMeasureMode={setMeasureMode}
                          measurePoints={measurePoints} setMeasurePoints={setMeasurePoints}

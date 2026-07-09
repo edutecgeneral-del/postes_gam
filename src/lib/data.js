@@ -2002,6 +2002,36 @@ export async function subirArchivoDemanda(obraId, file) {
   return { url: pub.publicUrl, nombre: file?.name || 'archivo' };
 }
 // ---- Contrato 0037: claves de UT que pertenecen al contrato (para filtro en MapaGPS, solo admin) ----
+// ---- Auditorías: contratos y sus UT (para filtro en MapaGPS, solo admin) ----
+export async function loadContratosUT() {
+  const sb = requireSupabase();
+  const { data: rel, error } = await sb
+    .from('ut_contrato_rel')
+    .select('clave, contrato');
+  if (error) throw error;
+  if (!rel || rel.length === 0) return [];
+  const claves = [...new Set(rel.map(r => r.clave))];
+  const nombreByClave = {};
+  const pageSize = 200;
+  for (let i = 0; i < claves.length; i += pageSize) {
+    const slice = claves.slice(i, i + pageSize);
+    const { data: uts, error: e2 } = await sb.from('unidades_territoriales').select('id, nombre').in('id', slice);
+    if (e2) throw e2;
+    (uts || []).forEach(u => { if (u.id) nombreByClave[u.id] = u.nombre || ''; });
+  }
+  const porContrato = {};
+  rel.forEach(r => {
+    if (!porContrato[r.contrato]) porContrato[r.contrato] = [];
+    porContrato[r.contrato].push({ clave: r.clave, nombre: nombreByClave[r.clave] || '' });
+  });
+  return Object.keys(porContrato)
+    .sort((a, b) => a.localeCompare(b, 'es'))
+    .map(contrato => ({
+      contrato,
+      uts: porContrato[contrato].sort((a, b) => a.clave.localeCompare(b.clave, 'es')),
+    }));
+}
+
 export async function loadClavesContrato0037() {
   const sb = requireSupabase();
   const { data, error } = await sb

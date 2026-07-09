@@ -60,34 +60,54 @@ export function FilterBarCollapsible(props) {
                   ? 'bg-brand-50 border-brand-400 text-brand-700'
                   : 'bg-stone-50 border-stone-300 text-stone-700 hover:border-brand-400'
               }`}
-              title="Filtrar postes por UT del contrato 0037"
+              title="Filtrar postes por UT de una auditoría"
             >
-              Contrato 0037{Array.isArray(props.sel0037) && props.sel0037.length > 0 ? ` (${props.sel0037.length})` : ''}
+              Auditorías{Array.isArray(props.sel0037) && props.sel0037.length > 0 ? ` (${props.sel0037.length})` : ''}
             </button>
             {open0037 && (
               <>
                 <div className="fixed inset-0 z-[70]" onClick={() => setOpen0037(false)} />
                 <div className="absolute left-0 mt-1 z-[71] w-72 max-h-80 overflow-y-auto bg-white border border-stone-300 shadow-xl rounded">
-                  <div className="flex items-center justify-between px-3 py-2 border-b border-stone-200 sticky top-0 bg-white">
-                    <span className="text-xs font-mono font-bold text-stone-700">UT del contrato 0037</span>
-                    <button onClick={() => props.setSel0037([])} className="text-[11px] text-brand-600 hover:underline">Limpiar</button>
-                  </div>
-                  {(props.contrato0037UTs || []).length === 0 ? (
-                    <div className="px-3 py-3 text-xs text-stone-400">Sin UT en el contrato.</div>
-                  ) : (props.contrato0037UTs || []).map(u => {
-                    const marcada = Array.isArray(props.sel0037) && props.sel0037.includes(u.clave);
-                    return (
-                      <label key={u.clave} className="flex items-start gap-2 px-3 py-1.5 hover:bg-stone-50 cursor-pointer text-xs">
-                        <input type="checkbox" checked={marcada}
-                          onChange={() => props.setSel0037(prev => {
-                            const cur = Array.isArray(prev) ? prev : [];
-                            return cur.includes(u.clave) ? cur.filter(c => c !== u.clave) : [...cur, u.clave];
-                          })}
-                          className="mt-0.5 w-3.5 h-3.5 accent-brand-500" />
-                        <span className="text-stone-700"><span className="font-mono font-semibold">{u.clave}</span>{u.nombre ? ` — ${u.nombre}` : ''}</span>
-                      </label>
-                    );
-                  })}
+                  {!props.auditoriaSel ? (
+                    <>
+                      <div className="px-3 py-2 border-b border-stone-200 sticky top-0 bg-white">
+                        <span className="text-xs font-mono font-bold text-stone-700">Elige la auditoría</span>
+                      </div>
+                      {(props.contratosUT || []).length === 0 ? (
+                        <div className="px-3 py-3 text-xs text-stone-400">Sin auditorías registradas.</div>
+                      ) : (props.contratosUT || []).map(c => (
+                        <button key={c.contrato} type="button"
+                          onClick={() => { props.setAuditoriaSel(c.contrato); props.setSel0037([]); }}
+                          className="w-full flex items-center justify-between px-3 py-2 hover:bg-stone-50 text-xs text-left">
+                          <span className="font-mono font-semibold text-stone-700">{c.contrato}</span>
+                          <span className="text-stone-400">{c.uts.length} UT</span>
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between px-3 py-2 border-b border-stone-200 sticky top-0 bg-white gap-2">
+                        <button onClick={() => { props.setAuditoriaSel(null); props.setSel0037(null); }}
+                          className="text-[11px] text-stone-500 hover:text-stone-700">← Auditorías</button>
+                        <span className="text-xs font-mono font-bold text-stone-700">{props.auditoriaSel}</span>
+                        <button onClick={() => props.setSel0037([])} className="text-[11px] text-brand-600 hover:underline">Limpiar</button>
+                      </div>
+                      {((props.contratosUT || []).find(c => c.contrato === props.auditoriaSel)?.uts || []).map(u => {
+                        const marcada = Array.isArray(props.sel0037) && props.sel0037.includes(u.clave);
+                        return (
+                          <label key={u.clave} className="flex items-start gap-2 px-3 py-1.5 hover:bg-stone-50 cursor-pointer text-xs">
+                            <input type="checkbox" checked={marcada}
+                              onChange={() => props.setSel0037(prev => {
+                                const cur = Array.isArray(prev) ? prev : [];
+                                return cur.includes(u.clave) ? cur.filter(c => c !== u.clave) : [...cur, u.clave];
+                              })}
+                              className="mt-0.5 w-3.5 h-3.5 accent-brand-500" />
+                            <span className="text-stone-700"><span className="font-mono font-semibold">{u.clave}</span>{u.nombre ? ` — ${u.nombre}` : ''}</span>
+                          </label>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
               </>
             )}
