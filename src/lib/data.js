@@ -348,6 +348,8 @@ export async function loadObrasGam() {
       verificadoPorUserId: p.verificado_por_user_id,
       createdBy: p.created_by,
       origen: p.origen,
+      programa: p.programa || null,
+      programaAt: p.programa_at || null,
       estado_verificacion: p.estado_verificacion || 'no_definido',
       estado_verificacion_at: p.estado_verificacion_at,
       estado_verificacion_por_user_id: p.estado_verificacion_por_user_id,
@@ -716,6 +718,16 @@ export async function uploadIncidentPhoto(incidentId, file) {
   }
 }
 
+/** Asigna el programa del poste: 'FIDE', 'CARRANZA' o null (sin asignar). Excluyentes. */
+export async function setPostPrograma(postId, programa) {
+  const sb = requireSupabase();
+  const { data, error } = await withTimeout(
+    sb.rpc('set_post_programa', { p_post_id: postId, p_programa: programa || null }),
+    15000, 'setPostPrograma'
+  );
+  if (error) throw error;
+  return Array.isArray(data) ? data[0] : data;
+}
 /** Guarda el arreglo de URLs de fotos de reporte (al levantar) de una incidencia. */
 export async function setIncidentReportPhotos(incidentId, urls) {
   const sb = requireSupabase();
@@ -1454,6 +1466,7 @@ export default {
   attendIncidentAtomic,
   uploadIncidentPhoto,
   setIncidentReportPhotos,
+  setPostPrograma,
   revertIncidentToOpen,
   getPostHistory,
   uploadStagePhoto,

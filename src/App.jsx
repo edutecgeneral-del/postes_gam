@@ -56,6 +56,7 @@ import {
   attendIncidentAtomic,
   uploadIncidentPhoto,
   setIncidentReportPhotos,
+  setPostPrograma,
   revertIncidentToOpen,
   resetAllData as dbResetAll,
   deletePost as dbDeletePost,
@@ -2198,6 +2199,13 @@ const obrasEnUtIdsRef = useRef(new Set());
                 {fecha && <span>🕒 {fecha}</span>}
               </div>
               <div className="text-stone-600">✏️ Creado por: {post.createdBy ? (_names[post.createdBy] || 'Usuario') : (post.origen === 'carga_arcgis' ? '📥 Carga ArcGIS' : '—')}</div>
+              {post.programa && (
+                <div className="flex items-center gap-1">
+                  <span className={"px-1.5 py-0.5 rounded text-[10px] font-semibold " + (post.programa === 'FIDE' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-indigo-100 text-indigo-700 border border-indigo-300')}>
+                    {post.programa}
+                  </span>
+                </div>
+              )}
               {(incAbiertas > 0 || s?.verified) && (
                 <div className="flex items-center gap-3">
                   {incAbiertas > 0 && <span className="text-rose-600">⚠ {incAbiertas} incidencia{incAbiertas > 1 ? 's' : ''}</span>}
@@ -4496,6 +4504,26 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
   const [photoFiles, setPhotoFiles] = useState([]);
   const [showPwd, setShowPwd] = useState(false);
 
+  // Programa del poste (FIDE / CARRANZA / ninguno) - excluyente. Se captura en E3 (parado).
+  const [programa, setPrograma] = useState(post.programa || null);
+  const [savingPrograma, setSavingPrograma] = useState(false);
+  const guardarPrograma = async (valor) => {
+    if (savingPrograma) return;
+    const anterior = programa;
+    setSavingPrograma(true);
+    setPrograma(valor);
+    try {
+      await setPostPrograma(post.id, valor);
+      if (typeof onUpdate === 'function') onUpdate({ ...post, programa: valor, lastUpdate: Date.now() });
+    } catch (e) {
+      setPrograma(anterior);
+      console.error('set programa failed', e);
+      alert('No se pudo guardar el programa: ' + (e?.message || e));
+    } finally {
+      setSavingPrograma(false);
+    }
+  };
+
   // Mantenimiento de esta etapa (silicón / antena-PoE), sincronizado con Scouting
   const maintCfg = STAGE_MAINT[stage.id] || null;
   const [maintChecks, setMaintChecks] = useState(() => {
@@ -4651,6 +4679,26 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
         </div>
 
         <div className="p-5 space-y-5">
+          {stage.id === 'parado' && (
+            <div className="p-3 border border-stone-300 bg-stone-100/40">
+              <div className="text-[12px] font-mono uppercase tracking-widest text-stone-500 mb-2">Programa del poste</div>
+              <div className="flex items-center gap-2">
+                <button type="button" disabled={savingPrograma}
+                  onClick={function () { guardarPrograma(programa === 'FIDE' ? null : 'FIDE'); }}
+                  className={"flex-1 px-3 py-2 text-xs font-mono uppercase tracking-wider border transition-colors disabled:opacity-50 " + (programa === 'FIDE' ? "bg-emerald-600 border-emerald-700 text-white" : "bg-white border-stone-300 text-stone-600 hover:border-emerald-500 hover:text-emerald-700")}>
+                  Poste FIDE
+                </button>
+                <button type="button" disabled={savingPrograma}
+                  onClick={function () { guardarPrograma(programa === 'CARRANZA' ? null : 'CARRANZA'); }}
+                  className={"flex-1 px-3 py-2 text-xs font-mono uppercase tracking-wider border transition-colors disabled:opacity-50 " + (programa === 'CARRANZA' ? "bg-indigo-600 border-indigo-700 text-white" : "bg-white border-stone-300 text-stone-600 hover:border-indigo-500 hover:text-indigo-700")}>
+                  Poste CARRANZA
+                </button>
+              </div>
+              <div className="text-[11px] text-stone-500 mt-1.5">
+                {programa ? ("Asignado: " + programa) : "Sin asignar"}
+              </div>
+            </div>
+          )}
           {/* Photo — con upload real */}
           {existingPhotos.length > 0 && (
             <div className="p-3 border border-stone-300 bg-stone-100/40">
