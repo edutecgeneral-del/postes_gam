@@ -855,11 +855,29 @@ function formatMeters(m) {
   return `${Math.round(m)} m`;
 }
 
+// Color del punto = ULTIMA etapa marcada como hecha, aunque haya huecos.
+// currentStageOf() devuelve la etapa SIGUIENTE (pendiente), asi que el codigo
+// anterior pintaba el color de lo que FALTA, no de lo que ya se hizo.
 function colorOfPost(p) {
   if (p.blocked) return '#EF4444';
-  const cur = currentStageOf(p);
-  if (cur.state === 'completado') return '#10B981';
-  return cur.stage.color;
+
+  let ultima = null;
+  for (const s of STAGE_DEFS) {
+    if (p.stages?.[s.id]?.done) ultima = s;
+  }
+
+  if (!ultima) return STAGE_DEFS[0].color;
+  return ultima.color;
+}
+
+// Etapas incompletas que quedaron ANTES de la ultima marcada.
+// Ej: E1,E2,E4 hechas => E3 es un hueco: el punto pinta de E4 pero le falta E3.
+// Las etapas posteriores a la ultima hecha son pendientes normales, no huecos.
+function skippedStages(p) {
+  let ultimaIdx = -1;
+  STAGE_DEFS.forEach((s, i) => { if (p.stages?.[s.id]?.done) ultimaIdx = i; });
+  if (ultimaIdx <= 0) return [];
+  return STAGE_DEFS.slice(0, ultimaIdx).filter(s => !p.stages?.[s.id]?.done);
 }
 
 // Cache de estilos de los puntos del mapa (evita crear miles de objetos OLStyle).
@@ -1462,10 +1480,22 @@ const obrasEnUtIdsRef = useRef(new Set());
         }
       }
       const feat = map.forEachFeatureAtPixel(e.pixel, f => f, { hitTolerance: 6 });
-      if (feat) {
-        const post = feat.get('post');
-        if (post) { setHighlightedPostId(post.id); setCardPosts(prev => prev.find(x => x.id === post.id) ? prev : [...prev, post]); return; }
+      const post = feat?.get('post');
+
+      if (post) {
+        // Toggle: si ya estaba abierto, se cierra
+        setCardPosts(prev => {
+          const existe = prev.some(x => x.id === post.id);
+          const next = existe ? prev.filter(x => x.id !== post.id) : [...prev, post];
+          setHighlightedPostId(next.length ? next[next.length - 1].id : null);
+          return next;
+        });
+        return;
       }
+
+      // Clic en espacio vacio: limpiar TODO. Faltaba setHighlightedPostId(null),
+      // por eso el punto se quedaba verde y no se podia deseleccionar.
+      setHighlightedPostId(null);
       setCardPosts([]);
     });
 
@@ -2306,6 +2336,19 @@ const obrasEnUtIdsRef = useRef(new Set());
           <div className="text-stone-600 mt-1 text-[13px]">{hover.post.unidad_territorial} · {hover.post.zona_territorial}</div>
           <div className="text-stone-500 mt-0.5 text-[13px] truncate">{hover.post.direccion}</div>
           <div className="mt-2"><StatusChip post={hover.post} /></div>
+                {(() => {
+                  const saltadas = skippedStages(hover.post);
+                  if (!saltadas.length) return null;
+                  return (
+                    <div className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 border border-amber-200 px-2 py-1.5">
+                      <AlertTriangle size={13} className="text-amber-600 shrink-0 mt-px" />
+                      <div className="text-[12px] leading-tight text-amber-800">
+                        <span className="font-semibold">Etapas saltadas:</span>{' '}
+                        {saltadas.map(s => s.short).join(', ')}
+                      </div>
+                    </div>
+                  );
+                })()}
         </div>
       )}
 
