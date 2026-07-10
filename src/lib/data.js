@@ -375,6 +375,7 @@ export async function loadObrasGam() {
     attendedAt: i.attended_at ? new Date(i.attended_at).getTime() : null,
     attendedNote: i.attended_note || '',
     attendedPhotoUrl: i.attended_photo_url || null,
+      attendedPhotoUrls: i.attended_photo_urls || [],
     reportPhotoUrls: i.report_photo_urls || [],
     resolvedBy: i.resolved_by || null,
     resolvedByName: i.resolved_by_name || '',
@@ -716,6 +717,16 @@ export async function uploadIncidentPhoto(incidentId, file) {
   } finally {
     endUpload();
   }
+}
+
+/** Agrega fotos de atencion a una incidencia (acumula con dedup, colaborativo). */
+export async function addIncidentAttendedPhotos(incidentId, urls) {
+  const sb = requireSupabase();
+  const { error } = await withTimeout(
+    sb.rpc('add_incident_attended_photos', { p_incident_id: incidentId, p_urls: urls || [] }),
+    15000, 'addIncidentAttendedPhotos'
+  );
+  if (error) throw error;
 }
 
 /** Asigna el programa del poste: 'FIDE', 'CARRANZA' o null (sin asignar). Excluyentes. */
@@ -1467,6 +1478,7 @@ export default {
   uploadIncidentPhoto,
   setIncidentReportPhotos,
   setPostPrograma,
+  addIncidentAttendedPhotos,
   revertIncidentToOpen,
   getPostHistory,
   uploadStagePhoto,
@@ -1850,6 +1862,7 @@ export async function loadIncidentsRAAL() {
       attendedAt: i.attended_at ? new Date(i.attended_at).getTime() : null,
       attendedNote: i.attended_note || '',
       attendedPhotoUrl: i.attended_photo_url || null,
+      attendedPhotoUrls: i.attended_photo_urls || [],
       reportPhotoUrls: i.report_photo_urls || [],
       resolvedBy: i.resolved_by || null,
       resolvedByName: i.resolved_by_name || '',

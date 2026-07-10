@@ -57,6 +57,7 @@ import {
   uploadIncidentPhoto,
   setIncidentReportPhotos,
   setPostPrograma,
+  addIncidentAttendedPhotos,
   revertIncidentToOpen,
   resetAllData as dbResetAll,
   deletePost as dbDeletePost,
@@ -6319,7 +6320,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
 
   // Attend flow state
   const [attendingId, setAttendingId] = useState(null);
-  const [attendPhotoFile, setAttendPhotoFile] = useState(null);
+  const [attendPhotoFiles, setAttendPhotoFiles] = useState([]);
   const [movingIncidentId, setMovingIncidentId] = useState(null);
   const [moveTargetStage, setMoveTargetStage] = useState('');
   const [attendNote, setAttendNote] = useState('');
@@ -6917,13 +6918,13 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                       )}
                     </div>
                   )}
-                  {(i.attendedNote || i.attendedPhotoUrl) && (
-                    <div className="mt-1 flex items-start gap-2">
-                      {i.attendedPhotoUrl && (
-                        <a href={i.attendedPhotoUrl} target="_blank" rel="noopener noreferrer">
-                          <img src={i.attendedPhotoUrl} alt="Evidencia" className="w-16 h-16 object-cover rounded border border-blue-300 hover:border-blue-500 flex-shrink-0" />
+                  {(i.attendedNote || (i.attendedPhotoUrls && i.attendedPhotoUrls.length) || i.attendedPhotoUrl) && (
+                    <div className="mt-1 flex items-start gap-2 flex-wrap">
+                      {((i.attendedPhotoUrls && i.attendedPhotoUrls.length) ? i.attendedPhotoUrls : (i.attendedPhotoUrl ? [i.attendedPhotoUrl] : [])).map((u, idx) => (
+                        <a key={idx} href={u} target="_blank" rel="noopener noreferrer">
+                          <img src={u} alt={'Evidencia ' + (idx+1)} className="w-16 h-16 object-cover rounded border border-blue-300 hover:border-blue-500 flex-shrink-0" />
                         </a>
-                      )}
+                      ))}
                       {i.attendedNote && (
                         <div className="text-xs text-blue-600 bg-blue-50 border-l-2 border-blue-300 pl-2 py-1 rounded-r flex-1">
                           {i.attendedNote}
@@ -7007,46 +7008,61 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                         <textarea value={attendNote} onChange={e => setAttendNote(e.target.value)}
                                   rows={2} placeholder="Qué se hizo para resolver... *"
                                   className="w-full bg-white border border-blue-300 rounded px-2 py-1.5 text-[11px] text-stone-700 focus:outline-none focus:border-blue-500 resize-none" />
-                        <div className="flex items-center gap-1.5">
-                          <label className="flex items-center gap-1.5 px-2 py-1.5 border border-dashed border-blue-300 rounded cursor-pointer hover:bg-blue-50 transition-colors">
-                            <ImageIcon className="w-4 h-4 text-blue-400" />
-                            <span className="text-[11px] text-blue-600">Galeria</span>
-                            <input type="file" accept="image/*" className="hidden"
-                                   onChange={e => setAttendPhotoFile(e.target.files?.[0] || null)} />
-                          </label>
-                          <label className="flex items-center gap-1.5 px-2 py-1.5 border border-dashed border-blue-300 rounded cursor-pointer hover:bg-blue-50 transition-colors">
-                            <Camera className="w-4 h-4 text-blue-400" />
-                            <span className="text-[11px] text-blue-600">Camara</span>
-                            <input type="file" accept="image/*" capture="environment" className="hidden"
-                                   onChange={e => setAttendPhotoFile(e.target.files?.[0] || null)} />
-                          </label>
-                          <span className="text-[11px] text-blue-600">{attendPhotoFile ? attendPhotoFile.name.slice(0,18) : 'Foto evidencia *'}</span>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1.5">
+                            <label className="flex items-center gap-1.5 px-2 py-1.5 border border-dashed border-blue-300 rounded cursor-pointer hover:bg-blue-50 transition-colors">
+                              <ImageIcon className="w-4 h-4 text-blue-400" />
+                              <span className="text-[11px] text-blue-600">Galeria</span>
+                              <input type="file" accept="image/*" multiple className="hidden"
+                                     onChange={e => { const fs = Array.from(e.target.files || []); setAttendPhotoFiles(prev => [...prev, ...fs]); e.target.value = ''; }} />
+                            </label>
+                            <label className="flex items-center gap-1.5 px-2 py-1.5 border border-dashed border-blue-300 rounded cursor-pointer hover:bg-blue-50 transition-colors">
+                              <Camera className="w-4 h-4 text-blue-400" />
+                              <span className="text-[11px] text-blue-600">Camara</span>
+                              <input type="file" accept="image/*" capture="environment" className="hidden"
+                                     onChange={e => { const fs = Array.from(e.target.files || []); setAttendPhotoFiles(prev => [...prev, ...fs]); e.target.value = ''; }} />
+                            </label>
+                            <span className="text-[11px] text-blue-600">{attendPhotoFiles.length ? (attendPhotoFiles.length + ' foto(s)') : 'Foto evidencia *'}</span>
+                          </div>
+                          {attendPhotoFiles.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {attendPhotoFiles.map((f, idx) => (
+                                <div key={idx} className="relative">
+                                  <img src={URL.createObjectURL(f)} alt={'Ev ' + (idx+1)} className="w-14 h-14 object-cover rounded border border-amber-400" />
+                                  <button type="button" onClick={() => setAttendPhotoFiles(prev => prev.filter((_, i) => i !== idx))}
+                                          className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-700">
+                                    <X className="w-3 h-3" strokeWidth={2.5} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="flex gap-1">
-                          <button onClick={() => { setAttendingId(null); setAttendPhotoFile(null); }}
+                          <button onClick={() => { setAttendingId(null); setAttendPhotoFiles([]); }}
                                   className="flex-1 px-2 py-1.5 border border-stone-300 text-stone-500 text-[10px] font-mono rounded">Cancelar</button>
                           <button onClick={async () => {
                                     if (!attendNote.trim()) { alert('La nota es obligatoria.'); return; }
-                                    if (!attendPhotoFile) { alert('La foto es obligatoria.'); return; }
+                                    if (!attendPhotoFiles.length) { alert('La foto es obligatoria.'); return; }
                                     setAttending(true);
                                     try {
-                                      await onAttend(i.id, attendNote.trim(), attendPhotoFile);
+                                      await onAttend(i.id, attendNote.trim(), attendPhotoFiles);
                                       setAttendingId(null);
                                       setAttendNote('');
-                                      setAttendPhotoFile(null);
+                                      setAttendPhotoFiles([]);
                                     } catch (e) {
                                       console.error('attend submit failed', e);
                                     } finally {
                                       setAttending(false);
                                     }
-                                  }} disabled={attending || !attendNote.trim() || !attendPhotoFile}
+                                  }} disabled={attending || !attendNote.trim() || !attendPhotoFiles.length}
                                   className="flex-1 px-2 py-1.5 bg-blue-500 text-white text-[10px] font-mono rounded disabled:opacity-40 flex items-center justify-center gap-1">
                             {attending ? <Loader2 className="w-3 h-3 animate-spin" /> : '✓'} Enviar
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <button onClick={() => { setAttendingId(i.id); setAttendNote(''); setAttendPhotoFile(null); }}
+                      <button onClick={() => { setAttendingId(i.id); setAttendNote(''); setAttendPhotoFiles([]); }}
                               className="px-3 py-1.5 border border-blue-400 text-blue-500 hover:bg-blue-500/10 text-xs font-mono uppercase tracking-wider whitespace-nowrap">
                         Atendida
                       </button>
@@ -7083,7 +7099,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                             const lb = sd ? "E" + sd.num + " " + sd.short : moveTargetStage;
                             try {
                               const m = await import("./lib/data.js");
-                              await m.updateStageAtomic(i.postId, moveTargetStage, { done: true, notes: (i.attendedNote || "") + " [evidencia " + i.id + "]", photoUrl: i.attendedPhotoUrl });
+                              await m.updateStageAtomic(i.postId, moveTargetStage, { done: true, notes: (i.attendedNote || "") + " [evidencia " + i.id + "]", photoUrl: ((i.attendedPhotoUrls && i.attendedPhotoUrls.length) ? i.attendedPhotoUrls[0] : i.attendedPhotoUrl) });
                               setMovingIncidentId(null); setMoveTargetStage('');
                               alert("Datos movidos a " + lb + " del poste " + i.postId + ". Presiona SYNC para actualizar la vista.");
                             } catch(e) { alert("Error: " + (e?.message || e)); }
@@ -9149,18 +9165,25 @@ export default function FieldCoordApp() {
   
 
 
-  const attendIncident = useCallback(async (id, note, photoFile) => {
+  const attendIncident = useCallback(async (id, note, photoFiles) => {
     if (!canAttendIncidents(profile) && !canResolveIncidents(profile)) {
       alert('No tienes permisos para marcar incidencias como atendidas.');
       throw new Error('Sin permisos para atender incidencias.');
     }
     try {
-      // Upload photo first if provided
-      let photoUrl = null;
-      if (photoFile) {
-        photoUrl = await uploadIncidentPhoto(id, photoFile);
+      // Subir todas las fotos de evidencia
+      const files = Array.isArray(photoFiles) ? photoFiles : (photoFiles ? [photoFiles] : []);
+      const urls = [];
+      for (const f of files) {
+        try { urls.push(await uploadIncidentPhoto(id, f)); }
+        catch (upErr) { console.error('upload attended photo failed', id, upErr); }
       }
-      const result = await attendIncidentAtomic(id, note, photoUrl);
+      // La primera va al RPC atomico (marca estado + nota); el resto se acumula.
+      const result = await attendIncidentAtomic(id, note, urls[0] || null);
+      if (urls.length) {
+        try { await addIncidentAttendedPhotos(id, urls); }
+        catch (accErr) { console.error('acumular fotos atencion fallo', id, accErr); }
+      }
       setIncidents(prev => prev.map(i => i.id === id ? {
         ...i,
         status: 'atendida',
@@ -9168,7 +9191,8 @@ export default function FieldCoordApp() {
         attendedByName: result.attendedByName,
         attendedAt: result.attendedAt,
         attendedNote: note || '',
-        attendedPhotoUrl: photoUrl,
+        attendedPhotoUrl: urls[0] || null,
+        attendedPhotoUrls: [ ...(i.attendedPhotoUrls || []), ...urls.filter(u => !(i.attendedPhotoUrls || []).includes(u)) ],
       } : i));
     } catch (e) {
       console.error('attendIncident failed', e);
