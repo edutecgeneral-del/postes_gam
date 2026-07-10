@@ -3979,7 +3979,7 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
                           const val = d?.attrs?.[a.key];
                           let display = '—';
                           if (d?.done && val !== undefined && val !== null && val !== '') {
-                            if (a.type === 'image' && typeof val === 'string' && val.startsWith('http')) display = <a href={val} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}><img src={val} alt="" className="w-8 h-8 object-cover rounded border border-stone-300 hover:border-rose-600 inline-block" /></a>;
+                            if (a.type === 'image') { const _u = Array.isArray(val) ? val.filter(x => typeof x === 'string' && x.startsWith('http')) : ((typeof val === 'string' && val.startsWith('http')) ? [val] : []); if (_u.length) display = <span className="inline-flex gap-1">{_u.map((u, i) => <a key={i} href={u} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}><img src={u} alt="" className="w-8 h-8 object-cover rounded border border-stone-300 hover:border-rose-600 inline-block" /></a>)}</span>; }
                             else if (a.type === 'gps' && val && typeof val === 'object' && val.lat) display = `${Number(val.lat).toFixed(4)},${Number(val.lng).toFixed(4)}`;
                             else if (a.type === 'password') display = '•••••';
                             else if (a.type === 'bullet_orientations') display = (Array.isArray(val) ? val : []).filter(v => v).join(', ') || '—';
@@ -4118,8 +4118,10 @@ function PostsList({ posts, onSelect, filterCtx, page, setPage, isAdmin, canMerg
                                       // Respetar showWhen: no mostrar campos condicionales cuya condición no se cumple
                                       if (!showWhenPasses(ad.showWhen, d.attrs)) return null;
                                       let display;
-                                      if (ad.type === 'image' && typeof v === 'string' && v.startsWith('http')) {
-                                        display = <a href={v} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="inline-block"><img src={v} alt="" className="w-10 h-10 object-cover rounded border border-stone-300 hover:border-rose-600" /></a>;
+                                      if (ad.type === 'image') {
+                                        const _u = Array.isArray(v) ? v.filter(x => typeof x === 'string' && x.startsWith('http')) : ((typeof v === 'string' && v.startsWith('http')) ? [v] : []);
+                                        if (_u.length === 0) return null;
+                                        display = <span className="inline-flex gap-1 flex-wrap">{_u.map((u, i) => <a key={i} href={u} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="inline-block"><img src={u} alt="" className="w-10 h-10 object-cover rounded border border-stone-300 hover:border-rose-600" /></a>)}</span>;
                                       }
                                       else if (ad.type === 'gps' && v?.lat) display = `${Number(v.lat).toFixed(4)},${Number(v.lng).toFixed(4)}`;
                                       else if (ad.type === 'password') display = '•••••';
@@ -4772,28 +4774,58 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
                       {a.required && <span className="text-rose-500">*</span>}
                       {a.sensitive && <Lock className="w-3 h-3 text-rose-500" strokeWidth={1.5}/>}
                     </label>
-                    {a.type === 'image' ? (
+                    {a.type === 'image' ? (() => {
+                      const v = attrs[a.key];
+                      const urls = Array.isArray(v)
+                        ? v.filter(u => typeof u === 'string' && u.startsWith('http'))
+                        : ((typeof v === 'string' && v.startsWith('http')) ? [v] : []);
+                      const subir = async (fileList) => {
+                        const fs = Array.from(fileList || []);
+                        if (!fs.length) return;
+                        try {
+                          const nuevas = [];
+                          for (const f of fs) {
+                            const url = await uploadStagePhoto('cascajo', a.key + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,7), f);
+                            nuevas.push(url);
+                          }
+                          if (nuevas.length) setAttrs(prev => {
+                            const cur = Array.isArray(prev[a.key]) ? prev[a.key] : ((typeof prev[a.key] === 'string' && prev[a.key].startsWith('http')) ? [prev[a.key]] : []);
+                            return { ...prev, [a.key]: cur.concat(nuevas) };
+                          });
+                        } catch(err) { alert('Error subiendo foto: ' + (err?.message || err)); }
+                      };
+                      const quitar = (idx) => setAttrs(prev => {
+                        const cur = Array.isArray(prev[a.key]) ? prev[a.key] : ((typeof prev[a.key] === 'string' && prev[a.key].startsWith('http')) ? [prev[a.key]] : []);
+                        return { ...prev, [a.key]: cur.filter((_, i) => i !== idx) };
+                      });
+                      return (
                       <div className="space-y-2">
-                        <label className="flex items-center gap-2 px-3 py-2.5 border border-dashed border-stone-400 rounded-lg cursor-pointer hover:bg-stone-100 transition-colors">
-                          <Camera className="w-5 h-5 text-stone-500" />
-                          <span className="text-sm text-stone-600">{attrs[a.key] && typeof attrs[a.key] === 'string' && attrs[a.key].startsWith('http') ? 'Cambiar foto' : 'Tomar foto'}</span>
-                          <input type="file" accept="image/*" capture="environment" className="hidden"
-                                 onChange={async (e) => {
-                                   const file = e.target.files?.[0];
-                                   if (!file) return;
-                                   try {
-                                     const url = await uploadStagePhoto('cascajo', a.key + '-' + Date.now(), file);
-                                     setAttrs(prev => ({...prev, [a.key]: url}));
-                                   } catch(err) { alert('Error subiendo foto: ' + (err?.message || err)); }
-                                 }} />
-                        </label>
-                        {attrs[a.key] && typeof attrs[a.key] === 'string' && attrs[a.key].startsWith('http') && (
-                          <a href={attrs[a.key]} target="_blank" rel="noopener noreferrer">
-                            <img src={attrs[a.key]} alt="Foto" className="w-full h-32 object-cover rounded border border-stone-300 hover:border-rose-600" />
-                          </a>
+                        <div className="flex items-center gap-2">
+                          <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 border border-dashed border-stone-400 rounded-lg cursor-pointer hover:bg-stone-100 transition-colors">
+                            <ImageIcon className="w-4 h-4 text-stone-500" />
+                            <span className="text-sm text-stone-600">Galeria</span>
+                            <input type="file" accept="image/*" multiple className="hidden"
+                                   onChange={(e) => { subir(e.target.files); e.target.value = ''; }} />
+                          </label>
+                          <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 border border-dashed border-stone-400 rounded-lg cursor-pointer hover:bg-stone-100 transition-colors">
+                            <Camera className="w-4 h-4 text-stone-500" />
+                            <span className="text-sm text-stone-600">Camara</span>
+                            <input type="file" accept="image/*" capture="environment" className="hidden"
+                                   onChange={(e) => { subir(e.target.files); e.target.value = ''; }} />
+                          </label>
+                        </div>
+                        {urls.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {urls.map((url, idx) => (
+                              <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
+                                <img src={url} alt={'Foto ' + (idx+1)} className="w-20 h-20 object-cover rounded border border-stone-300 hover:border-rose-600" />
+                              </a>
+                            ))}
+                          </div>
                         )}
                       </div>
-                    ) : a.type === 'select' ? (
+                      );
+                    })() : a.type === 'select' ? (
                       <select value={attrs[a.key] || ''} onChange={e => setAttrs({...attrs, [a.key]: e.target.value})}
                               className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-rose-600/50">
                         <option value="">— Seleccionar —</option>
@@ -4892,12 +4924,38 @@ function StageEditor({ post, stage, onUpdate, onClose, onCreateIncident, inciden
                           ))}
                         </div>
                       )}
-                      <label className="flex items-center gap-2 px-3 py-2 border border-dashed border-stone-400 rounded-lg cursor-pointer hover:bg-stone-100 transition-colors mb-2">
-                        <Camera className="w-4 h-4 text-stone-500" />
-                        <span className="text-xs text-stone-600">{files.length ? `${files.length} foto(s) nueva(s)` : 'Agregar foto (opcional)'}</span>
-                        <input type="file" accept="image/*" capture="environment" multiple className="hidden"
-                               onChange={e => { const fs = Array.from(e.target.files || []); setMaintPhotoFiles(prev => ({ ...prev, [id]: [...(prev[id] || []), ...fs] })); e.target.value = ''; }} />
-                      </label>
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 border border-dashed border-stone-400 rounded-lg cursor-pointer hover:bg-stone-100 transition-colors">
+                          <ImageIcon className="w-4 h-4 text-stone-500" />
+                          <span className="text-xs text-stone-600">Galeria</span>
+                          <input type="file" accept="image/*" multiple className="hidden"
+                                 onChange={e => { const fs = Array.from(e.target.files || []); setMaintPhotoFiles(prev => ({ ...prev, [id]: [...(prev[id] || []), ...fs] })); e.target.value = ''; }} />
+                        </label>
+                        <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 border border-dashed border-stone-400 rounded-lg cursor-pointer hover:bg-stone-100 transition-colors">
+                          <Camera className="w-4 h-4 text-stone-500" />
+                          <span className="text-xs text-stone-600">Camara</span>
+                          <input type="file" accept="image/*" capture="environment" className="hidden"
+                                 onChange={e => { const fs = Array.from(e.target.files || []); setMaintPhotoFiles(prev => ({ ...prev, [id]: [...(prev[id] || []), ...fs] })); e.target.value = ''; }} />
+                        </label>
+                      </div>
+                      {files.length > 0 && (
+                        <div className="mb-2">
+                          <div className="text-[11px] text-stone-500 mb-1">{files.length + ' foto(s) por subir (se guardan al dar Guardar)'}</div>
+                          <div className="flex flex-wrap gap-2">
+                            {files.map((f, idx) => (
+                              <div key={idx} className="relative">
+                                <img src={URL.createObjectURL(f)} alt={'Nueva ' + (idx + 1)}
+                                     className="w-14 h-14 object-cover rounded border border-amber-400" />
+                                <button type="button"
+                                        onClick={() => setMaintPhotoFiles(prev => ({ ...prev, [id]: (prev[id] || []).filter((_, i) => i !== idx) }))}
+                                        className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-700">
+                                  <X className="w-3 h-3" strokeWidth={2.5} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <input type="text" value={c.notas || ''} onChange={e => setMaintCheck(id, 'notas', e.target.value)}
                              placeholder="Nota (opcional)"
                              className="w-full bg-stone-50 border border-stone-300 px-3 py-2 text-sm text-stone-800 font-mono focus:outline-none focus:border-rose-600/50" />
@@ -6949,12 +7007,21 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                         <textarea value={attendNote} onChange={e => setAttendNote(e.target.value)}
                                   rows={2} placeholder="Qué se hizo para resolver... *"
                                   className="w-full bg-white border border-blue-300 rounded px-2 py-1.5 text-[11px] text-stone-700 focus:outline-none focus:border-blue-500 resize-none" />
-                        <label className="flex items-center gap-2 px-2 py-1.5 border border-dashed border-blue-300 rounded cursor-pointer hover:bg-blue-50 transition-colors">
-                          <Camera className="w-4 h-4 text-blue-400" />
-                          <span className="text-[11px] text-blue-600">{attendPhotoFile ? attendPhotoFile.name.slice(0,20) : 'Foto evidencia *'}</span>
-                          <input type="file" accept="image/*" capture="environment" className="hidden"
-                                 onChange={e => setAttendPhotoFile(e.target.files?.[0] || null)} />
-                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <label className="flex items-center gap-1.5 px-2 py-1.5 border border-dashed border-blue-300 rounded cursor-pointer hover:bg-blue-50 transition-colors">
+                            <ImageIcon className="w-4 h-4 text-blue-400" />
+                            <span className="text-[11px] text-blue-600">Galeria</span>
+                            <input type="file" accept="image/*" className="hidden"
+                                   onChange={e => setAttendPhotoFile(e.target.files?.[0] || null)} />
+                          </label>
+                          <label className="flex items-center gap-1.5 px-2 py-1.5 border border-dashed border-blue-300 rounded cursor-pointer hover:bg-blue-50 transition-colors">
+                            <Camera className="w-4 h-4 text-blue-400" />
+                            <span className="text-[11px] text-blue-600">Camara</span>
+                            <input type="file" accept="image/*" capture="environment" className="hidden"
+                                   onChange={e => setAttendPhotoFile(e.target.files?.[0] || null)} />
+                          </label>
+                          <span className="text-[11px] text-blue-600">{attendPhotoFile ? attendPhotoFile.name.slice(0,18) : 'Foto evidencia *'}</span>
+                        </div>
                         <div className="flex gap-1">
                           <button onClick={() => { setAttendingId(null); setAttendPhotoFile(null); }}
                                   className="flex-1 px-2 py-1.5 border border-stone-300 text-stone-500 text-[10px] font-mono rounded">Cancelar</button>

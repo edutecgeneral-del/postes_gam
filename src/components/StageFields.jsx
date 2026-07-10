@@ -380,27 +380,55 @@ export function StageAttributeField({ attr, value, attrs, onChange, color, showP
   }
 
   if (attr.type === 'image') {
-    const hasPhoto = value && typeof value === 'string' && value.startsWith('http');
+    // Compatibilidad: el valor puede ser un string (formato viejo, 1 foto) o un arreglo (nuevo, varias).
+    const urls = Array.isArray(value)
+      ? value.filter(function (u) { return typeof u === 'string' && u.startsWith('http'); })
+      : ((typeof value === 'string' && value.startsWith('http')) ? [value] : []);
+
+    const subirFotos = async function (fileList) {
+      const files = Array.from(fileList || []);
+      if (files.length === 0) return;
+      try {
+        const { uploadStagePhoto } = await import('../lib/data.js');
+        const nuevas = [];
+        for (const f of files) {
+          const url = await uploadStagePhoto('cascajo', attr.key + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7), f);
+          nuevas.push(url);
+        }
+        if (nuevas.length) onChange(attr.key, urls.concat(nuevas));
+      } catch (err) { alert('Error subiendo foto: ' + (err?.message || err)); }
+    };
+
+    const quitarFoto = function (idx) {
+      onChange(attr.key, urls.filter(function (_, i) { return i !== idx; }));
+    };
+
     return (
       <div className="space-y-2">
-        <label className="flex items-center gap-2 px-3 py-2.5 border border-dashed border-stone-400 rounded-lg cursor-pointer hover:bg-stone-100 transition-colors">
-          <Camera className="w-5 h-5 text-stone-500" />
-          <span className="text-sm text-stone-600">{hasPhoto ? 'Cambiar foto' : 'Tomar foto'}</span>
-          <input type="file" accept="image/*" capture="environment" className="hidden"
-                 onChange={async (e) => {
-                   const file = e.target.files?.[0];
-                   if (!file) return;
-                   try {
-                     const { uploadStagePhoto } = await import('../lib/data.js');
-                     const url = await uploadStagePhoto('cascajo', attr.key + '-' + Date.now(), file);
-                     onChange(attr.key, url);
-                   } catch(err) { alert('Error subiendo foto: ' + (err?.message || err)); }
-                 }} />
-        </label>
-        {hasPhoto && (
-          <a href={value} target="_blank" rel="noopener noreferrer">
-            <img src={value} alt="Foto cascajo" className="w-full h-32 object-cover rounded border border-stone-300 hover:border-brand-600" />
-          </a>
+        <div className="flex items-center gap-2">
+          <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 border border-dashed border-stone-400 rounded-lg cursor-pointer hover:bg-stone-100 transition-colors">
+            <ImageIcon className="w-4 h-4 text-stone-500" />
+            <span className="text-sm text-stone-600">Galeria</span>
+            <input type="file" accept="image/*" multiple className="hidden"
+                   onChange={function (e) { subirFotos(e.target.files); e.target.value = ''; }} />
+          </label>
+          <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 border border-dashed border-stone-400 rounded-lg cursor-pointer hover:bg-stone-100 transition-colors">
+            <Camera className="w-4 h-4 text-stone-500" />
+            <span className="text-sm text-stone-600">Camara</span>
+            <input type="file" accept="image/*" capture="environment" className="hidden"
+                   onChange={function (e) { subirFotos(e.target.files); e.target.value = ''; }} />
+          </label>
+        </div>
+        {urls.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {urls.map(function (url, idx) {
+              return (
+                <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
+                  <img src={url} alt={'Foto ' + (idx + 1)} className="w-20 h-20 object-cover rounded border border-stone-300 hover:border-brand-600" />
+                </a>
+              );
+            })}
+          </div>
         )}
       </div>
     );
