@@ -5,10 +5,10 @@ import OLVectorSource from 'ol/source/Vector';
 import OLGeoJSON from 'ol/format/GeoJSON';
 import { Style, Stroke, Fill } from 'ol/style';
 
-const ROSE_STROKE       = 'rgba(225, 29, 72, 0.55)';
-const ROSE_FILL         = 'rgba(225, 29, 72, 0.04)';
-const ROSE_HOVER_STROKE = 'rgba(225, 29, 72, 0.95)';
-const ROSE_HOVER_FILL   = 'rgba(225, 29, 72, 0.14)';
+const ROSE_STROKE       = 'rgba(0, 102, 255, 0.55)';
+const ROSE_FILL         = 'rgba(0, 102, 255, 0.05)';
+const ROSE_HOVER_STROKE = 'rgba(0, 102, 255, 0.95)';
+const ROSE_HOVER_FILL   = 'rgba(0, 102, 255, 0.16)';
 
 const baseStyle = new Style({
   stroke: new Stroke({ color: ROSE_STROKE, width: 1.2 }),
