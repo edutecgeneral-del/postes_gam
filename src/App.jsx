@@ -136,6 +136,7 @@ import ScoutingRoutePanel from './components/ScoutingRoutePanel.jsx';
 import EnvBanner from './components/EnvBanner.jsx';
 import { assignTagToPost, removeTagFromPost, invalidateTagCatalog } from './lib/tags.js';
 import AntenaForm from './components/AntenaForm.jsx';
+import EstadosUTView from './components/EstadosUTView.jsx';
 import IncidentForm from './components/IncidentForm.jsx';
 
 
@@ -8516,7 +8517,7 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
 const NAV_GROUPS = [
   { id: 'dashboard',      label: 'Dashboard',      tabIds: ['dashboard', 'mipanel'] },
   { id: 'trabajo',        label: 'Trabajo',        tabIds: ['captura', 'scouting', 'mapa', 'postes'] },
-  { id: 'administrativo', label: 'Administrativo', tabIds: ['incidencias', 'propuestas', 'inventario', 'usuarios', 'auditoria', 'informe', 'geo_v2'] },
+  { id: 'administrativo', label: 'Administrativo', tabIds: ['incidencias', 'propuestas', 'inventario', 'usuarios', 'auditoria', 'estados_ut', 'informe', 'geo_v2'] },
 ];
 
 // Resuelve NAV_GROUPS contra las pestañas visibles (appTabs) y descarta los
@@ -9335,6 +9336,7 @@ export default function FieldCoordApp() {
     { id: 'inventario',  label: 'Inventario',   icon: Package,       show: isAdmin || isDirector },
     { id: 'usuarios',    label: 'Usuarios',     icon: Users,         show: isAdmin },
     { id: 'auditoria',   label: 'Auditoría',    icon: ListChecks,    show: isAdmin || isDirector },
+    { id: 'estados_ut',  label: 'Estados UT',   icon: MapPin,        show: isAdmin },
     { id: 'informe',     label: 'Informe',      icon: ClipboardList, show: isAdmin || isDirector },
     { id: 'geo_v2',      label: 'Geo v2',       icon: Layers,        show: isAdmin || isDirector || isCoordinador },
   ].filter(t => t.show);
@@ -9552,6 +9554,7 @@ export default function FieldCoordApp() {
           {activeTab === 'dashboard' && isRAAL && <RAALDashboard posts={posts} />}
           {activeTab === 'mipanel' && <MiPanel posts={posts} incidents={incidents} profile={profile} userRole={userRole} stageDefs={STAGE_DEFS} />}
           {activeTab === 'geo_v2' && <GeoV2View userRole={userRole} />}
+        {activeTab === 'estados_ut' && <EstadosUTView unidadesTerritoriales={unidadesTerritoriales} posts={posts} onRefresh={refreshData} />}
           {activeTab === 'mapa' && (
             <div className="h-full flex flex-col">
               <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-stone-300 flex items-center gap-3 flex-wrap">

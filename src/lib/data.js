@@ -395,6 +395,8 @@ export async function loadObrasGam() {
     zona: u.zona,
     responsable: u.responsable,
     notes: u.notes,
+    estado: u.estado || null,
+    estadoAt: u.estado_at || null,
   }));
 
   return { posts, incidents, unidadesTerritoriales };
@@ -717,6 +719,28 @@ export async function uploadIncidentPhoto(incidentId, file) {
   } finally {
     endUpload();
   }
+}
+
+/** Asigna el estado de entrega de una UT (solo admin). Devuelve {clave, estado, incidencias_afectadas, postes_incompletos}. */
+export async function setUtEstado(clave, estado) {
+  const sb = requireSupabase();
+  const { data, error } = await withTimeout(
+    sb.rpc('set_ut_estado', { p_clave: clave, p_estado: estado }),
+    15000, 'setUtEstado'
+  );
+  if (error) throw error;
+  return Array.isArray(data) ? data[0] : data;
+}
+
+/** Desglose de una UT: postes y sus incidencias no resueltas (para el modal de urgencia). */
+export async function getUtDesglose(clave) {
+  const sb = requireSupabase();
+  const { data, error } = await withTimeout(
+    sb.rpc('get_ut_desglose', { p_clave: clave }),
+    15000, 'getUtDesglose'
+  );
+  if (error) throw error;
+  return data || [];
 }
 
 /** Agrega fotos de atencion a una incidencia (acumula con dedup, colaborativo). */
@@ -1479,6 +1503,8 @@ export default {
   setIncidentReportPhotos,
   setPostPrograma,
   addIncidentAttendedPhotos,
+  setUtEstado,
+  getUtDesglose,
   revertIncidentToOpen,
   getPostHistory,
   uploadStagePhoto,
