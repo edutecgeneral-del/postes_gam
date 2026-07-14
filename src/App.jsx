@@ -59,6 +59,7 @@ import {
   setPostPrograma,
   addIncidentAttendedPhotos,
   revertIncidentToOpen,
+  updateIncidentSeverity as dbUpdateIncidentSeverity,
   resetAllData as dbResetAll,
   deletePost as dbDeletePost,
   getPostHistory,
@@ -5076,7 +5077,7 @@ function ZoomablePhoto({ src, alt = '', thumbClass = 'w-6 h-6', borderClass = 'b
   );
 }
 
-function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, onCreateIncident, onResolve, canResolve = false, viewMode, userNames = {}, isAdmin = false, onVerifyStage, onUnverifyStage, onDelete, initialStageId, onStartEditPosition, onRequestRelocate, canViewHistory = false, historyRefreshKey, onOpenAntena, onToggleRevisado, onGoToIncident, onAddPhotos }) {
+function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, onCreateIncident, onResolve, canResolve = false, viewMode, userNames = {}, isAdmin = false, onVerifyStage, onUnverifyStage, onDelete, initialStageId, onStartEditPosition, onRequestRelocate, canViewHistory = false, historyRefreshKey, onOpenAntena, onToggleRevisado, onGoToIncident, onAddPhotos, updateIncidentSeverity }) {
   const [editingStage, setEditingStage] = useState(() => initialStageId ? (STAGE_DEFS.find(s => s.id === initialStageId) || null) : null);
   const [notes, setNotes] = useState('');
   const [showBlockForm, setShowBlockForm] = useState(false);
@@ -5224,7 +5225,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                 <div className="text-[10px] font-mono text-stone-400">Creado por: {post.createdBy ? (userNames[post.createdBy] || 'Usuario') : (post.origen === 'carga_arcgis' ? '📥 Carga ArcGIS' : '—')}</div>
                 {post.stages?.conexion_poste?.attrs?.avance_con_pendientes ? (
                   <div className="mt-2 text-[12px] leading-snug font-mono text-amber-900 bg-amber-200 border border-amber-500 border-l-4 border-l-amber-700 rounded px-2.5 py-1.5">
-                    ⚠️ Avanzó a la fase de red (IPs) sin completar: {(post.stages.conexion_poste.attrs.avance_con_pendientes || []).map((s, i) => { const d = STAGE_DEFS.find(x => x.id === s); return <span key={s} style={{ color: d?.color }} className="font-semibold">{i > 0 ? ', ' : ''}{d ? ('E' + d.num + ' ' + d.name) : s}</span>; })}
+                    ⚠️ Avanzó a la fase de red (IPs) sin completar: {(post.stages.conexion_poste.attrs.avance_con_pendientes || []).map((s, i) => { const d = STAGE_DEFS.find(x => x.id === s); return <span key={s} style={{ color: d?.color }} className="font-semibold">{i > 0 ? ', ' : ''}{d ? ('E' + d.num) : s}</span>; })}
                     {(post.stages.conexion_poste.attrs.avance_override_nombre || userNames[post.stages.conexion_poste.attrs.avance_override_por]) ? (' - por ' + (post.stages.conexion_poste.attrs.avance_override_nombre || userNames[post.stages.conexion_poste.attrs.avance_override_por])) : ''}
                     {post.stages.conexion_poste.attrs.avance_override_at ? (' - ' + new Date(post.stages.conexion_poste.attrs.avance_override_at).toLocaleDateString('es-MX')) : ''}
                   </div>
@@ -5785,6 +5786,28 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                             </button>
                           </div>
                         )}
+                        {isAdmin && updateIncidentSeverity && (
+                          <div className="mt-2.5 pt-2.5 border-t border-stone-200">
+                            <div className="text-[10px] font-mono uppercase tracking-widest text-stone-500 mb-1.5">Cambiar Severidad</div>
+                            <div className="flex gap-1 flex-wrap">
+                              {['baja', 'media', 'alta'].map((sev) => (
+                                <button
+                                  key={sev}
+                                  onClick={() => updateIncidentSeverity(i.id, sev)}
+                                  className={`px-3 py-1 text-[11px] font-mono rounded border transition-all ${
+                                    i.severity === sev
+                                      ? sev === 'alta' ? 'bg-red-600 text-white border-red-600'
+                                        : sev === 'media' ? 'bg-amber-600 text-white border-amber-600'
+                                        : 'bg-blue-600 text-white border-blue-600'
+                                      : 'bg-stone-100 border-stone-300 hover:bg-stone-200 text-stone-700'
+                                  }`}
+                                >
+                                  {sev === 'alta' ? '🔴 Alta' : sev === 'media' ? '🟠 Media' : '🔵 Baja'}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                       ); })}
                 </div>
@@ -6273,7 +6296,7 @@ function ProposalsView({ proposals, posts, userNames, isAdmin, isCoordinador, on
   );
 }
 
-function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isDirector, profile, onDelete, onAttend, canAttend, canResolve, onRevert, externalNav, onJumpToMap, isRAAL = false, onAddPhotos }) {
+function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isDirector, profile, onDelete, onAttend, canAttend, canResolve, onRevert, externalNav, onJumpToMap, isRAAL = false, onAddPhotos, updateIncidentSeverity }) {
   const [filter, setFilter] = useState(externalNav?.filter || 'abierta');
   const [search, setSearch] = useState(externalNav?.search || '');
   const [filterCategory, setFilterCategory] = useState('todas');
@@ -6821,6 +6844,29 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
                     <span className="font-mono text-sm text-rose-500">{i.postId}</span>
                     {post && <span className="text-[13px] text-stone-500">{post.unidad_territorial}</span>}
                     <SevBadge level={i.severity} /><EstadoBadge status={i.status} />
+                    {/* === CAMBIAR SEVERIDAD (Solo Admin) === */}
+{isAdmin && (
+  <div className="mt-3 pt-3 border-t border-stone-200">
+    <div className="text-[10px] font-mono uppercase tracking-widest text-stone-500 mb-1.5">Cambiar Severidad</div>
+    <div className="flex gap-1 flex-wrap">
+      {['baja', 'media', 'alta'].map((sev) => (
+        <button
+          key={sev}
+          onClick={() => updateIncidentSeverity(i.id, sev)}
+          className={`px-4 py-1.5 text-xs font-mono rounded border transition-all ${
+            i.severity === sev
+              ? sev === 'alta' ? 'bg-red-600 text-white border-red-600' 
+                : sev === 'media' ? 'bg-amber-600 text-white border-amber-600' 
+                : 'bg-blue-600 text-white border-blue-600'
+              : 'bg-stone-100 border-stone-300 hover:bg-stone-200 text-stone-700'
+          }`}
+        >
+          {sev === 'alta' ? '🔴 Alta' : sev === 'media' ? '🟠 Media' : '🔵 Baja'}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
                   </div>
                   {/* Row 1b: acciones de navegacion (ir al punto / ver detalles) */}
                   {post && (
@@ -9225,6 +9271,22 @@ export default function FieldCoordApp() {
     }
   }, [profile]);
 
+  
+
+  const handleUpdateSeverity = useCallback(async (id, severity) => {
+    if (!isAdmin) { alert('Solo administradores pueden cambiar la severidad.'); return; }
+    const prev = incidents.find(i => i.id === id);
+    if (!prev || prev.severity === severity) return;
+    // Optimista: pinta el cambio ya, y revierte si el UPDATE falla
+    setIncidents(list => list.map(i => i.id === id ? { ...i, severity } : i));
+    try {
+      await dbUpdateIncidentSeverity(id, severity);
+    } catch (e) {
+      setIncidents(list => list.map(i => i.id === id ? { ...i, severity: prev.severity } : i));
+      alert('No se pudo cambiar la severidad.\n\n' + (e?.message || e));
+    }
+  }, [isAdmin, incidents]);
+
   const deleteIncident = useCallback(async (id) => {
     if (!isAdmin) {
       alert('Solo administradores pueden borrar incidencias.');
@@ -9672,7 +9734,7 @@ export default function FieldCoordApp() {
               onOpenPostDetail={openPostDetail}
             />
           )}
-          {activeTab === 'incidencias' && <IncidentsView incidents={isRAAL ? incidentsRAAL : incidents} isRAAL={isRAAL} posts={posts} onResolve={readOnly ? null : resolveIncident} onSelectPost={setSelectedPost} isAdmin={isAdmin} isDirector={isDirector} profile={profile} onDelete={isAdmin ? deleteIncident : null} onAttend={attendIncident} canAttend={canAttendIncidents(effectiveProfile)} canResolve={canResolveIncidents(effectiveProfile)} onRevert={revertIncident} onJumpToMap={(p) => { setMapFocusPost(p); setMapFocusKey(k => k + 1); setActiveTab('mapa'); }} externalNav={incidenciasNav} onAddPhotos={handleAddIncidentPhotos} />}
+          {activeTab === 'incidencias' && <IncidentsView incidents={isRAAL ? incidentsRAAL : incidents} isRAAL={isRAAL} posts={posts} onResolve={readOnly ? null : resolveIncident} onSelectPost={setSelectedPost} isAdmin={isAdmin} isDirector={isDirector} profile={profile} onDelete={isAdmin ? deleteIncident : null} onAttend={attendIncident} canAttend={canAttendIncidents(effectiveProfile)} canResolve={canResolveIncidents(effectiveProfile)} onRevert={revertIncident} onJumpToMap={(p) => { setMapFocusPost(p); setMapFocusKey(k => k + 1); setActiveTab('mapa'); }} updateIncidentSeverity={handleUpdateSeverity} externalNav={incidenciasNav} onAddPhotos={handleAddIncidentPhotos} />}
           {activeTab === 'propuestas' && (isAdmin || isCoordinador) && (
             <ProposalsView
               proposals={proposals}
@@ -9709,7 +9771,7 @@ export default function FieldCoordApp() {
       </div>
 
       {selectedPost && (
-        <PostDetailDrawer post={selectedPost} onClose={closePostDetail}
+        <PostDetailDrawer post={selectedPost} onClose={closePostDetail} updateIncidentSeverity={handleUpdateSeverity}
             onAddPhotos={handleAddIncidentPhotos}
             onGoToIncident={(incId) => {
               setIncidenciasNav({ search: incId, sev: 'todas', estado: 'todos', bloqueados: false, ts: Date.now() });

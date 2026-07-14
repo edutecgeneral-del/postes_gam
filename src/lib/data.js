@@ -782,6 +782,17 @@ export async function revertIncidentToOpen(incidentId) {
   return data;
 }
 
+/** Cambia la severidad de una incidencia (admin). UPDATE directo; la RLS incidents_update_field_roles ya permite UPDATE a admin. */
+export async function updateIncidentSeverity(incidentId, severity) {
+  const sb = requireSupabase();
+  const { data, error } = await withTimeout(
+    sb.from('incidents').update({ severity }).eq('id', incidentId).select('id, severity').single(),
+    15000, 'updateIncidentSeverity'
+  );
+  if (error) throw error;
+  return data; // { id, severity }
+}
+
 
 
 /**
@@ -1506,6 +1517,7 @@ export default {
   setUtEstado,
   getUtDesglose,
   revertIncidentToOpen,
+  updateIncidentSeverity,
   getPostHistory,
   uploadStagePhoto,
   deleteStagePhoto,
