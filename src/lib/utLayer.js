@@ -23,6 +23,13 @@ const invisibleStyle = new Style({
   fill:   new Fill({ color: 'rgba(0,0,0,0)' }),
 });
 
+// Estilos por estado de entrega de la UT (liberado/pendiente/urgencia)
+const ESTADO_STYLES = {
+  liberado:  new Style({ stroke: new Stroke({ color: 'rgba(16, 185, 129, 0.85)', width: 2 }), fill: new Fill({ color: 'rgba(16, 185, 129, 0.28)' }) }),
+  pendiente: new Style({ stroke: new Stroke({ color: 'rgba(245, 158, 11, 0.85)', width: 2 }), fill: new Fill({ color: 'rgba(245, 158, 11, 0.28)' }) }),
+  urgencia:  new Style({ stroke: new Stroke({ color: 'rgba(239, 68, 68, 0.9)',   width: 2 }), fill: new Fill({ color: 'rgba(239, 68, 68, 0.30)' }) }),
+};
+
 export function createUtLayer({ baseUrl = '/' } = {}) {
   const normalized = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
   const source = new OLVectorSource({
@@ -38,6 +45,14 @@ export function createUtLayer({ baseUrl = '/' } = {}) {
     properties: { id: 'ut-boundaries', utFilter: null },
   });
   layer.setStyle((feature) => {
+    // Modo "colorear por estado": si esta activo, pinta verde/amarillo/rojo segun el estado de la UT.
+    const estadoMap = layer.get('estadoMap');
+    if (estadoMap) {
+      const nm = feature.get('nombre_uat');
+      const est = estadoMap[nm];
+      if (feature.get('__hover') && est) return ESTADO_STYLES[est];
+      return est ? ESTADO_STYLES[est] : invisibleStyle;
+    }
     if (feature.get('__hover')) return hoverStyle;
     const filter = layer.get('utFilter');
     if (!filter) return baseStyle;
@@ -55,6 +70,18 @@ export function setUtFilter(layer, nameSet) {
   if (source) {
     source.forEachFeature((f) => f.changed());
   }
+  layer.changed();
+}
+
+// Activa el modo "colorear por estado". estadoMap = { nombre_uat: 'liberado'|'pendiente'|'urgencia' }.
+// Pasa null para desactivar y volver al comportamiento normal.
+export function setUtEstadoMap(layer, estadoMap) {
+  if (!layer) return;
+  // estadoMap = objeto (aunque este vacio) => modo estado ACTIVO; null/undefined => modo apagado.
+  // Un objeto vacio significa "activo pero ninguna UT coincide" (todo invisible), NO azul.
+  layer.set('estadoMap', estadoMap ? estadoMap : null);
+  const source = layer.getSource();
+  if (source) source.forEachFeature((f) => f.changed());
   layer.changed();
 }
 

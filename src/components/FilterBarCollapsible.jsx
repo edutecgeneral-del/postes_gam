@@ -16,7 +16,7 @@ function countActiveFilters(filters = {}) {
   return n;
 }
 
-// Herramienta "Medir" — vive fuera del menú de filtros porque no es un filtro.
+// Herramienta "Medir" â€” vive fuera del menÃº de filtros porque no es un filtro.
 function MeasureButton({ measureMode, setMeasureMode }) {
   return (
     <button
@@ -28,7 +28,7 @@ function MeasureButton({ measureMode, setMeasureMode }) {
           : 'bg-stone-50 border-stone-300 text-stone-700 hover:border-stone-500'
       }`}
     >
-      📏 {measureMode ? 'Medir (ON)' : 'Medir'}
+      ðŸ“ {measureMode ? 'Medir (ON)' : 'Medir'}
     </button>
   );
 }
@@ -36,6 +36,7 @@ function MeasureButton({ measureMode, setMeasureMode }) {
 export function FilterBarCollapsible(props) {
   const isMobile = useIsMobile();
   const [open0037, setOpen0037] = useState(false);
+  const [openEstadoUt, setOpenEstadoUt] = useState(false);
   const [open, setOpen] = useState(false);
   const activeCount = countActiveFilters(props.filters);
   const { measureMode, setMeasureMode } = props;
@@ -60,9 +61,9 @@ export function FilterBarCollapsible(props) {
                   ? 'bg-brand-50 border-brand-400 text-brand-700'
                   : 'bg-stone-50 border-stone-300 text-stone-700 hover:border-brand-400'
               }`}
-              title="Filtrar postes por UT de una auditoría"
+              title="Filtrar postes por UT de una auditorÃ­a"
             >
-              Auditorías{Array.isArray(props.sel0037) && props.sel0037.length > 0 ? ` (${props.sel0037.length})` : ''}
+              AuditorÃ­as{Array.isArray(props.sel0037) && props.sel0037.length > 0 ? ` (${props.sel0037.length})` : ''}
             </button>
             {open0037 && (
               <>
@@ -71,10 +72,10 @@ export function FilterBarCollapsible(props) {
                   {!props.auditoriaSel ? (
                     <>
                       <div className="px-3 py-2 border-b border-stone-200 sticky top-0 bg-white">
-                        <span className="text-xs font-mono font-bold text-stone-700">Elige la auditoría</span>
+                        <span className="text-xs font-mono font-bold text-stone-700">Elige la auditorÃ­a</span>
                       </div>
                       {(props.contratosUT || []).length === 0 ? (
-                        <div className="px-3 py-3 text-xs text-stone-400">Sin auditorías registradas.</div>
+                        <div className="px-3 py-3 text-xs text-stone-400">Sin auditorÃ­as registradas.</div>
                       ) : (props.contratosUT || []).map(c => (
                         <button key={c.contrato} type="button"
                           onClick={() => { props.setAuditoriaSel(c.contrato); props.setSel0037([]); }}
@@ -88,7 +89,7 @@ export function FilterBarCollapsible(props) {
                     <>
                       <div className="flex items-center justify-between px-3 py-2 border-b border-stone-200 sticky top-0 bg-white gap-2">
                         <button onClick={() => { props.setAuditoriaSel(null); props.setSel0037(null); }}
-                          className="text-[11px] text-stone-500 hover:text-stone-700">← Auditorías</button>
+                          className="text-[11px] text-stone-500 hover:text-stone-700">â† AuditorÃ­as</button>
                         <span className="text-xs font-mono font-bold text-stone-700">{props.auditoriaSel}</span>
                         <button onClick={() => props.setSel0037([])} className="text-[11px] text-brand-600 hover:underline">Limpiar</button>
                       </div>
@@ -102,7 +103,7 @@ export function FilterBarCollapsible(props) {
                                 return cur.includes(u.clave) ? cur.filter(c => c !== u.clave) : [...cur, u.clave];
                               })}
                               className="mt-0.5 w-3.5 h-3.5 accent-brand-500" />
-                            <span className="text-stone-700"><span className="font-mono font-semibold">{u.clave}</span>{u.nombre ? ` — ${u.nombre}` : ''}</span>
+                            <span className="text-stone-700"><span className="font-mono font-semibold">{u.clave}</span>{u.nombre ? ` â€” ${u.nombre}` : ''}</span>
                           </label>
                         );
                       })}
@@ -113,12 +114,11 @@ export function FilterBarCollapsible(props) {
             )}
           </div>
         )}
-        <FilterBar {...props} layout="menu" />
-      </div>
+        <FilterBar {...props} layout="menu" />      </div>
     );
   }
 
-  // Móvil: trigger + bottom sheet, con las mismas secciones agrupadas dentro.
+  // MÃ³vil: trigger + bottom sheet, con las mismas secciones agrupadas dentro.
   return (
     <div className="flex items-center gap-2">
       {measureBtn}
@@ -147,7 +147,7 @@ export function FilterBarCollapsible(props) {
             <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-stone-200">
               <span className="font-mono text-sm text-stone-800 flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-brand-500" /> Filtros
-                {activeCount > 0 && <span className="text-stone-400">· {activeCount} activos</span>}
+                {activeCount > 0 && <span className="text-stone-400">Â· {activeCount} activos</span>}
               </span>
               <button
                 onClick={() => setOpen(false)}

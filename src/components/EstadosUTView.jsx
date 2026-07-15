@@ -106,6 +106,8 @@ export default function EstadosUTView({ unidadesTerritoriales = [], posts = [], 
       if (nuevoEstado === 'urgencia' && afectadas > 0) txt += ` ${afectadas} incidencia(s) pasaron a urgente.`;
       if (afectadas > 0 && nuevoEstado !== 'urgencia') txt += ` ${afectadas} incidencia(s) restauraron su severidad.`;
       setMensaje({ tipo: 'ok', texto: txt });
+      // Recargar datos globales para que el mapa y las incidencias reflejen el cambio sin refrescar
+      if (onRefresh) { try { await onRefresh(true); } catch {} }
     } catch (e) {
       setMensaje({ tipo: 'error', texto: 'Error: ' + (e?.message || e) });
     } finally {
@@ -120,6 +122,7 @@ export default function EstadosUTView({ unidadesTerritoriales = [], posts = [], 
       await setUtEstado(clave, null);
       setEstadosLocal(prev => ({ ...prev, [clave]: null }));
       setMensaje({ tipo: 'ok', texto: `${clave} → sin estado.` });
+      if (onRefresh) { try { await onRefresh(true); } catch {} }
     } catch (e) {
       setMensaje({ tipo: 'error', texto: 'Error: ' + (e?.message || e) });
     } finally {

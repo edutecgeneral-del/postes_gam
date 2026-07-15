@@ -24,7 +24,7 @@ import { fromLonLat as olFromLonLat, toLonLat as olToLonLat } from 'ol/proj';
 import { Translate as OLTranslate } from 'ol/interaction';
 import OLCollection from 'ol/Collection';
 import { boundingExtent as olBoundingExtent } from 'ol/extent';
-import { createUtLayer, createUtLayerDGSU, setUtHover, getUtName, setUtFilter } from './lib/utLayer.js';
+import { createUtLayer, createUtLayerDGSU, setUtHover, getUtName, setUtFilter, setUtEstadoMap } from './lib/utLayer.js';
 import UtReviewPanel from './components/UtReviewPanel.jsx';
 import {
   loadAllData,
@@ -567,6 +567,7 @@ function IncidentPhotoThumb({ url, idx }) {
 }
 function SevBadge({ level }) {
   const map = {
+    urgente: { bg: '#B91C1C', label: 'Urgente', dark: false },
     alta:  { bg: '#DC2626', label: 'Alta',  dark: false },
     media: { bg: '#F59E0B', label: 'Media', dark: true  },
     baja:  { bg: '#3B82F6', label: 'Baja',  dark: false }
@@ -666,7 +667,7 @@ function AlertBell({ incidents, posts, onGoIncident, onGoMap }) {
     }
     prevCountRef.current = count;
   }, [count]);
-  const sevColor = { alta: '#DC2626', media: '#F59E0B', baja: '#3B82F6' };
+  const sevColor = { urgente: '#B91C1C', alta: '#DC2626', media: '#F59E0B', baja: '#3B82F6' };
 
   return (
     <div className="relative" ref={ref}>
@@ -998,7 +999,7 @@ function readStoredMapView() {
 function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetail, filters, onCapturePost, stageDefs, darkMode, obrasGam = [], canSeeDGSU = false,
                    measureMode = false, setMeasureMode, measurePoints = [], setMeasurePoints,
                    editingPostId, onConfirmRelocate, onCancelRelocate,
-                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, canMerge = false, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado, sel0037 = null }) {
+                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, canMerge = false, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado, sel0037 = null, estadosUtSel = [] }) {
   const containerRef = useRef(null);
   const isMobile = useIsMobile();
   const mapRef = useRef(null);
@@ -1145,11 +1146,25 @@ const obrasEnUtIdsRef = useRef(new Set());
   // La capa es visible si: el usuario activo el boton UT del mapa O hay filtro arriba.
   useEffect(() => {
     const hayFiltro = (filters?.uts?.length || 0) > 0;
+    const sel = estadosUtSel || [];
+    const estadoOn = sel.length > 0; // vacio = apagado
     if (utPolygonLayerRef.current) {
-      utPolygonLayerRef.current.setVisible(hayFiltro || showUts);
+      utPolygonLayerRef.current.setVisible(hayFiltro || showUts || estadoOn);
+      // Modo "colorear por estado": pinta solo las UTs cuyo estado este marcado en el filtro.
+      // Se pueden marcar varios (liberado + urgencia, etc.).
+      if (estadoOn) {
+        const m = {};
+        for (const u of (unidadesTerritoriales || [])) {
+          if (!u.nombre || !u.estado) continue;
+          if (sel.includes(u.estado)) m[u.nombre] = u.estado;
+        }
+        setUtEstadoMap(utPolygonLayerRef.current, m);
+      } else {
+        setUtEstadoMap(utPolygonLayerRef.current, null);
+      }
     }
-    if (!showUts && !hayFiltro) setUtHoverName(null);
-  }, [showUts, filters?.uts]);
+    if (!showUts && !hayFiltro && !estadoOn) setUtHoverName(null);
+  }, [showUts, estadosUtSel, filters?.uts, unidadesTerritoriales]);
 
   // Handler de hover sobre poligonos UT (tooltip flotante)
   useEffect(() => {
@@ -2438,6 +2453,7 @@ const obrasEnUtIdsRef = useRef(new Set());
             UT
           </button>
         )}
+
         {canSeeDGSU && (
           <button onClick={() => setCapaDGSU(v => !v)}
                   className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 font-mono text-[10px] font-bold ${capaDGSU ? 'text-white bg-[#d72f89]' : 'text-stone-600 hover:bg-stone-50'}`}
@@ -6328,7 +6344,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
       // Formato viejo (Informe): mapear filter -> ejes
       if (externalNav.filter !== undefined) {
         const f = externalNav.filter;
-        if (f === 'alta' || f === 'media' || f === 'baja') { setFilterSev(f); setFilterEstado('todos'); setSoloBloqueados(false); }
+        if (f === 'urgente' || f === 'alta' || f === 'media' || f === 'baja') { setFilterSev(f); setFilterEstado('todos'); setSoloBloqueados(false); }
         else if (f === 'abierta' || f === 'atendida' || f === 'resuelta') { setFilterEstado(f); setFilterSev('todas'); setSoloBloqueados(false); }
         else if (f === 'bloqueados') { setSoloBloqueados(true); setFilterSev('todas'); setFilterEstado('todos'); }
         else { setFilterSev('todas'); setFilterEstado('todos'); setSoloBloqueados(false); }
@@ -6759,6 +6775,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
         <select value={filterSev} onChange={e => setFilterSev(e.target.value)}
           className="bg-stone-100 border border-stone-300 px-3 py-2 text-xs font-mono text-stone-700 focus:outline-none focus:border-rose-500">
           <option value="todas">Severidad: todas</option>
+          <option value="urgente">Urgente</option>
           <option value="alta">Alta</option>
           <option value="media">Media</option>
           <option value="baja">Baja</option>
@@ -6835,7 +6852,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
             <div key={i.id} className="px-5 py-4 hover:bg-rose-500/5 transition-colors">
               <div className="flex items-start gap-4">
                 <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                  i.severity === 'alta' ? 'bg-red-500' : i.severity === 'media' ? 'bg-amber-500' : 'bg-gray-400'
+                  i.severity === 'urgente' ? 'bg-red-700' : i.severity === 'alta' ? 'bg-red-500' : i.severity === 'media' ? 'bg-amber-500' : 'bg-gray-400'
                 } ${i.status === 'abierta' ? 'animate-pulse' : ''}`} />
                 <div className="flex-1 min-w-0">
                   {/* Row 1: ID, post, UT, severity, status */}
@@ -8695,6 +8712,7 @@ export default function FieldCoordApp() {
   const [contratosUT, setContratosUT] = useState([]);        // [{contrato, uts:[{clave,nombre}]}]
   const [auditoriaSel, setAuditoriaSel] = useState(null);    // contrato elegido en el dropdown
   const [sel0037, setSel0037] = useState(null); // null=filtro apagado; []=activo sin UT; [...]=UTs marcadas (admin)
+  const [estadosUtSel, setEstadosUtSel] = useState([]); // arreglo de estados a pintar: 'liberado'|'pendiente'|'urgencia'
   const [incidentsRAAL, setIncidentsRAAL] = useState([]);
   // PR B Lote 3: state para el modal de recuperar antena (admin)
   const [antenaModalPost, setAntenaModalPost] = useState(null);
@@ -9649,6 +9667,8 @@ export default function FieldCoordApp() {
                     setAuditoriaSel={setAuditoriaSel}
                     sel0037={sel0037}
                     setSel0037={setSel0037}
+                    estadosUtSel={estadosUtSel}
+                    setEstadosUtSel={setEstadosUtSel}
                     measureMode={measureMode}
                     setMeasureMode={setMeasureMode}
                     unidadesTerritoriales={unidadesTerritoriales}
@@ -9656,7 +9676,7 @@ export default function FieldCoordApp() {
                 </div>
               </div>
               <div className="flex-1 p-4">
-                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} openPostDetail={openPostDetail} filters={mapFilterCtx.filters} incidents={incidents} userNames={userNames} obrasGam={obrasGam} canSeeDGSU={canSeeDGSU} sel0037={sel0037}
+                <MapView posts={posts} setPosts={setPosts} selectedPost={selectedPost} setSelectedPost={setSelectedPost} openPostDetail={openPostDetail} filters={mapFilterCtx.filters} incidents={incidents} userNames={userNames} obrasGam={obrasGam} canSeeDGSU={canSeeDGSU} sel0037={sel0037} estadosUtSel={estadosUtSel}
                          stageDefs={STAGE_DEFS} darkMode={darkMode}
                          measureMode={measureMode} setMeasureMode={setMeasureMode}
                          measurePoints={measurePoints} setMeasurePoints={setMeasurePoints}

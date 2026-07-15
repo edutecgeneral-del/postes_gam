@@ -542,6 +542,8 @@ export function FilterBar({
   isAdmin = false,
   solo0037 = false,
   setSolo0037,
+  estadosUtSel = [],
+  setEstadosUtSel,
 }) {
   const { catalog: tagCatalog } = useTagCatalog();
   const counts = useMemo(
@@ -733,6 +735,25 @@ export function FilterBar({
             emptyLabel="Sin unidades territoriales"
           />
         </MenuSection>
+        {/* Grupo: Estados UT (color en el mapa por estado de entrega) */}
+        {setEstadosUtSel && (
+          <MenuSection icon={MapPin} title="Estados UT" count={(estadosUtSel || []).length} defaultOpen={(estadosUtSel || []).length > 0}>
+            <CheckList
+              options={[
+                { value: 'liberado', label: 'Liberado' },
+                { value: 'pendiente', label: 'Pendiente' },
+                { value: 'urgencia', label: 'Urgencia' },
+              ]}
+              selectedValues={estadosUtSel || []}
+              onToggle={(v) => {
+                const cur = estadosUtSel || [];
+                setEstadosUtSel(cur.includes(v) ? cur.filter(x => x !== v) : [...cur, v]);
+              }}
+              onClear={() => setEstadosUtSel([])}
+              emptyLabel="Sin estados"
+            />
+          </MenuSection>
+        )}
         {/* Grupo: Incidencias â€” tipo de incidencia abierta */}
         {showIncidencias && (
           <MenuSection icon={AlertTriangle} title="Incidencias" count={cntIncidencias} defaultOpen={cntIncidencias > 0}>
