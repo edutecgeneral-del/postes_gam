@@ -5309,7 +5309,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                     <Edit2 className="w-3 h-3 text-stone-400 opacity-50 group-hover:opacity-100" />
                   </div>
                 )}
-                {/* NÃºmero de poste (#N) â€” editable */}
+                {/* Número de poste (#N) — editable */}
                 {editingNum ? (
                   <div className="mt-1 flex items-center gap-2">
                     <span className="text-xs text-stone-500 font-mono">N° poste:</span>
@@ -5321,9 +5321,9 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                       if (onUpdateMeta) onUpdateMeta(post.id, { numPoste: parsed });
                       else if (onUpdate) onUpdate({ ...post, numPoste: parsed });
                       setEditingNum(false);
-                    }} className="text-emerald-600 text-xs font-bold px-2 py-1 bg-emerald-100 rounded">âœ“</button>
+                    }} className="text-emerald-600 text-xs font-bold px-2 py-1 bg-emerald-100 rounded">✓</button>
                     <button onClick={() => { setEditingNum(false); setNumValue(post.numPoste ?? ''); }}
-                            className="text-stone-500 text-xs px-2 py-1">âœ—</button>
+                            className="text-stone-500 text-xs px-2 py-1">✗</button>
                   </div>
                 ) : (
                   <div className="mt-1 flex items-center gap-2 cursor-pointer group" onClick={() => onUpdate && setEditingNum(true)}>
@@ -5337,7 +5337,7 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                   </div>
                 )}
                 <div className="mt-1 text-xs text-stone-500 font-mono">
-                  {post.unidad_territorial} Â· {post.zona_territorial}
+                  {post.unidad_territorial} · {post.zona_territorial}
                 </div>
                 {/* Dirección con Maps link */}
                 <div className="mt-0.5 text-xs truncate">
@@ -6438,7 +6438,7 @@ function IncidentsView({ incidents, posts, onResolve, onSelectPost, isAdmin, isD
         if (!cls || cls.categoryId !== filterCategory) return false;
       }
     }
-    // RAAL: filtro por categorÃ­a (cascajo / instalaciÃ³n elÃ©ctrica)
+    // RAAL: filtro por categoría (cascajo / instalación eléctrica)
     if (isRAAL) {
       if (filterPost === 'cat_cascajo' && i.categoryId !== '1324d434-6b2d-46ff-9281-a2e42022df84') return false;
       if (filterPost === 'cat_electrica' && i.categoryId !== '98a342cf-76fb-4c0b-93c0-69d463820a99') return false;

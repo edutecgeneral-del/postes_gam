@@ -754,7 +754,7 @@ export function FilterBar({
             />
           </MenuSection>
         )}
-        {/* Grupo: Incidencias â€” tipo de incidencia abierta */}
+        {/* Grupo: Incidencias — tipo de incidencia abierta */}
         {showIncidencias && (
           <MenuSection icon={AlertTriangle} title="Incidencias" count={cntIncidencias} defaultOpen={cntIncidencias > 0}>
             <select
