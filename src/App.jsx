@@ -2362,7 +2362,7 @@ const obrasEnUtIdsRef = useRef(new Set());
                       <AlertTriangle size={13} className="text-amber-600 shrink-0 mt-px" />
                       <div className="text-[12px] leading-tight text-amber-800">
                         <span className="font-semibold">Etapas saltadas:</span>{' '}
-                        {saltadas.map(s => s.short).join(', ')}
+                        {saltadas.map(s => 'E' + s.num).join(', ')}
                       </div>
                     </div>
                   );
@@ -8580,7 +8580,8 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
 const NAV_GROUPS = [
   { id: 'dashboard',      label: 'Dashboard',      tabIds: ['dashboard', 'mipanel'] },
   { id: 'trabajo',        label: 'Trabajo',        tabIds: ['captura', 'scouting', 'mapa', 'postes'] },
-  { id: 'administrativo', label: 'Administrativo', tabIds: ['incidencias', 'propuestas', 'inventario', 'usuarios', 'auditoria', 'estados_ut', 'informe', 'geo_v2'] },
+  { id: 'administrativo', label: 'administrativo',        tabIds: ['incidencias', 'propuestas', 'inventario', 'usuarios', 'auditoria', 'estados_ut', 'informe', 'geo_v2'] },
+  { id: 'mantenimiento',  label: 'Mantenimiento',  tabIds: ['mantenimiento'] },
 ];
 
 // Resuelve NAV_GROUPS contra las pestañas visibles (appTabs) y descarta los
@@ -8765,6 +8766,14 @@ export default function FieldCoordApp() {
     });
     return { modems, modemsBlanco, modemsNegro, modemsConejito, ptz, bullet, camTotal: ptz + bullet, camPostes };
   }, [posts]);
+
+  const maintenancePosts = useMemo(() => {
+  return posts.filter(p => {
+    if (!p.stages.camaras?.done) return false;
+    const hasOpenIncident = incidents.some(inc => inc.postId === p.id && inc.status === 'abierta');
+    return !hasOpenIncident;
+  });
+}, [posts, incidents]);
 
   // -------------------------------------------------------------------
   // AUTH: subscribe a cambios de sesión
@@ -9419,6 +9428,7 @@ export default function FieldCoordApp() {
     { id: 'estados_ut',  label: 'Estados UT',   icon: MapPin,        show: isAdmin },
     { id: 'informe',     label: 'Informe',      icon: ClipboardList, show: isAdmin || isDirector },
     { id: 'geo_v2',      label: 'Geo v2',       icon: Layers,        show: isAdmin || isDirector || isCoordinador },
+    { id: 'mantenimiento', label: 'Mantenimiento', icon: Wrench, show: true },
   ].filter(t => t.show);
 
   // Navegación categorizada (header desktop + sidemenu móvil), derivada de appTabs.
@@ -9787,6 +9797,59 @@ export default function FieldCoordApp() {
               setActiveTab('postes');
             }}
           />}
+
+          {/* === MANTENIMIENTO === */}
+          {activeTab === 'mantenimiento' && (
+  <div className="h-full flex flex-col">
+    <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-stone-300 flex items-center gap-3 flex-wrap">
+      <div>
+        <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80">Vista geoespacial</div>
+        <h1 className="text-xl font-light text-stone-950">Mapa de Mantenimiento</h1>
+        <span className="text-xs text-stone-500 font-mono">
+          {maintenancePosts.length} postes con etapa 4+ y sin incidencias abiertas
+        </span>
+      </div>
+    </div>
+    <div className="flex-1 p-4">
+      <MapView
+        posts={maintenancePosts}
+        setPosts={() => {}} // Solo lectura, no se actualizan
+        selectedPost={selectedPost}
+        setSelectedPost={setSelectedPost}
+        openPostDetail={openPostDetail}
+        filters={{}}
+        stageDefs={STAGE_DEFS}
+        darkMode={darkMode}
+        isAdmin={isAdmin}
+        canSeeDGSU={false}
+        unidadesTerritoriales={unidadesTerritoriales}
+        onRefresh={() => {}}
+        onToggleRevisado={() => {}}
+        onMergePosts={() => {}}
+        onCompareDetail={() => {}}
+        addingMode={false}
+        onMapClickForNewPost={() => {}}
+        measureMode={false}
+        setMeasureMode={() => {}}
+        measurePoints={[]}
+        setMeasurePoints={() => {}}
+        editingPostId={null}
+        onConfirmRelocate={() => {}}
+        onCancelRelocate={() => {}}
+        incidents={incidents}
+        userNames={userNames}
+        sel0037={null}
+        estadosUtSel={[]}
+        focusPost={null}
+        focusKey={0}
+        onClickAntena={() => {}}
+        canMerge={false}
+        onCapturePost={null}
+        onStartEditPosition={null}
+      />
+    </div>
+  </div>
+)}
         </main>
       </div>
 
