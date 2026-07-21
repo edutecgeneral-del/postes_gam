@@ -8571,75 +8571,206 @@ function WhatsAppComposer({ posts, onClose, initialSelection = [] }) {
 }
 
 // ============================================================================
-// NAVEGACIÓN CATEGORIZADA (header desktop + sidemenu móvil)
+// NAVEGACIÓN CATEGORIZADA — árbol multinivel (header desktop + sidemenu móvil)
 // ============================================================================
 
-// Categorías de navegación. Cada grupo referencia ids de appTabs; el orden
-// dentro de tabIds define el orden de aparición. Los grupos/módulos se filtran
-// luego según los permisos (appTabs ya viene filtrado por rol).
-const NAV_GROUPS = [
-  { id: 'dashboard',      label: 'Dashboard',      tabIds: ['dashboard', 'mipanel'] },
-  { id: 'trabajo',        label: 'Trabajo',        tabIds: ['captura', 'scouting', 'mapa', 'postes'] },
-  { id: 'administrativo', label: 'administrativo',        tabIds: ['incidencias', 'propuestas', 'inventario', 'usuarios', 'auditoria', 'estados_ut', 'informe', 'geo_v2'] },
-  { id: 'mantenimiento',  label: 'Mantenimiento',  tabIds: ['mantenimiento'] },
-];
-
-// Resuelve NAV_GROUPS contra las pestañas visibles (appTabs) y descarta los
-// grupos que queden sin módulos para el rol actual.
-function buildNavGroups(appTabs) {
-  return NAV_GROUPS
-    .map(g => ({ ...g, tabs: g.tabIds.map(id => appTabs.find(t => t.id === id)).filter(Boolean) }))
-    .filter(g => g.tabs.length > 0);
+// Árbol de navegación. Cada nodo puede tener:
+//   - label:    texto visible
+//   - icon:     ícono lucide (opcional; se usa sobre todo en el nivel superior)
+//   - tab:      id de pestaña EXISTENTE en appTabs (hoja real → navega directo)
+//   - pending:  id de destino AÚN NO construido (hoja → abre un placeholder)
+//   - children: subnodos (se despliegan como submenú/sección anidada)
+// La visibilidad por rol se resuelve en buildMenuTree() contra las pestañas ya
+// filtradas (appTabs), así nada se expone a roles que no deben verlo.
+function makeMenuTree(caps) {
+  const T = (id) => caps.tabs.has(id); // ¿pestaña real visible para el rol?
+  return [
+    {
+      id: 'dashboard', label: 'Dashboard', icon: Home,
+      children: [
+        { id: 'dash_todo',     label: 'Todo',                 tab: 'dashboard',         show: T('dashboard') },
+        { id: 'dash_pp26',     label: 'PP26',                 pending: 'dash_pp26',     show: T('dashboard') },
+        { id: 'dash_mant2627', label: 'Mantenimiento 26-27',  pending: 'dash_mant2627', show: T('dashboard') },
+        { id: 'dash_su',       label: 'SU',                   pending: 'dash_su',       show: T('dashboard') },
+        { id: 'dash_dirsu',    label: 'DirSU',                pending: 'dash_dirsu',    show: T('dashboard') },
+      ],
+    },
+    {
+      id: 'trabajo', label: 'Trabajo', icon: Briefcase,
+      children: [
+        {
+          id: 'trabajo_pp26', label: 'PP26', icon: Target,
+          children: [
+            { id: 'captura',  label: 'Captura',  tab: 'captura',  show: T('captura') },
+            { id: 'scouting', label: 'Scouting', tab: 'scouting', show: T('scouting') },
+            { id: 'mapa',     label: 'Mapa GPS', tab: 'mapa',     show: T('mapa') },
+            { id: 'postes',   label: 'Postes',   tab: 'postes',   show: T('postes') },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'mantenimiento', label: 'Mantenimiento', icon: Wrench,
+      children: [
+        {
+          id: 'mant_2627', label: 'Mantenimiento 26-27', icon: Calendar,
+          children: [
+            { id: 'mantenimiento', label: 'Mapa Mantenimiento', tab: 'mantenimiento', show: T('mantenimiento') },
+          ],
+        },
+        { id: 'estados_ut', label: 'Estados UT', tab: 'estados_ut', show: T('estados_ut') },
+      ],
+    },
+    {
+      id: 'administracion', label: 'Administración', icon: ClipboardList,
+      children: [
+        { id: 'incidencias',     label: 'Incidencia PP26',    tab: 'incidencias',        show: T('incidencias') },
+        { id: 'ticket_mant2627', label: 'Tiquet Mante 26-27', pending: 'ticket_mant2627',show: caps.isAdmin || caps.isDirector || caps.isCoordinador },
+        { id: 'propuestas',      label: 'Propuestas',         tab: 'propuestas',         show: T('propuestas') },
+        { id: 'inventario',      label: 'Inventario',         tab: 'inventario',         show: T('inventario') },
+        { id: 'informe',         label: 'Informe',            tab: 'informe',            show: T('informe') },
+      ],
+    },
+    {
+      id: 'sistema', label: 'Sistema', icon: Server,
+      children: [
+        {
+          id: 'usuario', label: 'Usuario', icon: Users,
+          children: [
+            { id: 'user_list',   label: 'Mostrar',  tab: 'usuarios', show: T('usuarios') },
+            { id: 'user_add',    label: 'Añadir',   tab: 'usuarios', show: T('usuarios') },
+            { id: 'user_remove', label: 'Quitar',   tab: 'usuarios', show: T('usuarios') },
+            { id: 'user_edit',   label: 'Editar',   tab: 'usuarios', show: T('usuarios') },
+            { id: 'user_perms',  label: 'Permisos', tab: 'usuarios', show: T('usuarios') },
+          ],
+        },
+        { id: 'auditoria', label: 'Auditoría', icon: ListChecks, tab: 'auditoria', show: T('auditoria') },
+      ],
+    },
+  ];
 }
 
-// Navegación del header en escritorio (lg+): categorías centradas con menú
-// desplegable al pasar el cursor por encima. Resalta la categoría y el módulo
-// activos. Las categorías con un solo módulo navegan directo (sin desplegable).
-function DesktopNav({ groups, activeTab, setActiveTab }) {
-  const [openGroup, setOpenGroup] = useState(null);
+// Poda el árbol: quita hojas ocultas (show === false) y nodos que se quedan sin hijos.
+function pruneTree(nodes) {
+  return nodes
+    .map(n => {
+      if (n.children) {
+        const kids = pruneTree(n.children);
+        return kids.length ? { ...n, children: kids } : null;
+      }
+      return n.show === false ? null : n;
+    })
+    .filter(Boolean);
+}
+
+function buildMenuTree(appTabs, caps) {
+  return pruneTree(makeMenuTree(caps));
+}
+
+// Destino de una hoja (pestaña real o placeholder) y si un nodo contiene el activo.
+const leafDest = (n) => n.tab || n.pending || null;
+function nodeActive(n, activeTab) {
+  return n.children ? n.children.some(c => nodeActive(c, activeTab)) : leafDest(n) === activeTab;
+}
+
+// Destinos pendientes (aún sin pantalla): id → título del placeholder.
+const PENDING_TITLES = {
+  dash_pp26: 'Dashboard · PP26',
+  dash_mant2627: 'Dashboard · Mantenimiento 26-27',
+  dash_su: 'Dashboard · SU',
+  dash_dirsu: 'Dashboard · DirSU',
+  ticket_mant2627: 'Tiquet Mante 26-27',
+};
+
+// Pantalla temporal para módulos que todavía no existen (ya listados en el menú).
+function PlaceholderView({ title }) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center text-center px-6">
+      <div className="w-14 h-14 rounded-2xl bg-stone-100 border border-stone-300 flex items-center justify-center mb-4">
+        <Wrench className="w-6 h-6 text-stone-400" strokeWidth={1.5} />
+      </div>
+      <div className="text-[11px] font-mono uppercase tracking-[0.25em] text-amber-500 mb-1">En construcción</div>
+      <h1 className="text-xl font-light text-stone-950">{title}</h1>
+      <p className="text-sm text-stone-500 font-mono mt-2 max-w-sm">
+        Este módulo aún no está implementado. Ya quedó en el menú; lo construimos en el siguiente paso.
+      </p>
+    </div>
+  );
+}
+
+// Contenido recursivo del dropdown de escritorio: los nodos con hijos se
+// muestran como encabezado de sección; las hojas como botón navegable. La
+// profundidad controla la sangría (soporta 3+ niveles sin flyouts que se corten).
+function DropdownItems({ nodes, depth, activeTab, onPick }) {
+  return nodes.map(n => {
+    const padL = 14 + depth * 12;
+    if (n.children) {
+      return (
+        <Fragment key={n.id}>
+          <div className="flex items-center gap-2 py-1.5 text-[10px] font-mono uppercase tracking-[0.2em] text-stone-400 select-none"
+               style={{ paddingLeft: padL, paddingRight: 14 }}>
+            {n.icon && <n.icon className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} />}
+            <span className="truncate">{n.label}</span>
+          </div>
+          <DropdownItems nodes={n.children} depth={depth + 1} activeTab={activeTab} onPick={onPick} />
+        </Fragment>
+      );
+    }
+    const active = leafDest(n) === activeTab;
+    return (
+      <button
+        key={n.id}
+        onClick={() => onPick(n)}
+        style={{ paddingLeft: padL }}
+        className={`w-full flex items-center gap-2.5 py-2 pr-3.5 text-xs font-mono uppercase tracking-wider transition-colors border-l-2 ${
+          active
+            ? 'text-rose-600 bg-rose-500/10 border-rose-600'
+            : 'text-stone-600 hover:text-rose-600 hover:bg-rose-500/10 border-transparent'
+        }`}
+      >
+        {n.icon && <n.icon className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} />}
+        <span className="truncate">{n.label}</span>
+        {n.pending && <span className="ml-auto text-[8px] px-1 rounded bg-amber-100 text-amber-600 tracking-normal">pronto</span>}
+      </button>
+    );
+  });
+}
+
+// Navegación del header en escritorio (lg+): categorías centradas con dropdown
+// (agrupado por secciones) al pasar el cursor. Las categorías sin hijos navegan directo.
+function DesktopNav({ tree, activeTab, onPick }) {
+  const [openTop, setOpenTop] = useState(null);
   return (
     <nav className="hidden lg:flex flex-1 items-center justify-center gap-1">
-      {groups.map(g => {
-        const isActiveGroup = g.tabs.some(t => t.id === activeTab);
-        const single = g.tabs.length === 1;
+      {tree.map(g => {
+        const active = nodeActive(g, activeTab);
+        const leaf = !g.children;
         return (
           <div
             key={g.id}
             className="relative"
-            onMouseEnter={() => setOpenGroup(g.id)}
-            onMouseLeave={() => setOpenGroup(null)}
+            onMouseEnter={() => setOpenTop(g.id)}
+            onMouseLeave={() => setOpenTop(null)}
           >
             <button
-              onClick={() => { if (single) setActiveTab(g.tabs[0].id); }}
+              onClick={() => { if (leaf) onPick(g); }}
               className={`flex items-center gap-1.5 px-3 py-2 text-xs font-mono uppercase tracking-wider rounded transition-colors ${
-                isActiveGroup
+                active
                   ? 'text-rose-600 bg-rose-500/10'
                   : 'text-stone-500 hover:text-rose-600 hover:bg-rose-500/10'
               }`}
             >
+              {g.icon && <g.icon className="w-3.5 h-3.5" strokeWidth={1.5} />}
               <span>{g.label}</span>
-              {!single && (
-                <ChevronDown className={`w-3 h-3 transition-transform ${openGroup === g.id ? 'rotate-180' : ''}`} strokeWidth={1.5} />
+              {!leaf && (
+                <ChevronDown className={`w-3 h-3 transition-transform ${openTop === g.id ? 'rotate-180' : ''}`} strokeWidth={1.5} />
               )}
             </button>
-            {!single && openGroup === g.id && (
+            {!leaf && openTop === g.id && (
               // pt-1.5 actúa de puente para que el cursor llegue al menú sin cerrarlo
               <div className="absolute left-1/2 -translate-x-1/2 top-full pt-1.5 z-40">
-                <div className="min-w-[200px] bg-stone-50 border border-stone-300 rounded-lg shadow-xl py-1.5">
-                  {g.tabs.map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => { setActiveTab(t.id); setOpenGroup(null); }}
-                      className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-mono uppercase tracking-wider transition-colors border-l-2 ${
-                        activeTab === t.id
-                          ? 'text-rose-600 bg-rose-500/10 border-rose-600'
-                          : 'text-stone-600 hover:text-rose-600 hover:bg-rose-500/10 border-transparent'
-                      }`}
-                    >
-                      <t.icon className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} />
-                      <span className="truncate">{t.label}</span>
-                    </button>
-                  ))}
+                <div className="min-w-[220px] bg-stone-50 border border-stone-300 rounded-lg shadow-xl py-1.5">
+                  <DropdownItems nodes={g.children} depth={0} activeTab={activeTab} onPick={onPick} />
                 </div>
               </div>
             )}
@@ -8648,6 +8779,44 @@ function DesktopNav({ groups, activeTab, setActiveTab }) {
       })}
     </nav>
   );
+}
+
+// Navegación del sidemenu móvil: render recursivo con sangría por nivel.
+function MobileNavItems({ nodes, depth, activeTab, onPick }) {
+  return nodes.map(n => {
+    const padL = 12 + depth * 12;
+    if (n.children) {
+      return (
+        <div key={n.id} className={depth === 0 ? 'mb-2' : ''}>
+          <div className="flex items-center gap-2 mb-1 text-[10px] font-mono uppercase tracking-[0.25em] text-stone-400"
+               style={{ paddingLeft: padL, paddingRight: 12 }}>
+            {n.icon && <n.icon className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} />}
+            <span className="truncate">{n.label}</span>
+          </div>
+          <div className="space-y-0.5">
+            <MobileNavItems nodes={n.children} depth={depth + 1} activeTab={activeTab} onPick={onPick} />
+          </div>
+        </div>
+      );
+    }
+    const active = leafDest(n) === activeTab;
+    return (
+      <button
+        key={n.id}
+        onClick={() => onPick(n)}
+        style={{ paddingLeft: padL }}
+        className={`w-full flex items-center gap-3 py-2.5 pr-3 text-sm font-mono uppercase tracking-wider transition-colors border-l-2 ${
+          active
+            ? 'bg-rose-500/10 text-rose-500 border-rose-600'
+            : 'text-stone-500 hover:text-stone-950 hover:bg-stone-50 border-transparent'
+        }`}
+      >
+        {n.icon && <n.icon className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} />}
+        <span className="text-xs truncate">{n.label}</span>
+        {n.pending && <span className="ml-auto text-[8px] px-1 rounded bg-amber-100 text-amber-600 tracking-normal">pronto</span>}
+      </button>
+    );
+  });
 }
 
 // ============================================================================
@@ -8767,13 +8936,16 @@ export default function FieldCoordApp() {
     return { modems, modemsBlanco, modemsNegro, modemsConejito, ptz, bullet, camTotal: ptz + bullet, camPostes };
   }, [posts]);
 
-  const maintenancePosts = useMemo(() => {
-  return posts.filter(p => {
-    if (!p.stages.camaras?.done) return false;
-    const hasOpenIncident = incidents.some(inc => inc.postId === p.id && inc.status === 'abierta');
-    return !hasOpenIncident;
-  });
-}, [posts, incidents]);
+  // Mapa de Mantenimiento: SOLO los postes con M1 que tienen foto de Acrilico.
+  const maintenancePosts = useMemo(
+    () => posts
+      .filter(p => p.stages?.camaras?.attrs?.mantenimiento?.m1_mantenimiento)
+      .filter(p => {
+        const checks = p.stages.camaras.attrs.mantenimiento.m1_mantenimiento.checks || {};
+        return (checks.sil_acrilico?.photos?.length || 0) >= 1;
+      }),
+    [posts]
+  );
 
   // -------------------------------------------------------------------
   // AUTH: subscribe a cambios de sesión
@@ -9431,8 +9603,11 @@ export default function FieldCoordApp() {
     { id: 'mantenimiento', label: 'Mantenimiento', icon: Wrench, show: true },
   ].filter(t => t.show);
 
-  // Navegación categorizada (header desktop + sidemenu móvil), derivada de appTabs.
-  const navGroups = buildNavGroups(appTabs);
+  // Navegación categorizada multinivel (header desktop + sidemenu móvil), derivada de appTabs.
+  const menuTree = buildMenuTree(appTabs, {
+    tabs: new Set(appTabs.map(t => t.id)),
+    isAdmin, isDirector, isCoordinador, isScout, isCapturador, isRAAL,
+  });
 
   // ---- LOGIN GATE ----
   if (session === undefined) {
@@ -9525,8 +9700,8 @@ export default function FieldCoordApp() {
             </div>
           </div>
 
-          {/* Navegación centrada por categorías (solo escritorio) */}
-          <DesktopNav groups={navGroups} activeTab={activeTab} setActiveTab={setActiveTab} />
+          {/* Navegación centrada por categorías multinivel (solo escritorio) */}
+          <DesktopNav tree={menuTree} activeTab={activeTab} onPick={(n) => setActiveTab(n.tab || n.pending)} />
 
           <div className="flex items-center gap-1.5 md:gap-2">
             {/* Campana de alertas (admin/scout) */}
@@ -9607,25 +9782,9 @@ export default function FieldCoordApp() {
         <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
                         fixed top-[53px] left-0 h-[calc(100vh-53px)]
                         w-60 border-r border-stone-300 bg-amber-50 z-20 flex flex-col transition-transform lg:hidden`}>
-          <nav className="flex-1 p-3 space-y-3 overflow-y-auto">
-            {navGroups.map(g => (
-              <div key={g.id}>
-                <div className="px-3 mb-1 text-[10px] font-mono uppercase tracking-[0.25em] text-stone-400">{g.label}</div>
-                <div className="space-y-0.5">
-                  {g.tabs.map(t => (
-                    <button key={t.id} onClick={() => { setActiveTab(t.id); setSidebarOpen(false); }}
-                            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-mono uppercase tracking-wider transition-colors ${
-                              activeTab === t.id
-                                ? 'bg-rose-500/10 text-rose-500 border-l-2 border-rose-600'
-                                : 'text-stone-500 hover:text-stone-950 hover:bg-stone-50 border-l-2 border-transparent'
-                            }`}>
-                      <t.icon className="w-4 h-4" strokeWidth={1.5} />
-                      <span className="text-xs">{t.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
+          <nav className="flex-1 p-3 overflow-y-auto">
+            <MobileNavItems nodes={menuTree} depth={0} activeTab={activeTab}
+              onPick={(n) => { setActiveTab(n.tab || n.pending); setSidebarOpen(false); }} />
           </nav>
           <div className="p-3 border-t border-stone-300">
             <div className="text-[13px] font-mono uppercase tracking-[0.25em] text-stone-500 mb-2">Stages del pipeline</div>
@@ -9806,7 +9965,7 @@ export default function FieldCoordApp() {
         <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80">Vista geoespacial</div>
         <h1 className="text-xl font-light text-stone-950">Mapa de Mantenimiento</h1>
         <span className="text-xs text-stone-500 font-mono">
-          {maintenancePosts.length} postes con etapa 4+ y sin incidencias abiertas
+          {maintenancePosts.length} postes con foto de acrílico
         </span>
       </div>
     </div>
@@ -9850,6 +10009,7 @@ export default function FieldCoordApp() {
     </div>
   </div>
 )}
+          {PENDING_TITLES[activeTab] && <PlaceholderView title={PENDING_TITLES[activeTab]} />}
         </main>
       </div>
 
