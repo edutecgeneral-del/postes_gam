@@ -721,6 +721,17 @@ export async function uploadIncidentPhoto(incidentId, file) {
   }
 }
 
+/** Datos del Informe Ejecutivo (PDF) de una UT: resumen, avance por etapa y postes con calle/entrecalles. */
+export async function getInformeUt(clave) {
+  const sb = requireSupabase();
+  const { data, error } = await withTimeout(
+    sb.rpc('get_informe_ut', { p_clave: clave }),
+    20000, 'getInformeUt'
+  );
+  if (error) throw error;
+  return data;
+}
+
 /** Asigna el estado de entrega de una UT (solo admin). Devuelve {clave, estado, incidencias_afectadas, postes_incompletos}. */
 export async function setUtEstado(clave, estado) {
   const sb = requireSupabase();
@@ -1516,6 +1527,7 @@ export default {
   addIncidentAttendedPhotos,
   setUtEstado,
   getUtDesglose,
+  getInformeUt,
   revertIncidentToOpen,
   updateIncidentSeverity,
   getPostHistory,

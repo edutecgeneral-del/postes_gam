@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { getFichaUt } from '../lib/data.js';
+import { getFichaUt, getInformeUt } from '../lib/data.js';
+import { generarInformePdf } from '../lib/informePdf.js';
 
 const LOGO = import.meta.env.BASE_URL + 'gam-logo.png';
+// Version negativa (blanca): va sobre la banda guinda del PDF.
+const LOGO_BLANCO = import.meta.env.BASE_URL + 'gam-logo-blanco.png';
+// Contorno de las UTs para el mapa del PDF (el mismo que usa el mapa GPS).
+const UT_GEOJSON = import.meta.env.BASE_URL + 'ut_boundaries.geojson';
 
 const L = {
   fichaTecnica: 'Ficha t\u00E9cnica',
@@ -27,7 +32,12 @@ const L = {
   sinPostes: 'Sin postes en esta UT',
   alcaldiaFull: 'Alcald\u00EDa Gustavo A. Madero',
   cerrar: '\u00D7',
-  guion: '\u2014'
+  guion: '\u2014',
+  exportarPdf: 'Exportar PDF',
+  exportarFichas: 'Exportar Fichas',
+  generandoFichas: 'Generando fichas\u2026',
+  generandoPdf: 'Generando...',
+  errorPdf: 'No se pudo generar el PDF'
 };
 
 function Check() {
@@ -118,6 +128,19 @@ export default function FichaTecnicaUT(props) {
   const [loading, setLoading] = useState(true);
   const [postes, setPostes] = useState([]);
   const [error, setError] = useState(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  async function descargarPdf() {
+    setPdfBusy(true);
+    try {
+      const datos = await getInformeUt(utId);
+      await generarInformePdf(datos, LOGO_BLANCO, UT_GEOJSON);
+    } catch (e) {
+      window.alert(L.errorPdf + ': ' + (e && e.message ? e.message : e));
+    } finally {
+      setPdfBusy(false);
+    }
+  }
 
   useEffect(function () {
     let cancel = false;
@@ -140,7 +163,16 @@ export default function FichaTecnicaUT(props) {
               <div className="text-xs text-stone-500 truncate">{props.utNombre || utId}</div>
             </div>
           </div>
-          <button type="button" onClick={props.onClose} className="text-stone-400 hover:text-stone-700 text-2xl leading-none px-1 shrink-0">{L.cerrar}</button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button type="button" onClick={descargarPdf}
+              disabled={pdfBusy || loading || postes.length === 0}
+              className="text-xs font-medium px-3 py-1.5 rounded border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ borderColor: '#9D2148', color: '#9D2148', background: pdfBusy ? '#f7eef1' : '#ffffff' }}
+              title={L.exportarPdf}>
+              {pdfBusy ? L.generandoPdf : L.exportarPdf}
+            </button>
+            <button type="button" onClick={props.onClose} className="text-stone-400 hover:text-stone-700 text-2xl leading-none px-1">{L.cerrar}</button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto p-4" style={{ background: '#faf9f7' }}>
           {loading

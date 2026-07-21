@@ -54,6 +54,9 @@ export default defineConfig(({ command }) => {
           // Precache de toda la app â€” incluimos HTML como fallback offline.
           // Las navegaciones online prefieren NetworkFirst (regla mÃ¡s abajo).
           globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
+          // Los chunks del PDF (jspdf, html2canvas, dompurify, canvg = ~730 KB) NO se
+          // precachean: solo los baja quien exporta un informe. Ahorra datos en campo.
+          globIgnores: ['**/pdf-*.js', '**/html2canvas*.js', '**/purify*.js', '**/index.es-*.js'],
           // Subir el lÃ­mite por archivo a 5 MB (el chunk de OL ronda los 270 KB pero por si crece)
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           // Limpiar caches viejos automÃ¡ticamente
@@ -203,6 +206,9 @@ export default defineConfig(({ command }) => {
             ol: ['ol'],
             vendor: ['react', 'react-dom', 'lucide-react'],
             supabase: ['@supabase/supabase-js'],
+            // jsPDF solo lo usa "Exportar PDF" (import dinamico en informePdf.js).
+            // Va en su propio chunk y se excluye del precache del PWA (ver globIgnores).
+            pdf: ['jspdf'],
           },
         },
       },
