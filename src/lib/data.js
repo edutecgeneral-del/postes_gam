@@ -2117,3 +2117,192 @@ export async function loadClavesContrato0037() {
     .map(c => ({ clave: c, nombre: nombreByClave[c] || '' }))
     .sort((a, b) => a.clave.localeCompare(b.clave, 'es'));
 }
+// ---- Dashboard DirSU: reporte por auditoría (una fila por UT del contrato) ----
+export async function loadReporteAuditoria(contrato) {
+  const sb = requireSupabase();
+  if (!contrato) return [];
+  // UTs del contrato con su nombre y volumen contratado (prometido)
+  const { data: rel, error: e1 } = await sb
+    .from('ut_contrato_rel')
+    .select('clave')
+    .eq('contrato', contrato);
+  if (e1) throw e1;
+  const claves = (rel || []).map(r => r.clave);
+  if (claves.length === 0) return [];
+
+  const { data: uts, error: e2 } = await sb
+    .from('unidades_territoriales')
+    .select('id, nombre, volumen_contratado, liberados')
+    .in('id', claves);
+  if (e2) throw e2;
+  const utByClave = {};
+  (uts || []).forEach(u => { utByClave[u.id] = u; });
+
+  // Postes no fusionados de esas UTs
+  const { data: posts, error: e3 } = await sb
+    .from('posts')
+    .select('id, unidad_territorial')
+    .in('unidad_territorial', claves)
+    .is('fusionado_en', null);
+  if (e3) throw e3;
+  const postIds = (posts || []).map(p => p.id);
+  const claveByPost = {};
+  (posts || []).forEach(p => { claveByPost[p.id] = p.unidad_territorial; });
+
+  // Etapas relevantes: parado (instalado), centro (liberado/CI), camaras (conteo)
+  const stagesByPost = {};
+  const pageSize = 300;
+  for (let i = 0; i < postIds.length; i += pageSize) {
+    const slice = postIds.slice(i, i + pageSize);
+    const { data: st, error: e4 } = await sb
+      .from('post_stages')
+      .select('post_id, stage_id, done, attrs')
+      .in('post_id', slice)
+      .in('stage_id', ['parado', 'centro', 'camaras']);
+    if (e4) throw e4;
+    (st || []).forEach(s => {
+      if (!stagesByPost[s.post_id]) stagesByPost[s.post_id] = {};
+      stagesByPost[s.post_id][s.stage_id] = s;
+    });
+  }
+
+  // Agregar por UT
+  const acc = {};
+  claves.forEach(c => { acc[c] = { postes: 0, instalados: 0, liberados: 0, camaras: 0 }; });
+  (posts || []).forEach(p => {
+    const c = p.unidad_territorial;
+    const st = stagesByPost[p.id] || {};
+    acc[c].postes += 1;
+    if (st.camaras?.done) acc[c].instalados += 1;
+    if (st.centro?.done) acc[c].liberados += 1;
+    const cam = st.camaras;
+    if (cam) {
+      const ptz = parseInt(cam.attrs?.cantidad_ptz, 10) || 0;
+      const bullet = parseInt(cam.attrs?.cantidad_bullet, 10) || 0;
+      acc[c].camaras += ptz + bullet;
+    }
+  });
+
+  return claves
+    .map(c => {
+      const u = utByClave[c] || {};
+      const a = acc[c] || { postes: 0, instalados: 0, liberados: 0, camaras: 0 };
+      return {
+        contrato,
+        clave: c,
+        nombre: u.nombre || '',
+        postes: a.postes,
+        contratados: u.volumen_contratado ?? 0,
+        instalados: a.instalados,
+        camaras: a.camaras,
+        conectadosCI: a.liberados,
+      };
+    })
+    .sort((a, b) => a.clave.localeCompare(b.clave, 'es'));
+}
+// ---- Dashboard DirSU / CI: estados de UT por auditoría (presentadas, listas, a 1 día, caos) ----
+export async function loadEstadosCIAuditoria(contrato) {
+  const sb = requireSupabase();
+  if (!contrato) return [];
+  const { data: rel, error: e1 } = await sb.from('ut_contrato_rel').select('clave').eq('contrato', contrato);
+  if (e1) throw e1;
+  const claves = (rel || []).map(r => r.clave);
+  if (claves.length === 0) return [];
+
+  const { data: uts, error: e2 } = await sb.from('unidades_territoriales').select('id, nombre, volumen_contratado').in('id', claves);
+  if (e2) throw e2;
+  const utByClave = {}; (uts || []).forEach(u => { utByClave[u.id] = u; });
+
+  const { data: pres, error: e3 } = await sb.from('ut_presentaciones').select('clave, fecha_presentacion, presentada').in('clave', claves);
+  if (e3) throw e3;
+  const presByClave = {}; (pres || []).forEach(p => { presByClave[p.clave] = p; });
+
+  const { data: posts, error: e4 } = await sb.from('posts').select('id, unidad_territorial').in('unidad_territorial', claves).is('fusionado_en', null);
+  if (e4) throw e4;
+  const postIds = (posts || []).map(p => p.id);
+
+  // etapas centro/camaras
+  const stByPost = {};
+  const pageSize = 300;
+  for (let i = 0; i < postIds.length; i += pageSize) {
+    const slice = postIds.slice(i, i + pageSize);
+    const { data: st, error: e5 } = await sb.from('post_stages').select('post_id, stage_id, done').in('post_id', slice).in('stage_id', ['centro', 'camaras']);
+    if (e5) throw e5;
+    (st || []).forEach(s => { if (!stByPost[s.post_id]) stByPost[s.post_id] = {}; stByPost[s.post_id][s.stage_id] = s; });
+  }
+  // incidencias abiertas
+  const incByPost = {};
+  for (let i = 0; i < postIds.length; i += pageSize) {
+    const slice = postIds.slice(i, i + pageSize);
+    const { data: inc, error: e6 } = await sb.from('incidents').select('post_id, status').in('post_id', slice).eq('status', 'abierta');
+    if (e6) throw e6;
+    (inc || []).forEach(x => { incByPost[x.post_id] = (incByPost[x.post_id] || 0) + 1; });
+  }
+
+  const acc = {};
+  claves.forEach(c => { acc[c] = { postes: 0, liberados: 0, conCamaras: 0, incidencias: 0 }; });
+  (posts || []).forEach(p => {
+    const c = p.unidad_territorial; const st = stByPost[p.id] || {};
+    acc[c].postes += 1;
+    if (st.centro?.done) acc[c].liberados += 1;
+    if (st.camaras?.done) acc[c].conCamaras += 1;
+    acc[c].incidencias += (incByPost[p.id] || 0);
+  });
+
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const manana = new Date(hoy); manana.setDate(manana.getDate() + 1);
+  const iso = d => d.toISOString().slice(0, 10);
+
+  return claves.map(c => {
+    const u = utByClave[c] || {}; const a = acc[c]; const pr = presByClave[c] || {};
+    const todosLiberados = a.postes > 0 && a.liberados === a.postes;
+    const sinInc = a.incidencias === 0;
+    const presentada = !!pr.presentada || (pr.fecha_presentacion && pr.fecha_presentacion <= iso(hoy));
+    const a1dia = !presentada && pr.fecha_presentacion === iso(manana);
+    let estado;
+    if (a.incidencias > 0) estado = 'caos';
+    else if (presentada) estado = 'presentada';
+    else if (a1dia) estado = 'a1dia';
+    else if (todosLiberados && sinInc) estado = 'lista';
+    else estado = 'pendiente';
+    return {
+      contrato, clave: c, nombre: u.nombre || '',
+      prometido: u.volumen_contratado ?? 0,
+      postes: a.postes, liberados: a.liberados, conCamaras: a.conCamaras, incidencias: a.incidencias,
+      fechaPresentacion: pr.fecha_presentacion || null,
+      presentada, estado,
+    };
+  }).sort((a, b) => a.clave.localeCompare(b.clave, 'es'));
+}
+// ---- Dashboard DirSU / CI: agendar presentaciones de UT (calendario) ----
+export async function guardarPresentacionUT(clave, fechaISO) {
+  const sb = requireSupabase();
+  if (!clave) throw new Error('clave requerida');
+  const { error } = await sb.from('ut_presentaciones').upsert(
+    { clave, fecha_presentacion: fechaISO || null, updated_at: new Date().toISOString() },
+    { onConflict: 'clave' }
+  );
+  if (error) throw error;
+  return true;
+}
+
+export async function marcarPresentadaUT(clave, presentada) {
+  const sb = requireSupabase();
+  if (!clave) throw new Error('clave requerida');
+  const { error } = await sb.from('ut_presentaciones').upsert(
+    { clave, presentada: !!presentada, updated_at: new Date().toISOString() },
+    { onConflict: 'clave' }
+  );
+  if (error) throw error;
+  return true;
+}
+
+export async function quitarPresentacionUT(clave) {
+  const sb = requireSupabase();
+  if (!clave) throw new Error('clave requerida');
+  const { error } = await sb.from('ut_presentaciones')
+    .update({ fecha_presentacion: null, presentada: false, updated_at: new Date().toISOString() })
+    .eq('clave', clave);
+  if (error) throw error;
+  return true;
+}

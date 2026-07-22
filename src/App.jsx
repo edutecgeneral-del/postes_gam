@@ -8682,7 +8682,282 @@ const PENDING_TITLES = {
   ticket_mant2627: 'Tiquet Mante 26-27',
 };
 
-// Pantalla temporal para módulos que todavía no existen (ya listados en el menú).
+// Dashboard DirSU: reporte por auditoría (contrato) con exportación a CSV.
+function DirSUReporteView() {
+  const [contrato, setContrato] = useState(null);
+  const [contratos, setContratos] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [estadosCI, setEstadosCI] = useState([]);
+  const [filtroCI, setFiltroCI] = useState(null); // 'presentada' | 'lista' | 'a1dia' | 'caos'
+  const [mesCal, setMesCal] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const [utParaAgendar, setUtParaAgendar] = useState(null); // clave de UT lista elegida para asignar fecha
+  const [guardandoCal, setGuardandoCal] = useState(false);
+
+  const recargarEstadosCI = async () => {
+    if (!contrato) return;
+    try {
+      const data = await import('./lib/data.js');
+      const e = await data.loadEstadosCIAuditoria(contrato);
+      setEstadosCI(e);
+    } catch (err) { console.warn('recarga estados CI:', err); }
+  };
+
+  const asignarFecha = async (clave, fechaISO) => {
+    setGuardandoCal(true);
+    try {
+      const data = await import('./lib/data.js');
+      await data.guardarPresentacionUT(clave, fechaISO);
+      await recargarEstadosCI();
+      setUtParaAgendar(null);
+    } catch (err) { console.warn('asignar fecha:', err); alert('No se pudo guardar la fecha.'); }
+    finally { setGuardandoCal(false); }
+  };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await import('./lib/data.js');
+        const lista = await data.loadContratosUT();
+        setContratos((lista || []).map(c => c.contrato));
+      } catch (e) { console.warn('contratos DirSU:', e); }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!contrato) { setRows([]); return; }
+    let cancel = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const data = await import('./lib/data.js');
+        const r = await data.loadReporteAuditoria(contrato);
+        if (!cancel) setRows(r);
+      } catch (e) { console.warn('reporte auditoria:', e); if (!cancel) setRows([]); }
+      finally { if (!cancel) setLoading(false); }
+    })();
+    return () => { cancel = true; };
+  }, [contrato]);
+
+  useEffect(() => {
+    if (!contrato) { setEstadosCI([]); setFiltroCI(null); return; }
+    let cancel = false;
+    (async () => {
+      try {
+        const data = await import('./lib/data.js');
+        const e = await data.loadEstadosCIAuditoria(contrato);
+        if (!cancel) setEstadosCI(e);
+      } catch (err) { console.warn('estados CI:', err); if (!cancel) setEstadosCI([]); }
+    })();
+    return () => { cancel = true; };
+  }, [contrato]);
+
+  const ciStats = {
+    presentada: estadosCI.filter(u => u.estado === 'presentada').length,
+    lista: estadosCI.filter(u => u.estado === 'lista').length,
+    a1dia: estadosCI.filter(u => u.estado === 'a1dia').length,
+    caos: estadosCI.filter(u => u.estado === 'caos').length,
+  };
+  const ciListaFiltrada = filtroCI ? estadosCI.filter(u => u.estado === filtroCI) : [];
+
+  const tot = rows.reduce((a, r) => ({
+    contratados: a.contratados + (r.contratados || 0),
+    instalados: a.instalados + (r.instalados || 0),
+    camaras: a.camaras + (r.camaras || 0),
+    conectadosCI: a.conectadosCI + (r.conectadosCI || 0),
+  }), { contratados: 0, instalados: 0, camaras: 0, conectadosCI: 0 });
+
+  const exportarCSV = () => {
+    const headers = ['Contrato', 'Clave UT', 'Nombre UT', 'Contratados', 'Instalados', 'Camaras', 'Conectados a CI'];
+    const esc = (v) => {
+      const s = String(v ?? '');
+      return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const lines = [headers.join(',')];
+    rows.forEach(r => lines.push([r.contrato, r.clave, r.nombre, r.contratados, r.instalados, r.camaras, r.conectadosCI].map(esc).join(',')));
+    lines.push(['TOTAL', contrato, `${rows.length} UT`, tot.contratados, tot.instalados, tot.camaras, tot.conectadosCI].map(esc).join(','));
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte_auditoria_${contrato}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
+        <div>
+          <h1 className="text-2xl font-light text-stone-950">Reporte por auditoría</h1>
+          <p className="text-sm text-stone-500 font-mono">Dashboard · DirSU</p>
+        </div>
+        <button onClick={exportarCSV} disabled={!contrato || rows.length === 0}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded border transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-[#d72f89]/10 border-[#d72f89]/40 text-[#b02570] hover:bg-[#d72f89]/20">
+          <Download className="w-4 h-4" /> Exportar CSV
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2 mb-5 flex-wrap">
+        <span className="text-sm text-stone-500">Auditoría:</span>
+        {contratos.length === 0 ? (
+          <span className="text-sm text-stone-400">Cargando…</span>
+        ) : contratos.map(c => (
+          <button key={c} onClick={() => setContrato(c)}
+            className={`text-sm font-mono px-3 py-1.5 rounded-full border transition-colors ${
+              contrato === c ? 'bg-[#d72f89]/10 border-[#d72f89]/50 text-[#b02570] font-semibold' : 'border-stone-300 text-stone-500 hover:border-stone-400'
+            }`}>{c}</button>
+        ))}
+      </div>
+
+      {!contrato ? (
+        <div className="text-center text-stone-400 font-mono text-sm py-16">Elige una auditoría para ver el reporte.</div>
+      ) : loading ? (
+        <div className="text-center text-stone-400 font-mono text-sm py-16">Cargando reporte…</div>
+      ) : (
+        <div className="overflow-x-auto border border-stone-300 rounded-lg">
+          <table className="w-full text-sm border-collapse" style={{ minWidth: 640 }}>
+            <thead>
+              <tr style={{ background: '#6B1F2E' }}>
+                <th className="text-left px-3 py-2 text-white font-medium">Contrato</th>
+                <th className="text-left px-3 py-2 text-white font-medium">UT</th>
+                <th className="text-right px-3 py-2 text-white font-medium">Contratados</th>
+                <th className="text-right px-3 py-2 text-white font-medium">Instalados</th>
+                <th className="text-right px-3 py-2 text-white font-medium">Cámaras</th>
+                <th className="text-right px-3 py-2 text-white font-medium">Conect. CI</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={r.clave} className={i % 2 ? 'bg-stone-50' : 'bg-white'}>
+                  <td className="px-3 py-2 font-mono text-stone-600">{r.contrato}</td>
+                  <td className="px-3 py-2"><span className="font-mono font-semibold">{r.clave}</span>{r.nombre ? ` — ${r.nombre}` : ''}</td>
+                  <td className="px-3 py-2 text-right">{r.contratados}</td>
+                  <td className="px-3 py-2 text-right">{r.instalados}</td>
+                  <td className="px-3 py-2 text-right">{r.camaras}</td>
+                  <td className="px-3 py-2 text-right">{r.conectadosCI}</td>
+                </tr>
+              ))}
+              <tr style={{ background: '#FBF5F8' }} className="border-t-2 border-stone-300 font-semibold">
+                <td className="px-3 py-2" colSpan={2}>Total {contrato} ({rows.length} UT)</td>
+                <td className="px-3 py-2 text-right">{tot.contratados}</td>
+                <td className="px-3 py-2 text-right">{tot.instalados}</td>
+                <td className="px-3 py-2 text-right">{tot.camaras}</td>
+                <td className="px-3 py-2 text-right">{tot.conectadosCI}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {contrato && (
+        <div className="mt-8 border border-stone-300 rounded-lg overflow-hidden">
+          <div className="px-4 py-2.5 bg-[#6B1F2E] text-white font-medium text-sm">CI</div>
+          <div className="p-4">
+            <div className="text-xs font-mono uppercase tracking-wide text-stone-400 mb-2">Filtros</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+              {[
+                { key: 'presentada', n: 1, label: 'UT ya presentadas', val: ciStats.presentada, cls: 'bg-emerald-50 border-emerald-300 text-emerald-700' },
+                { key: 'lista',      n: 2, label: 'UT listas para presentar', val: ciStats.lista, cls: 'bg-sky-50 border-sky-300 text-sky-700' },
+                { key: 'a1dia',      n: 3, label: 'UT a 1 día', val: ciStats.a1dia, cls: 'bg-amber-50 border-amber-300 text-amber-700' },
+                { key: 'caos',       n: 4, label: 'UT caos (incidencias)', val: ciStats.caos, cls: 'bg-red-50 border-red-300 text-red-700' },
+              ].map(f => (
+                <button key={f.key} onClick={() => setFiltroCI(prev => prev === f.key ? null : f.key)}
+                  className={`text-left px-3 py-2 rounded border transition-colors ${filtroCI === f.key ? f.cls + ' ring-2 ring-offset-1 ring-[#d72f89]/40' : f.cls + ' hover:brightness-95'}`}>
+                  <div className="text-2xl font-light tabular-nums">{f.val}</div>
+                  <div className="text-[11px] font-mono leading-tight mt-0.5">{f.n} · {f.label}</div>
+                </button>
+              ))}
+            </div>
+
+            {filtroCI ? (
+              ciListaFiltrada.length === 0 ? (
+                <div className="text-sm text-stone-400 font-mono py-4 text-center">Sin UT en este estado.</div>
+              ) : (
+                <div className="border border-stone-200 rounded divide-y divide-stone-100">
+                  {ciListaFiltrada.map(u => (
+                    <div key={u.clave} className="flex items-center justify-between px-3 py-2 text-sm">
+                      <span><span className="font-mono font-semibold">{u.clave}</span>{u.nombre ? ` — ${u.nombre}` : ''}</span>
+                      <span className="text-xs font-mono text-stone-500">
+                        {u.liberados}/{u.postes} lib · {u.conCamaras} cám{u.incidencias > 0 ? ` · ${u.incidencias} inc` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              <div className="text-sm text-stone-400 font-mono py-3 text-center">Toca un filtro para ver sus UT.</div>
+            )}
+
+            {(() => {
+              const y = mesCal.getFullYear(), m = mesCal.getMonth();
+              const primerDia = new Date(y, m, 1).getDay();
+              const diasEnMes = new Date(y, m + 1, 0).getDate();
+              const iso = d => new Date(y, m, d).toLocaleDateString('en-CA'); // YYYY-MM-DD local
+              const porDia = {};
+              estadosCI.forEach(u => { if (u.fechaPresentacion) { (porDia[u.fechaPresentacion] = porDia[u.fechaPresentacion] || []).push(u); } });
+              const nombreMes = mesCal.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+              const celdas = [];
+              for (let i = 0; i < primerDia; i++) celdas.push(null);
+              for (let d = 1; d <= diasEnMes; d++) celdas.push(d);
+              const listas = estadosCI.filter(u => u.estado === 'lista');
+              return (
+                <div className="mt-6 border-t border-stone-200 pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-xs font-mono uppercase tracking-wide text-stone-400">Calendario de presentaciones</div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setMesCal(new Date(y, m - 1, 1))} className="px-2 py-1 border border-stone-300 rounded text-stone-600 hover:bg-stone-50">‹</button>
+                      <span className="text-sm font-medium text-stone-700 capitalize min-w-[140px] text-center">{nombreMes}</span>
+                      <button onClick={() => setMesCal(new Date(y, m + 1, 1))} className="px-2 py-1 border border-stone-300 rounded text-stone-600 hover:bg-stone-50">›</button>
+                    </div>
+                  </div>
+
+                  <div className="mb-3 flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-stone-500">Agendar UT lista:</span>
+                    <select value={utParaAgendar || ''} onChange={e => setUtParaAgendar(e.target.value || null)}
+                      className="text-xs font-mono border border-stone-300 rounded px-2 py-1 bg-white">
+                      <option value="">— Elegir UT lista —</option>
+                      {listas.map(u => <option key={u.clave} value={u.clave}>{u.clave} — {u.nombre}</option>)}
+                    </select>
+                    {utParaAgendar && <span className="text-[11px] text-[#b02570] font-mono">Toca un día para asignar</span>}
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1 text-center">
+                    {['D','L','M','M','J','V','S'].map((d, i) => <div key={i} className="text-[10px] font-mono text-stone-400 py-1">{d}</div>)}
+                    {celdas.map((d, i) => {
+                      if (d === null) return <div key={'e'+i} />;
+                      const fecha = iso(d);
+                      const uts = porDia[fecha] || [];
+                      const clickable = !!utParaAgendar && !guardandoCal;
+                      return (
+                        <button key={d} disabled={!clickable && uts.length === 0}
+                          onClick={() => { if (clickable) asignarFecha(utParaAgendar, fecha); }}
+                          className={`min-h-[54px] p-1 border rounded text-left align-top transition-colors ${clickable ? 'border-[#d72f89]/40 hover:bg-[#d72f89]/5 cursor-pointer' : 'border-stone-200'}`}>
+                          <div className="text-[11px] font-mono text-stone-500">{d}</div>
+                          <div className="flex flex-col gap-0.5 mt-0.5">
+                            {uts.slice(0, 3).map(u => (
+                              <span key={u.clave} className={`text-[9px] font-mono px-1 rounded truncate ${u.presentada ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`} title={`${u.clave} — ${u.nombre}`}>{u.clave}</span>
+                            ))}
+                            {uts.length > 3 && <span className="text-[9px] text-stone-400">+{uts.length - 3}</span>}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-2 flex items-center gap-3 text-[10px] font-mono text-stone-400">
+                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded bg-sky-300 inline-block" /> Agendada</span>
+                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-300 inline-block" /> Presentada</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+// Pantalla temporal para mÃ³dulos que todavÃ­a no existen (ya listados en el menÃº).
 function PlaceholderView({ title }) {
   return (
     <div className="h-full flex flex-col items-center justify-center text-center px-6">
@@ -10009,7 +10284,8 @@ export default function FieldCoordApp() {
     </div>
   </div>
 )}
-          {PENDING_TITLES[activeTab] && <PlaceholderView title={PENDING_TITLES[activeTab]} />}
+          {activeTab === 'dash_dirsu' && <DirSUReporteView />}
+          {PENDING_TITLES[activeTab] && activeTab !== 'dash_dirsu' && <PlaceholderView title={PENDING_TITLES[activeTab]} />}
         </main>
       </div>
 
