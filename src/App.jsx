@@ -8588,7 +8588,7 @@ function makeMenuTree(caps) {
     {
       id: 'dashboard', label: 'Dashboard', icon: Home,
       children: [
-        { id: 'dash_todo',     label: 'Todo',                 tab: 'dashboard',         show: T('dashboard') },
+        { id: 'dash_todo',     label: 'Panel',                tab: 'dashboard',         show: T('dashboard') },
         { id: 'dash_pp26',     label: 'PP26',                 pending: 'dash_pp26',     show: T('dashboard') },
         { id: 'dash_mant2627', label: 'Mantenimiento 26-27',  pending: 'dash_mant2627', show: T('dashboard') },
         { id: 'dash_su',       label: 'SU',                   pending: 'dash_su',       show: T('dashboard') },
@@ -8616,16 +8616,15 @@ function makeMenuTree(caps) {
           id: 'mant_2627', label: 'Mantenimiento 26-27', icon: Calendar,
           children: [
             { id: 'mantenimiento', label: 'Mapa Mantenimiento', tab: 'mantenimiento', show: T('mantenimiento') },
+            { id: 'estados_ut',    label: 'Estados UT',         tab: 'estados_ut',    show: T('estados_ut') },
           ],
         },
-        { id: 'estados_ut', label: 'Estados UT', tab: 'estados_ut', show: T('estados_ut') },
       ],
     },
     {
       id: 'administracion', label: 'Administración', icon: ClipboardList,
       children: [
-        { id: 'incidencias',     label: 'Incidencia PP26',    tab: 'incidencias',        show: T('incidencias') },
-        { id: 'ticket_mant2627', label: 'Tiquet Mante 26-27', pending: 'ticket_mant2627',show: caps.isAdmin || caps.isDirector || caps.isCoordinador },
+        { id: 'incidencias',     label: 'Incid/Tickets',      tab: 'incidencias',        show: T('incidencias') },
         { id: 'propuestas',      label: 'Propuestas',         tab: 'propuestas',         show: T('propuestas') },
         { id: 'inventario',      label: 'Inventario',         tab: 'inventario',         show: T('inventario') },
         { id: 'informe',         label: 'Informe',            tab: 'informe',            show: T('informe') },
@@ -8634,16 +8633,7 @@ function makeMenuTree(caps) {
     {
       id: 'sistema', label: 'Sistema', icon: Server,
       children: [
-        {
-          id: 'usuario', label: 'Usuario', icon: Users,
-          children: [
-            { id: 'user_list',   label: 'Mostrar',  tab: 'usuarios', show: T('usuarios') },
-            { id: 'user_add',    label: 'Añadir',   tab: 'usuarios', show: T('usuarios') },
-            { id: 'user_remove', label: 'Quitar',   tab: 'usuarios', show: T('usuarios') },
-            { id: 'user_edit',   label: 'Editar',   tab: 'usuarios', show: T('usuarios') },
-            { id: 'user_perms',  label: 'Permisos', tab: 'usuarios', show: T('usuarios') },
-          ],
-        },
+                { id: 'usuarios', label: 'Usuarios', icon: Users, tab: 'usuarios', show: T('usuarios') },
         { id: 'auditoria', label: 'Auditoría', icon: ListChecks, tab: 'auditoria', show: T('auditoria') },
       ],
     },
@@ -9111,8 +9101,8 @@ export default function FieldCoordApp() {
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState(null);
-
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [incidTab, setIncidTab] = useState('incidencias'); // 'incidencias' | 'tickets'
   const [selectedPost, setSelectedPost] = useState(null);
   const [measureMode, setMeasureMode] = useState(false);
   const [measurePoints, setMeasurePoints] = useState([]);
@@ -10198,7 +10188,29 @@ export default function FieldCoordApp() {
               onOpenPostDetail={openPostDetail}
             />
           )}
-          {activeTab === 'incidencias' && <IncidentsView incidents={isRAAL ? incidentsRAAL : incidents} isRAAL={isRAAL} posts={posts} onResolve={readOnly ? null : resolveIncident} onSelectPost={setSelectedPost} isAdmin={isAdmin} isDirector={isDirector} profile={profile} onDelete={isAdmin ? deleteIncident : null} onAttend={attendIncident} canAttend={canAttendIncidents(effectiveProfile)} canResolve={canResolveIncidents(effectiveProfile)} onRevert={revertIncident} onJumpToMap={(p) => { setMapFocusPost(p); setMapFocusKey(k => k + 1); setActiveTab('mapa'); }} updateIncidentSeverity={handleUpdateSeverity} externalNav={incidenciasNav} onAddPhotos={handleAddIncidentPhotos} />}
+          {activeTab === 'incidencias' && (
+            <div className="h-full flex flex-col min-h-0">
+              <div className="flex items-center gap-2 px-6 pt-4">
+                <button type="button" onClick={() => setIncidTab('incidencias')}
+                  className={incidTab === 'incidencias'
+                    ? 'px-3 py-1.5 text-xs font-mono border bg-rose-50 border-rose-400 text-rose-700'
+                    : 'px-3 py-1.5 text-xs font-mono border bg-stone-50 border-stone-300 text-stone-600 hover:border-stone-400'}>
+                  Incidencias
+                </button>
+                <button type="button" onClick={() => setIncidTab('tickets')}
+                  className={incidTab === 'tickets'
+                    ? 'px-3 py-1.5 text-xs font-mono border bg-rose-50 border-rose-400 text-rose-700'
+                    : 'px-3 py-1.5 text-xs font-mono border bg-stone-50 border-stone-300 text-stone-600 hover:border-stone-400'}>
+                  Tickets
+                </button>
+              </div>
+              <div className="flex-1 min-h-0 overflow-auto">
+                {incidTab === 'tickets'
+                  ? <PlaceholderView title="Tickets - Mantenimiento 26-27" />
+                  : <IncidentsView incidents={isRAAL ? incidentsRAAL : incidents} isRAAL={isRAAL} posts={posts} onResolve={readOnly ? null : resolveIncident} onSelectPost={setSelectedPost} isAdmin={isAdmin} isDirector={isDirector} profile={profile} onDelete={isAdmin ? deleteIncident : null} onAttend={attendIncident} canAttend={canAttendIncidents(effectiveProfile)} canResolve={canResolveIncidents(effectiveProfile)} onRevert={revertIncident} onJumpToMap={(p) => { setMapFocusPost(p); setMapFocusKey(k => k + 1); setActiveTab('mapa'); }} updateIncidentSeverity={handleUpdateSeverity} externalNav={incidenciasNav} onAddPhotos={handleAddIncidentPhotos} />}
+              </div>
+            </div>
+          )}
           {activeTab === 'propuestas' && (isAdmin || isCoordinador) && (
             <ProposalsView
               proposals={proposals}
