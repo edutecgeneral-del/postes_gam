@@ -22,7 +22,11 @@ const AZUL = [37, 99, 235];
 const AMBAR = [224, 158, 20];
 const COLOR_ESTADO = { liberado: [22, 143, 96], pendiente: [224, 158, 20], urgencia: [198, 40, 48] };
 
-const TILE_URL = 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
+// Subdominios a/b/c/d (forma documentada por CARTO) + marca ?src=pdf para que estas
+// peticiones NO choquen con las copias opacas que el service worker guarda del mapa
+// de la app (OpenLayers). El PDF necesita respuestas con permisos para exportar el canvas.
+const TILE_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?src=pdf';
+const TILE_SUBS = ['a', 'b', 'c', 'd'];
 
 const T = {
   informe: 'INFORME EJECUTIVO',
@@ -207,7 +211,8 @@ async function componerMapa(geom, postes, wPx, hPx, colorUT) {
       if (tx < 0 || ty < 0 || tx >= nTiles || ty >= nTiles) continue;
       const px = (tx * tileWorld - wxMin) * SCALE;
       const py = (ty * tileWorld - wyMin) * SCALE;
-      const url = TILE_URL.replace('{z}', z).replace('{x}', tx).replace('{y}', ty);
+      const url = TILE_URL.replace('{s}', TILE_SUBS[Math.abs(tx + ty) % 4])
+        .replace('{z}', z).replace('{x}', tx).replace('{y}', ty);
       tareas.push(cargarTile(url).then(function (img) {
         if (!img) return;
         try { ctx.drawImage(img, px, py, tilePx + 0.6, tilePx + 0.6); } catch (e) {}
