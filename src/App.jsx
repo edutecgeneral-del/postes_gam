@@ -8589,10 +8589,11 @@ function makeMenuTree(caps) {
       id: 'dashboard', label: 'Dashboard', icon: Home,
       children: [
         { id: 'dash_todo',     label: 'Panel',                tab: 'dashboard',         show: T('dashboard') },
-        { id: 'dash_pp26',     label: 'PP26',                 pending: 'dash_pp26',     show: T('dashboard') },
-        { id: 'dash_mant2627', label: 'Mantenimiento 26-27',  pending: 'dash_mant2627', show: T('dashboard') },
-        { id: 'dash_su',       label: 'SU',                   pending: 'dash_su',       show: T('dashboard') },
-        { id: 'dash_dirsu',    label: 'DirSU',                pending: 'dash_dirsu',    show: T('dashboard') },
+        { id: 'mipanel',       label: 'Mi Panel',             tab: 'mipanel',           show: T('mipanel') },
+        { id: 'dash_pp26',     label: 'PP26',                 pending: 'dash_pp26',     show: T('dashboard') && caps.isAdmin },
+        { id: 'dash_mant2627', label: 'Mantenimiento 26-27',  pending: 'dash_mant2627', show: T('dashboard') && caps.isAdmin },
+        { id: 'dash_su',       label: 'SU',                   pending: 'dash_su',       show: T('dashboard') && caps.isAdmin },
+        { id: 'dash_dirsu',    label: 'DirSU',                pending: 'dash_dirsu',    show: T('dashboard') && caps.isAdmin },
       ],
     },
     {
