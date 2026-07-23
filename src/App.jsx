@@ -8759,14 +8759,14 @@ function DirSUReporteView() {
   }), { contratados: 0, instalados: 0, camaras: 0, conectadosCI: 0 });
 
   const exportarCSV = () => {
-    const headers = ['Contrato', 'Clave UT', 'Nombre UT', 'Contratados', 'Instalados', 'Camaras', 'Conectados a CI'];
+    const headers = ['Contrato', 'Clave UT', 'Nombre UT', 'Contratados', 'Instalados', 'Camaras', 'Faltantes', 'Conectados a CI'];
     const esc = (v) => {
       const s = String(v ?? '');
       return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
     };
     const lines = [headers.join(',')];
-    rows.forEach(r => lines.push([r.contrato, r.clave, r.nombre, r.contratados, r.instalados, r.camaras, r.conectadosCI].map(esc).join(',')));
-    lines.push(['TOTAL', contrato, `${rows.length} UT`, tot.contratados, tot.instalados, tot.camaras, tot.conectadosCI].map(esc).join(','));
+    rows.forEach(r => lines.push([r.contrato, r.clave, r.nombre, r.contratados, r.instalados, r.camaras, ((r.instalados || 0) - (r.contratados || 0)), r.conectadosCI].map(esc).join(',')));
+    lines.push(['TOTAL', contrato, `${rows.length} UT`, tot.contratados, tot.instalados, tot.camaras, (tot.instalados - tot.contratados), tot.conectadosCI].map(esc).join(','));
     const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -8815,6 +8815,7 @@ function DirSUReporteView() {
                 <th className="text-right px-3 py-2 text-white font-medium">Contratados</th>
                 <th className="text-right px-3 py-2 text-white font-medium">Instalados</th>
                 <th className="text-right px-3 py-2 text-white font-medium">Cámaras</th>
+                <th className="text-right px-3 py-2 text-white font-medium">Faltantes</th>
                 <th className="text-right px-3 py-2 text-white font-medium">Conect. CI</th>
               </tr>
             </thead>
@@ -8826,6 +8827,11 @@ function DirSUReporteView() {
                   <td className="px-3 py-2 text-right">{r.contratados}</td>
                   <td className="px-3 py-2 text-right">{r.instalados}</td>
                   <td className="px-3 py-2 text-right">{r.camaras}</td>
+                  {(() => {
+                    const f = (r.instalados || 0) - (r.contratados || 0);
+                    const cls = f <= -2 ? 'text-red-600' : f === -1 ? 'text-amber-600' : 'text-emerald-600';
+                    return <td className={`px-3 py-2 text-right font-semibold ${cls}`}>{f >= 0 ? `+${f}` : f}</td>;
+                  })()}
                   <td className="px-3 py-2 text-right">{r.conectadosCI}</td>
                 </tr>
               ))}
@@ -8834,6 +8840,11 @@ function DirSUReporteView() {
                 <td className="px-3 py-2 text-right">{tot.contratados}</td>
                 <td className="px-3 py-2 text-right">{tot.instalados}</td>
                 <td className="px-3 py-2 text-right">{tot.camaras}</td>
+                {(() => {
+                  const f = tot.instalados - tot.contratados;
+                  const cls = f <= -2 ? 'text-red-600' : f === -1 ? 'text-amber-600' : 'text-emerald-600';
+                  return <td className={`px-3 py-2 text-right ${cls}`}>{f >= 0 ? `+${f}` : f}</td>;
+                })()}
                 <td className="px-3 py-2 text-right">{tot.conectadosCI}</td>
               </tr>
             </tbody>
