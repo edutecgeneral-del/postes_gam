@@ -8936,11 +8936,11 @@ function DirSUReporteView() {
                       return (
                         <button key={d} disabled={!clickable && uts.length === 0}
                           onClick={() => { if (clickable) asignarFecha(utParaAgendar, fecha); }}
-                          className={`min-h-[54px] p-1 border rounded text-left align-top transition-colors ${clickable ? 'border-[#d72f89]/40 hover:bg-[#d72f89]/5 cursor-pointer' : 'border-stone-200'}`}>
+                          className={`min-h-[70px] p-1 border rounded text-left align-top transition-colors ${clickable ? 'border-[#d72f89]/40 hover:bg-[#d72f89]/5 cursor-pointer' : 'border-stone-200'}`}>
                           <div className="text-[11px] font-mono text-stone-500">{d}</div>
                           <div className="flex flex-col gap-0.5 mt-0.5">
                             {uts.slice(0, 3).map(u => (
-                              <span key={u.clave} className={`text-[9px] font-mono px-1 rounded truncate ${u.presentada ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`} title={`${u.clave} — ${u.nombre}`}>{u.clave}</span>
+                              <span key={u.clave} className={`text-[9px] font-mono px-1 rounded truncate leading-tight ${u.presentada ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`} title={`${u.clave} — ${u.nombre}`}>{u.clave}{u.nombre ? ` ${u.nombre}` : ''}</span>
                             ))}
                             {uts.length > 3 && <span className="text-[9px] text-stone-400">+{uts.length - 3}</span>}
                           </div>
