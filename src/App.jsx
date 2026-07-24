@@ -10577,8 +10577,8 @@ export default function FieldCoordApp() {
           {[['m1', 'M1', mantConteos.m1, MANT_COLORS.m1],
             ['m2', 'M2', mantConteos.m2, MANT_COLORS.m2],
             ['m3', 'M3', mantConteos.m3, MANT_COLORS.m3],
-            ['soloM', 'Puras M', mantConteos.conM, '#4F46E5'],
-            ['indefinido', 'Puras indefinidas', mantConteos.indefinidos, MANT_COLORS.sin]].map(([k, lbl, n, col]) => {
+            ['soloM', 'Mantenimientos', mantConteos.conM, '#4F46E5'],
+            ['indefinido', 'Sin mantenimiento', mantConteos.indefinidos, MANT_COLORS.sin]].map(([k, lbl, n, col]) => {
             const on = mantTipos.has(k);
             return (
               <button key={k} type="button" onClick={() => toggleMantTipo(k)}
