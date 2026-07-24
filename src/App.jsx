@@ -8747,9 +8747,11 @@ function DirSUReporteView() {
     presentada: estadosCI.filter(u => u.estado === 'presentada').length,
     lista: estadosCI.filter(u => u.estado === 'lista').length,
     a1dia: estadosCI.filter(u => u.estado === 'a1dia').length,
-    caos: estadosCI.filter(u => u.estado === 'caos').length,
+    caos: estadosCI.filter(u => (u.incidencias || 0) > 0).length,
   };
-  const ciListaFiltrada = filtroCI ? estadosCI.filter(u => u.estado === filtroCI) : [];
+  const ciListaFiltrada = !filtroCI ? []
+    : filtroCI === 'caos' ? estadosCI.filter(u => (u.incidencias || 0) > 0)
+    : estadosCI.filter(u => u.estado === filtroCI);
 
   const tot = rows.reduce((a, r) => ({
     contratados: a.contratados + (r.contratados || 0),
@@ -8902,7 +8904,7 @@ function DirSUReporteView() {
               const celdas = [];
               for (let i = 0; i < primerDia; i++) celdas.push(null);
               for (let d = 1; d <= diasEnMes; d++) celdas.push(d);
-              const listas = estadosCI.filter(u => u.estado === 'lista');
+              const agendables = estadosCI;
               return (
                 <div className="mt-6 border-t border-stone-200 pt-4">
                   <div className="flex items-center justify-between mb-3">
@@ -8915,11 +8917,11 @@ function DirSUReporteView() {
                   </div>
 
                   <div className="mb-3 flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-stone-500">Agendar UT lista:</span>
+                    <span className="text-xs text-stone-500">Agendar UT:</span>
                     <select value={utParaAgendar || ''} onChange={e => setUtParaAgendar(e.target.value || null)}
                       className="text-xs font-mono border border-stone-300 rounded px-2 py-1 bg-white">
-                      <option value="">— Elegir UT lista —</option>
-                      {listas.map(u => <option key={u.clave} value={u.clave}>{u.clave} — {u.nombre}</option>)}
+                      <option value="">— Elegir UT —</option>
+                      {agendables.map(u => <option key={u.clave} value={u.clave}>{u.clave} — {u.nombre}</option>)}
                     </select>
                     {utParaAgendar && <span className="text-[11px] text-[#b02570] font-mono">Toca un día para asignar</span>}
                   </div>

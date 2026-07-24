@@ -2255,16 +2255,10 @@ export async function loadEstadosCIAuditoria(contrato) {
 
   return claves.map(c => {
     const u = utByClave[c] || {}; const a = acc[c]; const pr = presByClave[c] || {};
-    const todosLiberados = a.postes > 0 && a.liberados === a.postes;
-    const sinInc = a.incidencias === 0;
     const presentada = !!pr.presentada || (pr.fecha_presentacion && pr.fecha_presentacion <= iso(hoy));
     const a1dia = !presentada && pr.fecha_presentacion === iso(manana);
-    let estado;
-    if (a.incidencias > 0) estado = 'caos';
-    else if (presentada) estado = 'presentada';
-    else if (a1dia) estado = 'a1dia';
-    else if (todosLiberados && sinInc) estado = 'lista';
-    else estado = 'pendiente';
+    // Reglas: presentada > a 1 dia > lista. Etapas e incidencias ya no condicionan el estado.
+    const estado = presentada ? 'presentada' : (a1dia ? 'a1dia' : 'lista');
     return {
       contrato, clave: c, nombre: u.nombre || '',
       prometido: u.volumen_contratado ?? 0,
@@ -2305,4 +2299,56 @@ export async function quitarPresentacionUT(clave) {
     .eq('clave', clave);
   if (error) throw error;
   return true;
+}
+// ---- Mini-mapa DirSU: estado de cada UT (verde/rojo/gris; sin registro = azul) ----
+export async function loadEstadosMapaUT() {
+  const sb = requireSupabase();
+  const traerTodo = async (tabla, columnas, filtros) => {
+    const out = [];
+    const size = 1000;
+    for (let from = 0; ; from += size) {
+      let q = sb.from(tabla).select(columnas).range(from, from + size - 1);
+      if (filtros) q = filtros(q);
+      const { data, error } = await q;
+      if (error) throw error;
+      out.push(...(data || []));
+      if (!data || data.length < size) break;
+    }
+    return out;
+  };
+
+  const uts = await traerTodo('unidades_territoriales', 'id, nombre');
+  const posts = await traerTodo('posts', 'id, unidad_territorial', q => q.is('fusionado_en', null));
+  const stages = await traerTodo('post_stages', 'post_id, stage_id', q => q.in('stage_id', ['centro', 'camaras']).eq('done', true));
+
+  const claveByPost = {};
+  posts.forEach(p => { if (p.unidad_territorial) claveByPost[p.id] = p.unidad_territorial; });
+
+  const acc = {};
+  const bump = (clave, campo) => {
+    if (!clave) return;
+    if (!acc[clave]) acc[clave] = { postes: 0, e7: 0, camaras: 0 };
+    acc[clave][campo] += 1;
+  };
+  posts.forEach(p => bump(p.unidad_territorial, 'postes'));
+  stages.forEach(s => {
+    const c = claveByPost[s.post_id];
+    if (!c) return;
+    if (s.stage_id === 'centro') bump(c, 'e7');
+    else if (s.stage_id === 'camaras') bump(c, 'camaras');
+  });
+
+  const out = {};
+  uts.forEach(u => {
+    const a = acc[u.id];
+    if (!a || a.postes === 0) return;
+    let estado;
+    if (a.e7 === a.postes) estado = 'verde';
+    else if (a.camaras > 0) estado = 'rojo';
+    else estado = 'gris';
+    out[(u.nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim()] = {
+      clave: u.id, nombre: u.nombre || '', estado, postes: a.postes, e7: a.e7, camaras: a.camaras,
+    };
+  });
+  return out;
 }
