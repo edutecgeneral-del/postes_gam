@@ -104,6 +104,7 @@ import AuditView from './components/AuditView.jsx';
 import CreatePostForm from './components/CreatePostForm.jsx';
 import FieldCaptureView from './components/FieldCaptureView.jsx';
 import ScoutingView from './components/ScoutingView.jsx';
+import MantenimientoScoutingView, { M123 } from './components/MantenimientoScoutingView.jsx';
 import EstadoConexion from './components/EstadoConexion.jsx';
 import GeoV2View from './components/GeoV2View.jsx';
 import { PhotoField } from './components/StageFields.jsx';
@@ -862,7 +863,91 @@ function formatMeters(m) {
 // Color del punto = ULTIMA etapa marcada como hecha, aunque haya huecos.
 // currentStageOf() devuelve la etapa SIGUIENTE (pendiente), asi que el codigo
 // anterior pintaba el color de lo que FALTA, no de lo que ya se hizo.
-function colorOfPost(p) {
+// ---- Mantenimiento M1/M2/M3: postes que YA tienen mantenimiento capturado ----
+// Lee attrs.mantenimiento.m1 / .m2 / .m3 de la etapa 'camaras' (el "Mgeneral").
+// No confundir con m1_mantenimiento (el histórico viejo de silicón).
+const MANT_COLORS = { m1: '#2563EB', m2: '#0D9488', m3: '#7C3AED', silicon: '#F59E0B', incompleto: '#DC2626', prueba: '#DB2777', sinfoto: '#EA580C', sin: '#A8A29E' };
+
+// Dónde se MUESTRA cada mantenimiento nuevo en el detalle del poste.
+// Los datos siguen guardándose en 'camaras' (el Mgeneral); esto es solo la vista:
+//   M3 -> E3 (parado) · M1 -> E5 (internet) · M2 -> E6 (conexion_poste)
+const M123_VIEW_STAGE = { m3: 'parado', m1: 'internet', m2: 'conexion_poste' };
+// Claves que NO se listan en la etapa donde están guardadas:
+//   m1/m2/m3 se pintan aparte (en su etapa asignada) y m1_mantenimiento
+//   (histórico de silicón) queda oculto.
+const M123_OCULTAR = ['m1', 'm2', 'm3', 'm1_mantenimiento'];
+const M123_TITULOS = {
+  m1: 'M1 · Internet propio',
+  m2: 'M2 · Jala de otro',
+  m3: 'M3 · General',
+  m1_mantenimiento: 'M1 · Mantenimiento',
+  m2_poe_alineacion: 'M2 · PoE y alineación',
+  m3_centro: 'M3 · Centro',
+};
+
+// ¿Este poste ya tiene datos capturados de esa fase?
+function mantTieneDatos(p, key) {
+  const f = p?.stages?.camaras?.attrs?.mantenimiento?.[key];
+  return !!(f && typeof f === 'object' && f.checks && Object.keys(f.checks).length);
+}
+// Histórico viejo de silicón (clave m1_mantenimiento). Solo lectura, no se migra.
+function mantTieneSilicon(p) {
+  const f = p?.stages?.camaras?.attrs?.mantenimiento?.m1_mantenimiento;
+  return !!(f && typeof f === 'object' && f.checks && Object.keys(f.checks).length);
+}
+// ¿Tiene cualquiera (nuevas o histórico)?
+function mantTieneAlgo(p) {
+  return mantTieneDatos(p, 'm1') || mantTieneDatos(p, 'm2') || mantTieneDatos(p, 'm3') || mantTieneSilicon(p);
+}
+// Punto de PRUEBA: trae "prueba" en su id, alias o dirección.
+function esPostePrueba(p) {
+  return [p?.id, p?.alias, p?.direccion]
+    .filter(Boolean).join(' ').toLowerCase().includes('prueba');
+}
+// ¿El poste cae en este tipo de filtro?
+function mantCoincideTipo(p, k) {
+  if (k === 'silicon') return mantTieneSilicon(p);
+  if (k === 'prueba') return esPostePrueba(p);
+  if (k === 'soloM') return !mantIndefinido(p);      // cualquiera con M1/M2/M3
+  if (k === 'indefinido') return mantIndefinido(p);  // los grises con "?"
+  return mantTieneDatos(p, k);
+}
+// Pasos capturados de una fase que se quedaron SIN foto.
+function mantSinFotoFase(p, key) {
+  const f = p?.stages?.camaras?.attrs?.mantenimiento?.[key];
+  const checks = (f && typeof f === 'object' && f.checks && typeof f.checks === 'object') ? f.checks : null;
+  if (!checks) return 0;
+  return Object.values(checks).filter(c => !(Array.isArray(c?.photos) && c.photos.length > 0)).length;
+}
+// ¿A alguna de las tres fases le faltan fotos?
+function mantFaltanFotos(p) {
+  return ['m1', 'm2', 'm3'].some(k => mantSinFotoFase(p, k) > 0);
+}
+// ¿Tiene alguna fase capturada pero SIN terminar? (le faltan pasos)
+function mantIncompleto(p) {
+  const mg = p?.stages?.camaras?.attrs?.mantenimiento;
+  if (!mg || typeof mg !== 'object') return false;
+  for (const k of ['m1', 'm2', 'm3']) {
+    const f = mg[k];
+    if (f && typeof f === 'object' && f.checks && Object.keys(f.checks).length && !f.completo) return true;
+  }
+  return false;
+}
+// Color: M1 manda sobre M2, luego M3, y al final el histórico de silicón.
+function colorMantenimiento(p) {
+  if (mantTieneDatos(p, 'm1')) return MANT_COLORS.m1;
+  if (mantTieneDatos(p, 'm2')) return MANT_COLORS.m2;
+  if (mantTieneDatos(p, 'm3')) return MANT_COLORS.m3;
+  if (mantTieneSilicon(p)) return MANT_COLORS.silicon;
+  return MANT_COLORS.sin; // gris: indefinido, sin mantenimiento capturado
+}
+// Sin ningún mantenimiento nuevo capturado -> se pinta gris con "?"
+function mantIndefinido(p) {
+  return !['m1', 'm2', 'm3'].some(k => mantTieneDatos(p, k));
+}
+
+function colorOfPost(p, mantMode = false) {
+  if (mantMode) return colorMantenimiento(p);
   if (p.blocked) return '#EF4444';
 
   let ultima = null;
@@ -891,8 +976,8 @@ const REVISADO_RING_COLOR = '#FFFFFF';
 const SELECTED_COLOR = '#39FF14'; // verde fluorescente: punto seleccionado o encontrado en busqueda
 const HALO_MODE = 'C'; // PRUEBA halos: A=poligono seleccionado, B=filtro UT, C=ambos. Sin disparador => 0 halos
 const __POST_STYLE_CACHE = new Map();
-function cachedPostStyle(color, state /* 'normal' | 'sel' | 'editing' */, revisado = false) {
-  const key = (state === 'editing' ? 'editing' : `${color}|${state}`) + (revisado ? '|R' : '');
+function cachedPostStyle(color, state /* 'normal' | 'sel' | 'editing' */, revisado = false, incompleto = false) {
+  const key = (state === 'editing' ? 'editing' : `${color}|${state}`) + (revisado ? '|R' : '') + (incompleto ? '|I' : '');
   let st = __POST_STYLE_CACHE.get(key);
   if (!st) {
     const radius = state === 'editing' ? 12 : (state === 'sel' ? 10 : 5);
@@ -914,6 +999,15 @@ function cachedPostStyle(color, state /* 'normal' | 'sel' | 'editing' */, revisa
           radius: radius + 6,
           fill: new OLFill({ color: 'rgba(57, 255, 20, 0.22)' }),
           stroke: new OLStroke({ color: SELECTED_COLOR, width: 2 }),
+        }),
+      }));
+    }
+    if (incompleto) {
+      // Anillo rojo: al poste le faltan pasos de mantenimiento.
+      layers.push(new OLStyle({
+        image: new OLCircle({
+          radius: radius + 3,
+          stroke: new OLStroke({ color: '#DC2626', width: 2.5 }),
         }),
       }));
     }
@@ -999,7 +1093,7 @@ function readStoredMapView() {
 function MapView({ posts, setPosts, selectedPost, setSelectedPost, openPostDetail, filters, onCapturePost, stageDefs, darkMode, obrasGam = [], canSeeDGSU = false,
                    measureMode = false, setMeasureMode, measurePoints = [], setMeasurePoints,
                    editingPostId, onConfirmRelocate, onCancelRelocate,
-                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, canMerge = false, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado, sel0037 = null, estadosUtSel = [] }) {
+                   addingMode, onMapClickForNewPost, focusPost, focusKey, isAdmin, canMerge = false, onMergePosts, onCompareDetail, incidents = [], userNames = {}, unidadesTerritoriales = [], onRefresh, onClickAntena, onToggleRevisado, sel0037 = null, estadosUtSel = [], mantMode = false, mantPosts = null, mantProfile = null }) {
   const containerRef = useRef(null);
   const isMobile = useIsMobile();
   const mapRef = useRef(null);
@@ -1211,6 +1305,7 @@ const obrasEnUtIdsRef = useRef(new Set());
   const [showNearby, setShowNearby] = useState(false);
   const [nearbyCount, setNearbyCount] = useState(20);
   const [showScout, setShowScout] = useState(false); // panel de rutas de scouting
+  const [showMantScout, setShowMantScout] = useState(false); // panel de mantenimiento M1/M2/M3
   const [routeSel, setRouteSel] = useState([]);       // paradas de la ruta (controlado por panel + clic en mapa)
   const scoutActiveRef = useRef(false);
   useEffect(() => { scoutActiveRef.current = showScout; }, [showScout]);
@@ -1612,7 +1707,7 @@ const obrasEnUtIdsRef = useRef(new Set());
     const feats = filtered.map(p => {
       const feat = new OLFeature({ geometry: new OLPoint(olFromLonLat([p.lng, p.lat])) });
       feat.set('post', p);
-      feat.setStyle(cachedPostStyle(colorOfPost(p), 'normal', !!p.revisado));
+      feat.setStyle(cachedPostStyle(colorOfPost(p, mantMode), 'normal', !mantMode && !!p.revisado, false));
       byId.set(p.id, feat);
       return feat;
     });
@@ -1634,13 +1729,13 @@ const obrasEnUtIdsRef = useRef(new Set());
     for (const id of prevSpecialRef.current) {
       if (special.has(id)) continue;
       const f = byId.get(id); const p = f?.get('post');
-      if (f && p) f.setStyle(cachedPostStyle(colorOfPost(p), 'normal', !!p.revisado));
+      if (f && p) f.setStyle(cachedPostStyle(colorOfPost(p, mantMode), 'normal', !mantMode && !!p.revisado, false));
     }
     // Aplicar el estilo especial a los actuales
     for (const id of special) {
       const f = byId.get(id); const p = f?.get('post');
       if (!f || !p) continue;
-      f.setStyle(cachedPostStyle(colorOfPost(p), editingPostId === id ? 'editing' : 'sel', !!p.revisado));
+      f.setStyle(cachedPostStyle(colorOfPost(p, mantMode), editingPostId === id ? 'editing' : 'sel', !mantMode && !!p.revisado, false));
     }
     prevSpecialRef.current = special;
   }, [filtered, selectedPost, cardPosts, editingPostId, highlightedPostId]);
@@ -2036,6 +2131,16 @@ const obrasEnUtIdsRef = useRef(new Set());
     if (!valid.length) return;
     mapRef.current.getView().fit(olBoundingExtent(valid.map(p => olFromLonLat([p.lng, p.lat]))), { padding: [40, 40, 40, 40], duration: 400, maxZoom: 15 });
   };
+  // Zoom a un conjunto de postes (lo usa el panel de mantenimiento al elegir UT).
+  const zoomToPosts = useCallback((lista) => {
+    if (!mapRef.current || !Array.isArray(lista) || !lista.length) return;
+    const valid = lista.filter(p => p.lat && p.lng && Math.abs(p.lat) > 1 && Math.abs(p.lng) > 1);
+    if (!valid.length) return;
+    mapRef.current.getView().fit(
+      olBoundingExtent(valid.map(p => olFromLonLat([p.lng, p.lat]))),
+      { padding: [60, 60, 60, 60], duration: 500, maxZoom: 17 }
+    );
+  }, []);
   const goLastView = () => {
     const v = readStoredMapView();
     if (v && mapRef.current) mapRef.current.getView().animate({ center: olFromLonLat([v.lng, v.lat]), zoom: v.zoom, duration: 400 });
@@ -2349,7 +2454,7 @@ const obrasEnUtIdsRef = useRef(new Set());
       {/* Hover tooltip */}
       {hover && !cardPosts.length && (
         <div className="absolute bg-stone-50/95 border border-stone-300 p-3 font-mono text-xs pointer-events-none backdrop-blur-sm z-20"
-             style={{ left: Math.min(hover.x + 14, (containerRef.current?.clientWidth || 800) - 250), top: Math.max(hover.y - 80, 10), width: 230 }}>
+             style={{ left: Math.min(hover.x + 14, (containerRef.current?.clientWidth || 800) - (mantMode ? 300 : 250)), top: Math.max(hover.y - 80, 10), width: mantMode ? 280 : 230 }}>
           <div className="text-rose-500 font-bold tracking-wider">{hover.post.id}</div>
           <div className="text-stone-600 mt-1 text-[13px]">{hover.post.unidad_territorial} · {hover.post.zona_territorial}</div>
           <div className="text-stone-500 mt-0.5 text-[13px] truncate">{hover.post.direccion}</div>
@@ -2364,6 +2469,84 @@ const obrasEnUtIdsRef = useRef(new Set());
                         <span className="font-semibold">Etapas saltadas:</span>{' '}
                         {saltadas.map(s => 'E' + s.num).join(', ')}
                       </div>
+                    </div>
+                  );
+                })()}
+                {mantMode && (() => {
+                  // Desglose de M1/M2/M3: qué pasos faltan por hacer y cuáles van sin foto.
+                  const mgRaw = hover.post?.stages?.camaras?.attrs?.mantenimiento;
+                  const mg = (mgRaw && typeof mgRaw === 'object' && !Array.isArray(mgRaw)) ? mgRaw : {};
+                  const filas = ['m1', 'm2', 'm3']
+                    .filter(k => mg[k]?.checks && Object.keys(mg[k].checks).length)
+                    .map(k => {
+                      const checks = mg[k].checks;
+                      const pasos = M123[k]?.steps || [];
+                      return {
+                        k,
+                        avance: mg[k].avance || '',
+                        faltan: pasos.filter(([cid]) => !checks[cid]).map(([, lbl]) => lbl),
+                        sinFoto: Object.entries(checks)
+                          .filter(([, c]) => !(Array.isArray(c?.photos) && c.photos.length > 0))
+                          .map(([cid, c]) => c?.label || cid),
+                      };
+                    });
+                  if (!filas.length) {
+                    // Indefinido: no tiene M1/M2/M3 capturado. Se dice qué le falta.
+                    const e5 = !!hover.post?.stages?.internet?.done;
+                    const e6 = !!hover.post?.stages?.conexion_poste?.done;
+                    const aplica = ['m3', e5 ? 'm1' : (e6 ? 'm2' : null)].filter(Boolean);
+                    // Si ya tiene E5 o E6 la clasificación ya está definida, aunque
+                    // todavía no se haya capturado nada: no es "indefinido".
+                    const tipoK = e5 ? 'm1' : (e6 ? 'm2' : null);
+                    const boxCol = tipoK ? MANT_COLORS[tipoK] : MANT_COLORS.sin;
+                    return (
+                      <div className="mt-2 rounded-md border px-2 py-1.5"
+                           style={{ borderColor: boxCol + '66', background: boxCol + '18' }}>
+                        {tipoK ? (
+                          <div className="text-[12px] font-bold" style={{ color: boxCol }}>
+                            {tipoK === 'm1' ? 'M1 · E5 completada' : 'M2 · E6 completada'}
+                          </div>
+                        ) : (
+                          <div className="text-[12px] font-bold text-stone-600">Sin E5 ni E6</div>
+                        )}
+                        {aplica.map(k => (
+                          <div key={k} className="text-[11px] leading-tight text-stone-700 mt-0.5">
+                            <span className="font-semibold">Falta {k.toUpperCase()}:</span>{' '}
+                            {(M123[k]?.steps || []).map(([, lbl]) => lbl).join(', ')}
+                          </div>
+                        ))}
+                        {!e5 && !e6 && (
+                          <div className="text-[11px] leading-tight text-stone-500 mt-0.5">
+                            Falta definir si lleva M1 o M2
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="mt-2 space-y-1.5">
+                      {filas.map(f => (
+                        <div key={f.k} className="rounded-md border px-2 py-1.5"
+                             style={{ borderColor: MANT_COLORS[f.k] + '55', background: MANT_COLORS[f.k] + '12' }}>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[12px] font-bold" style={{ color: MANT_COLORS[f.k] }}>{f.k.toUpperCase()}</span>
+                            <span className="text-[11px] text-stone-500">{f.avance}</span>
+                          </div>
+                          {f.faltan.length > 0 && (
+                            <div className="text-[11px] leading-tight text-red-700 mt-0.5">
+                              <span className="font-semibold">Faltan:</span> {f.faltan.join(', ')}
+                            </div>
+                          )}
+                          {f.sinFoto.length > 0 && (
+                            <div className="text-[11px] leading-tight text-orange-700 mt-0.5">
+                              <span className="font-semibold">Sin foto:</span> {f.sinFoto.join(', ')}
+                            </div>
+                          )}
+                          {f.faltan.length === 0 && f.sinFoto.length === 0 && (
+                            <div className="text-[11px] leading-tight text-emerald-700 mt-0.5">Completo ✓</div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   );
                 })()}
@@ -2468,22 +2651,33 @@ const obrasEnUtIdsRef = useRef(new Set());
             UTSU
           </button>
         )}
-        <button onClick={() => setShowScout(v => !v)}
-                className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 ${showScout ? 'text-rose-500 bg-rose-50' : 'text-stone-600 hover:text-rose-500 hover:bg-stone-50'}`}
-                title="Rutas de scouting">
-          <Compass className="w-4 h-4" strokeWidth={1.5} />
-        </button>
+        {!mantMode && (
+          <button onClick={() => setShowScout(v => !v)}
+                  className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 ${showScout ? 'text-rose-500 bg-rose-50' : 'text-stone-600 hover:text-rose-500 hover:bg-stone-50'}`}
+                  title="Rutas de scouting">
+            <Compass className="w-4 h-4" strokeWidth={1.5} />
+          </button>
+        )}
+        {mantMode && (
+          <button onClick={() => setShowMantScout(v => !v)}
+                  className={`w-11 h-11 flex items-center justify-center border-t border-stone-300 ${showMantScout ? 'text-indigo-600 bg-indigo-50' : 'text-stone-600 hover:text-indigo-600 hover:bg-stone-50'}`}
+                  title="Mantenimiento M1/M2/M3">
+            <Wrench className="w-4 h-4" strokeWidth={1.5} />
+          </button>
+        )}
         <button onClick={switchTileProvider}
                 className="w-11 h-11 flex items-center justify-center text-stone-600 hover:text-rose-500 hover:bg-stone-50 border-t border-stone-300"
                 title={`Mapa base: ${tileProviderLabel}. Cambiar proveedor`}>
           <Layers className="w-4 h-4" strokeWidth={1.5} />
         </button>
-        <button onClick={() => {
-          if (userLoc) { centerOnMe(); return; }
-          startGPS();
-        }} className={`w-11 h-11 flex items-center justify-center hover:bg-stone-50 border-t border-stone-300 ${userLoc ? 'text-blue-500' : 'text-stone-400'}`} title="Mi ubicación">
-          <Navigation className="w-4 h-4" strokeWidth={1.5} />
-        </button>
+        {!mantMode && (
+          <button onClick={() => {
+            if (userLoc) { centerOnMe(); return; }
+            startGPS();
+          }} className={`w-11 h-11 flex items-center justify-center hover:bg-stone-50 border-t border-stone-300 ${userLoc ? 'text-blue-500' : 'text-stone-400'}`} title="Mi ubicación">
+            <Navigation className="w-4 h-4" strokeWidth={1.5} />
+          </button>
+        )}
       </div>
       {capaDGSU && showDgsuPanel && (
         <div className="absolute top-4 left-4 z-20 bg-white rounded-lg shadow-xl border border-stone-200 w-72 max-w-[85vw] max-h-[80vh] flex flex-col">
@@ -3093,8 +3287,8 @@ const obrasEnUtIdsRef = useRef(new Set());
         </div>
       </details>
 
-      {/* Panel de rutas de scouting */}
-      {showScout && (
+      {/* Panel de rutas de scouting (no aplica en el mapa de mantenimiento) */}
+      {showScout && !mantMode && (
         <ScoutingRoutePanel
           map={mapRef.current}
           poles={scoutPoles}
@@ -3105,6 +3299,21 @@ const obrasEnUtIdsRef = useRef(new Set());
           userNames={userNames}
           onClose={() => setShowScout(false)}
         />
+      )}
+
+      {/* Panel de mantenimiento M1/M2/M3 (solo en el mapa de mantenimiento) */}
+      {mantMode && showMantScout && (
+        <div className="absolute inset-y-0 right-0 z-20 w-full sm:w-[420px] bg-stone-50 border-l border-stone-300 shadow-2xl flex flex-col">
+          <div className="px-3 py-2 border-b border-stone-300 flex items-center justify-between flex-shrink-0">
+            <span className="text-[11px] font-mono uppercase tracking-widest text-indigo-600">Mantenimiento M1/M2/M3</span>
+            <button onClick={() => setShowMantScout(false)} className="text-stone-500 hover:text-stone-900">
+              <X className="w-4 h-4" strokeWidth={1.5} />
+            </button>
+          </div>
+          <div className="flex-1 min-h-0">
+            <MantenimientoScoutingView posts={mantPosts || posts} profile={mantProfile} onZoomPosts={zoomToPosts} />
+          </div>
+        </div>
       )}
     </div>
   );
@@ -5656,17 +5865,59 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                               {d.notes && (
                                 <div className="mt-1 text-[13px] text-stone-500 italic">"{d.notes}"</div>
                               )}
-                              {d.attrs?.mantenimiento && typeof d.attrs.mantenimiento === 'object' && (
+                              {(() => {
+                                // Fases del sistema viejo de rutas que viven en ESTA etapa
+                                // (se excluye el histórico de silicón y las nuevas m1/m2/m3).
+                                const own = (d.attrs?.mantenimiento && typeof d.attrs.mantenimiento === 'object') ? d.attrs.mantenimiento : {};
+                                // Mantenimientos nuevos: guardados en 'camaras', mostrados en su etapa.
+                                const mgRaw = post.stages?.camaras?.attrs?.mantenimiento;
+                                const mg = (mgRaw && typeof mgRaw === 'object' && !Array.isArray(mgRaw)) ? mgRaw : {};
+                                const fasesAqui = [
+                                  ...Object.entries(own).filter(([k]) => !M123_OCULTAR.includes(k)),
+                                  ...Object.entries(mg).filter(([k]) => M123_VIEW_STAGE[k] === s.id),
+                                ];
+                                if (fasesAqui.length === 0) return null;
+                                return (
                                 <div className="mt-2 space-y-2">
-                                  {Object.entries(d.attrs.mantenimiento).map(([faseKey, fase]) => {
+                                  {fasesAqui.map(([faseKey, fase]) => {
                                     if (!fase || typeof fase !== 'object') return null;
-                                    const faseTitle = { m1_mantenimiento: 'M1 · Mantenimiento', m2_poe_alineacion: 'M2 · PoE y alineación', m3_centro: 'M3 · Centro' }[faseKey] || faseKey;
+                                    const faseTitle = M123_TITULOS[faseKey] || faseKey;
                                     const mChecks = (fase.checks && typeof fase.checks === 'object') ? fase.checks : {};
+                                    // Pasos del catálogo que aún no se capturan y los que van sin foto,
+                                    // para el tooltip al pasar el mouse por encima.
+                                    const pasosCat = M123[faseKey]?.steps || [];
+                                    const sinCapturar = pasosCat.filter(([cid]) => !mChecks[cid]).map(([, lbl]) => lbl);
+                                    const sinFotoLista = Object.entries(mChecks)
+                                      .filter(([, c]) => !(Array.isArray(c?.photos) && c.photos.length > 0))
+                                      .map(([cid, c]) => c?.label || cid);
+                                    const faseTip = [
+                                      faseTitle + (fase.avance ? ' — ' + fase.avance : ''),
+                                      sinCapturar.length
+                                        ? 'Faltan por hacer (' + sinCapturar.length + '): ' + sinCapturar.join(', ')
+                                        : (pasosCat.length ? 'Todos los pasos hechos' : ''),
+                                      sinFotoLista.length
+                                        ? 'Sin foto (' + sinFotoLista.length + '): ' + sinFotoLista.join(', ')
+                                        : 'Todos con foto',
+                                    ].filter(Boolean).join('\n');
                                     return (
-                                      <div key={faseKey} className="border border-sky-300 bg-sky-50/50 rounded p-2" onClick={e => e.stopPropagation()}>
+                                      <div key={faseKey} title={faseTip} className="border border-sky-300 bg-sky-50/50 rounded p-2 cursor-help" onClick={e => e.stopPropagation()}>
                                         <div className="flex items-center justify-between">
                                           <span className="text-[12px] font-mono uppercase tracking-wider text-sky-700">🔧 {faseTitle}</span>
-                                          <span className="text-[11px] font-mono text-sky-600">{fase.avance || ''}{fase.completo ? ' ✓' : ''}</span>
+                                          <span className="flex items-center gap-1.5">
+                                            {sinCapturar.length > 0 && (
+                                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-100 text-red-700"
+                                                    title={'Faltan por hacer: ' + sinCapturar.join(', ')}>
+                                                ⚠ faltan {sinCapturar.length}
+                                              </span>
+                                            )}
+                                            {sinFotoLista.length > 0 && (
+                                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-orange-100 text-orange-700"
+                                                    title={'Sin foto: ' + sinFotoLista.join(', ')}>
+                                                📷 {sinFotoLista.length} sin foto
+                                              </span>
+                                            )}
+                                            <span className="text-[11px] font-mono text-sky-600">{fase.avance || ''}{fase.completo ? ' ✓' : ''}</span>
+                                          </span>
                                         </div>
                                         <div className="mt-1 space-y-1">
                                           {Object.entries(mChecks).map(([cid, c]) => (
@@ -5674,12 +5925,14 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                                               <span className={c?.result === 'problema' ? 'text-red-500' : 'text-emerald-600'}>{c?.result === 'problema' ? '⚠' : '✓'}</span>
                                               <span className="text-stone-600 flex-shrink-0">{c?.label || cid}:</span>
                                               <span className="text-stone-700 flex-1">{c?.notas || '—'}</span>
-                                              {Array.isArray(c?.photos) && c.photos.length > 0 && (
+                                              {Array.isArray(c?.photos) && c.photos.length > 0 ? (
                                                 <span className="flex items-center gap-1 flex-shrink-0">
                                                   {c.photos.slice(0, 3).map((url, i) => (
                                                     <ZoomablePhoto key={url} src={url} alt={`f${i + 1}`} thumbClass="w-5 h-5" borderClass="border-sky-300 hover:border-sky-500" />
                                                   ))}
                                                 </span>
+                                              ) : (
+                                                <span className="text-[10px] font-mono text-orange-600 flex-shrink-0">sin foto</span>
                                               )}
                                             </div>
                                           ))}
@@ -5689,7 +5942,8 @@ function PostDetailDrawer({ post, onClose, onUpdate, onUpdateMeta, incidents, on
                                     );
                                   })}
                                 </div>
-                              )}
+                                );
+                              })()}
                             </>
                           ) : (
                             <div className="text-[12px] font-mono text-stone-500 mt-0.5">Sin iniciar</div>
@@ -8961,7 +9215,7 @@ function DirSUReporteView() {
     </div>
   );
 }
-// Pantalla temporal para mÃ³dulos que todavÃ­a no existen (ya listados en el menÃº).
+// Pantalla temporal para módulos que todavía no existen (ya listados en el menú).
 function PlaceholderView({ title }) {
   return (
     <div className="h-full flex flex-col items-center justify-center text-center px-6">
@@ -9216,6 +9470,44 @@ export default function FieldCoordApp() {
   }, [posts]);
 
   // Mapa de Mantenimiento: SOLO los postes con M1 que tienen foto de Acrilico.
+  // Mapa de Mantenimiento: filtro por clasificación M1/M2/M3
+  // Filtros del mapa: se pueden activar VARIOS a la vez (union).
+  // Conjunto vacío = todos los que tienen mantenimiento.
+  const [mantTipos, setMantTipos] = useState(() => new Set());
+  const toggleMantTipo = (k) => setMantTipos(prev => {
+    const n = new Set(prev);
+    if (n.has(k)) n.delete(k); else n.add(k);
+    return n;
+  });
+  const mantConteos = useMemo(() => {
+    let m1 = 0, m2 = 0, m3 = 0, silicon = 0, incompletos = 0, prueba = 0, sinFoto = 0, conDatos = 0, conM = 0, indefinidos = 0;
+    for (const p of posts) {
+      if (mantTieneDatos(p, 'm1')) m1++;
+      if (mantTieneDatos(p, 'm2')) m2++;
+      if (mantTieneDatos(p, 'm3')) m3++;
+      if (mantTieneSilicon(p)) silicon++;
+      if (mantIncompleto(p)) incompletos++;
+      if (esPostePrueba(p)) prueba++;
+      if (mantFaltanFotos(p)) sinFoto++;
+      if (mantTieneAlgo(p)) conDatos++;
+      if (mantIndefinido(p)) indefinidos++; else conM++;
+    }
+    return { conDatos, m1, m2, m3, silicon, incompletos, prueba, sinFoto, conM, indefinidos, total: posts.length };
+  }, [posts]);
+  // El mapa muestra SOLO los postes que ya tienen mantenimiento capturado.
+  const mantMapPosts = useMemo(
+    () => posts.filter(p => {
+      // Sin tipos marcados: TODOS los postes (los que no tienen mantenimiento
+      // salen en gris con "?"). Con tipos marcados: union (basta con cumplir uno).
+      const base = mantTipos.size === 0
+        ? true
+        : [...mantTipos].some(k => mantCoincideTipo(p, k));
+      if (!base) return false;
+      return true;
+    }),
+    [posts, mantTipos]
+  );
+
   const maintenancePosts = useMemo(
     () => posts
       .filter(p => p.stages?.camaras?.attrs?.mantenimiento?.m1_mantenimiento)
@@ -10265,14 +10557,51 @@ export default function FieldCoordApp() {
       <div>
         <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-rose-400/80">Vista geoespacial</div>
         <h1 className="text-xl font-light text-stone-950">Mapa de Mantenimiento</h1>
-        <span className="text-xs text-stone-500 font-mono">
-          {maintenancePosts.length} postes con foto de acrílico
-        </span>
+      </div>
+      <div className="ml-auto flex items-center gap-2 flex-wrap">
+        <details className="relative">
+          <summary className="cursor-pointer select-none list-none inline-flex items-center gap-2 px-3 py-1.5 text-xs font-mono border border-stone-300 rounded bg-white text-stone-600 hover:border-rose-400 hover:text-rose-500 transition-colors">
+            <Filter className="w-3.5 h-3.5" strokeWidth={1.5} />
+            Filtros
+            <span className="text-stone-400">({mantMapPosts.length.toLocaleString()})</span>
+          </summary>
+          <div className="absolute right-0 top-full mt-1 z-30 w-64 bg-white border border-stone-300 rounded-lg shadow-xl p-2 flex flex-col gap-1">
+            <div className="px-1 pb-1 text-[10px] font-mono uppercase tracking-[0.2em] text-stone-400">Mostrar en el mapa</div>
+            <button type="button" onClick={() => setMantTipos(new Set())}
+              className={`w-full flex items-center gap-2 px-2.5 py-2 text-[11px] font-mono uppercase rounded border-2 transition-colors text-left ${mantTipos.size === 0 ? 'text-white' : 'text-stone-600 border-stone-300 hover:border-stone-400'}`}
+              style={mantTipos.size === 0 ? { background: '#78716C', borderColor: '#78716C' } : undefined}>
+              <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: mantTipos.size === 0 ? '#fff' : '#78716C' }} />
+              <span className="flex-1 truncate">Todos</span>
+              <span className={mantTipos.size === 0 ? 'text-white/80' : 'text-stone-400'}>{mantConteos.total.toLocaleString()}</span>
+            </button>
+          {[['m1', 'M1', mantConteos.m1, MANT_COLORS.m1],
+            ['m2', 'M2', mantConteos.m2, MANT_COLORS.m2],
+            ['m3', 'M3', mantConteos.m3, MANT_COLORS.m3],
+            ['soloM', 'Puras M', mantConteos.conM, '#4F46E5'],
+            ['indefinido', 'Puras indefinidas', mantConteos.indefinidos, MANT_COLORS.sin]].map(([k, lbl, n, col]) => {
+            const on = mantTipos.has(k);
+            return (
+              <button key={k} type="button" onClick={() => toggleMantTipo(k)}
+                className={`w-full flex items-center gap-2 px-2.5 py-2 text-[11px] font-mono uppercase rounded border-2 transition-colors text-left ${on ? 'text-white' : 'text-stone-600 border-stone-300 hover:border-stone-400'}`}
+                style={on ? { background: col, borderColor: col } : undefined}>
+                <span className="w-3.5 flex-shrink-0 text-center">{on ? '✓' : ''}</span>
+                <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ background: on ? '#fff' : col }} />
+                <span className="flex-1 truncate">{lbl}</span>
+                <span className={on ? 'text-white/80' : 'text-stone-400'}>{n.toLocaleString()}</span>
+              </button>
+            );
+          })}
+          </div>
+        </details>
       </div>
     </div>
     <div className="flex-1 p-4">
       <MapView
-        posts={maintenancePosts}
+        posts={mantMapPosts}
+        mantMode={true}
+        mantPosts={posts}
+        mantProfile={profile}
         setPosts={() => {}} // Solo lectura, no se actualizan
         selectedPost={selectedPost}
         setSelectedPost={setSelectedPost}
